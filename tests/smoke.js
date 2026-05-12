@@ -33,4 +33,12 @@ assert(cspHeader.value.includes("style-src 'self' https://fonts.googleapis.com")
 assert(css.includes('.hidden'), 'styles.css must include reusable hidden class');
 assert(css.includes('.preview-frame.font-10'), 'styles.css must include preview font sizing classes');
 
+assert(html.includes('data-action="downloadDoc"'), 'toolbar must include a DOC download action');
+assert(html.includes('data-action="printPDF"'), 'toolbar must include a PDF/print action');
+assert(app.includes('function downloadDoc()'), 'app.js must implement DOC downloads');
+assert(app.includes('application/msword'), 'DOC export must use a Word-compatible MIME type');
+assert(app.includes('window.print()'), 'PDF export must open the browser print/save-PDF flow');
+assert(css.includes('.preview-toolbar'), 'styles.css must include visible toolbar styling');
+assert(css.includes('@media print'), 'styles.css must include print/PDF styles');
+
 console.log('Smoke checks passed');

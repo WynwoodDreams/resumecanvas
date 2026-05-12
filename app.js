@@ -412,6 +412,8 @@ const ACTIONS = {
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
   copyPayloadAndPrompt: () => copyPayloadAndPrompt(),
+  downloadDoc: () => downloadDoc(),
+  printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
 };
 
@@ -443,7 +445,7 @@ $$(".tpl-chip").forEach(chip => {
     state.font_pt = null; // reset font choice on template switch — each template has its own default
     $$(".tpl-chip").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
-    $$(".font-chip").forEach(c => c.classList.remove("active"));
+    $$("[data-font]").forEach(c => c.classList.remove("active"));
     $("#font-chip-default").classList.add("active");
     $("#panel-certs").classList.toggle("hidden", state.template !== "demo_2");
     $("#proj-idx").textContent = state.template === "demo_2" ? "06" : "05";
@@ -454,9 +456,9 @@ $$(".tpl-chip").forEach(chip => {
 });
 
 // Font chip selector — manual override only
-$$(".font-chip").forEach(chip => {
+$$("[data-font]").forEach(chip => {
   chip.addEventListener("click", () => {
-    $$(".font-chip").forEach(c => c.classList.remove("active"));
+    $$("[data-font]").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
     const v = chip.dataset.font;
     state.font_pt = v === "default" ? null : parseInt(v, 10);
@@ -627,6 +629,79 @@ function render() {
 // ─────────────────────────────────────────────────────────
 // PAYLOAD / EXPORT
 // ─────────────────────────────────────────────────────────
+
+
+function slugFileName(name) {
+  const slug = (name || "resume")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || "resume";
+}
+
+function buildExportDocument() {
+  renderPreview();
+  const title = esc(state.name || "Resume");
+  const fontPt = state._appliedFontPt || (state.template === "demo_4" ? 12 : 11);
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  @page { size: Letter; margin: 0.5in; }
+  body { margin: 0; background: #fff; color: #000; }
+  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #1a1a17; }
+  .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${state.template === "demo_4" ? "20pt" : "16pt"}; }
+  .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8c2b3; margin-bottom: 8px; line-height: 1.35; }
+  .demo_2 .resume-contact { border-bottom: none; }
+  .resume-contact-divider { border-bottom: 0.5pt solid #c8c2b3; margin: 2px 0 8px 0; }
+  .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8c2b3; margin: 12px 0 6px 0; }
+  .demo_2 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
+  .edu-row, .entry-title-row, .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .entry-title-row { margin: 8px 0 2px 0; }
+  .title, .date, .strong, .bold, .lbl { font-weight: 700; }
+  .date { white-space: nowrap; }
+  .entry-loc { font-style: italic; margin: 0 0 4px 0; font-size: 0.95em; }
+  .bullets-list { margin: 2px 0 0 0; padding-left: 18px; }
+  .bullets-list li { margin: 2px 0; }
+  .skill-cat { margin: 4px 0; }
+  .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
+  .edu-gap { margin-top: 8px; }
+  .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
+</style>
+</head>
+<body>
+${$("#preview").outerHTML}
+</body>
+</html>`;
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.className = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadDoc() {
+  const filename = `${slugFileName(state.name)}-${state.template}.doc`;
+  downloadBlob(buildExportDocument(), filename, "application/msword;charset=utf-8");
+  toast("DOC DOWNLOADED");
+}
+
+function printPDF() {
+  renderPreview();
+  toast("PRINT DIALOG OPENING");
+  setTimeout(() => window.print(), 100);
+}
 
 function buildPayload() {
   const tpl = state.template;

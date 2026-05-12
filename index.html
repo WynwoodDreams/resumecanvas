@@ -96,12 +96,20 @@
       <div class="label">LIVE PREVIEW <span class="amber">●</span></div>
       <div class="stats" id="preview-stats">— words / — page</div>
     </div>
-    <div class="font-chips" id="font-chips">
-      <span class="label">FONT</span>
-      <button class="font-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
-      <button class="font-chip" data-font="11" id="font-chip-11">11pt</button>
-      <button class="font-chip" data-font="10" id="font-chip-10">10pt</button>
-      <span class="label font-note">manual override · floor 10pt</span>
+    <div class="preview-toolbar" aria-label="Resume preview tools">
+      <div class="toolbar-group" id="font-chips">
+        <span class="toolbar-label">FONT</span>
+        <button class="toolbar-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
+        <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
+        <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
+        <span class="toolbar-note">manual override · floor 10pt</span>
+      </div>
+      <div class="toolbar-group export-group">
+        <span class="toolbar-label">EXPORT</span>
+        <button class="toolbar-chip primary" data-action="downloadDoc">DOWNLOAD .DOC</button>
+        <button class="toolbar-chip" data-action="printPDF">SAVE PDF</button>
+        <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
+      </div>
     </div>
     <div class="overflow-banner" id="overflow-banner"></div>
     <div class="preview-wrap">
@@ -115,7 +123,7 @@
 <!-- Action bar -->
 <div class="action-bar">
   <button class="copy-btn" data-action="copyJSON">⧉ COPY JSON</button>
-  <button class="compile-btn" data-action="showCompile">▼ COMPILE → .DOCX</button>
+  <button class="compile-btn" data-action="showCompile">▼ PAYLOAD / ENGINE</button>
 </div>
 
 <!-- Toast -->
@@ -130,7 +138,7 @@
     </div>
     <div class="modal-b">
       <div class="modal-instructions">
-        The form data below is the compiled resume payload. To produce the final <span class="amber">.docx</span>, copy the payload + prompt and send it to the resume generation engine:<br><br>
+Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF exports. The payload below is for the companion resume engine when you need a generated <span class="amber">.docx</span>:<br><br>
         <code>Generate this resume using template &lt;TEMPLATE&gt;</code><br><br>
         The engine should run <code>fill_resume()</code> with this JSON and return the Word file. Selected template: <span class="amber" id="modal-tpl">demo_4</span>
       </div>

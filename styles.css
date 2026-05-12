@@ -98,12 +98,16 @@
   .preview-header .stats .ok { color: var(--sage); }
   .preview-header .stats .warn { color: var(--amber); font-weight: 700; }
   .preview-header .stats .err { color: var(--red); font-weight: 700; }
-  /* Font size selector chip strip in the preview header */
-  .font-chips { display: flex; gap: 6px; margin-bottom: 14px; align-items: center; }
-  .font-chips .label { font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-dim); margin-right: 6px; }
-  .font-chip { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-dim); padding: 6px 12px; font-family: inherit; font-size: 10.5px; letter-spacing: 0.14em; cursor: pointer; transition: all 0.12s; }
-  .font-chip:hover { border-color: var(--border-strong); color: var(--text); }
-  .font-chip.active { background: var(--surface-2); border-color: var(--amber); color: var(--amber); font-weight: 700; }
+  /* Preview toolbar */
+  .preview-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 12px; background: linear-gradient(180deg, rgba(255, 140, 26, 0.08), rgba(255, 140, 26, 0.025)); border: 1px solid var(--border-strong); box-shadow: 0 10px 30px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.03); }
+  .toolbar-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toolbar-label { font-size: 9.5px; letter-spacing: 0.24em; color: var(--text); margin-right: 2px; font-weight: 700; }
+  .toolbar-note { font-size: 9px; letter-spacing: 0.18em; color: var(--text-dim); margin-left: 4px; }
+  .toolbar-chip { background: #191916; border: 1px solid var(--border-strong); color: var(--text-dim); padding: 8px 12px; font-family: inherit; font-size: 10.5px; letter-spacing: 0.14em; cursor: pointer; transition: all 0.12s; }
+  .toolbar-chip:hover { border-color: var(--amber); color: var(--text); transform: translateY(-1px); }
+  .toolbar-chip.active, .toolbar-chip.primary { background: rgba(255, 140, 26, 0.12); border-color: var(--amber); color: var(--amber); font-weight: 700; }
+  .toolbar-chip.primary:hover { background: var(--amber); color: #120c05; }
+  .export-group { margin-left: auto; }
   .overflow-banner { display: none; padding: 10px 14px; margin-bottom: 12px; font-size: 11px; letter-spacing: 0.14em; font-weight: 500; }
   .overflow-banner.warn { display: block; background: rgba(255, 140, 26, 0.08); border: 1px solid var(--amber); color: #ffb866; }
   .overflow-banner.err { display: block; background: rgba(196, 69, 69, 0.12); border: 1px solid var(--red); color: #ff9a9a; }
@@ -177,7 +181,6 @@
   .modal-f { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 
   .hidden { display: none !important; }
-  .font-note { margin-left: 8px; color: var(--text-mute) !important; }
   .modal-done { flex: 0 0 auto; padding: 10px 24px; }
   .preview-frame .preview-link { color: #1a5599; text-decoration: underline; }
   .preview-frame .strong { font-weight: 700; }
@@ -187,3 +190,11 @@
   .preview-frame.font-11 { font-size: 11pt; }
   .preview-frame.font-12 { font-size: 12pt; }
   .clipboard-fallback { position: fixed; left: -9999px; }
+
+  @media print {
+    @page { size: Letter; margin: 0.5in; }
+    body { background: #fff !important; }
+    body * { visibility: hidden; }
+    #preview, #preview * { visibility: visible; }
+    #preview { position: absolute; left: 0; top: 0; width: 100%; min-height: auto; padding: 0; box-shadow: none; background: #fff; color: #000; }
+  }
