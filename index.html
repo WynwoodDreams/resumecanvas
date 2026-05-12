@@ -7,185 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0a;
-    --surface-0: #111110;
-    --surface-1: #161614;
-    --surface-2: #1d1d1a;
-    --border: #2a2a26;
-    --border-strong: #3a3a35;
-    --text: #e8e3d6;
-    --text-dim: #8a8880;
-    --text-mute: #555550;
-    --amber: #ff8c1a;
-    --amber-soft: #c46a14;
-    --sage: #7a9a7a;
-    --red: #c44545;
-    --paper: #f5f1e8;
-    --ink: #1a1a17;
-    --ink-soft: #4a4a44;
-    --rule: #c8c2b3;
-  }
-  * { box-sizing: border-box; }
-  html, body { background: var(--bg); color: var(--text); font-family: "JetBrains Mono", monospace; margin: 0; padding: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-  body { background-image: radial-gradient(circle at 20% 10%, rgba(255,140,26,0.04), transparent 40%), radial-gradient(circle at 80% 90%, rgba(122,154,122,0.03), transparent 40%); background-attachment: fixed; }
+<link rel="stylesheet" href="./styles.css">
 
-  /* Top bar */
-  .topbar { position: sticky; top: 0; z-index: 40; background: rgba(10,10,10,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
-  .brand { display: flex; align-items: baseline; gap: 14px; font-weight: 700; letter-spacing: 0.06em; font-size: 13px; }
-  .brand .slash { color: var(--amber); }
-  .brand .sub { color: var(--text-dim); font-weight: 400; font-size: 11px; letter-spacing: 0.18em; }
-  .meta { margin-left: auto; display: flex; align-items: center; gap: 16px; color: var(--text-dim); font-size: 10px; letter-spacing: 0.16em; }
-  .meta .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--sage); box-shadow: 0 0 8px rgba(122,154,122,0.6); display: inline-block; }
-  .meta .id { color: var(--text-mute); }
-
-  /* Main grid */
-  .shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 0; align-items: stretch; min-height: calc(100vh - 50px); }
-  @media (max-width: 1100px) { .shell { grid-template-columns: 1fr; } }
-
-  .pane { padding: 28px 32px 120px 32px; }
-  .pane.left { border-right: 1px solid var(--border); }
-  .pane.right { background: linear-gradient(180deg, #0c0c0b 0%, #0a0a09 100%); }
-
-  /* Section panels */
-  .panel { border: 1px solid var(--border); background: var(--surface-0); margin-bottom: 14px; }
-  .panel header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; background: var(--surface-1); border-bottom: 1px solid transparent; transition: border-color 0.15s; }
-  .panel.open header { border-bottom-color: var(--border); }
-  .panel header h2 { margin: 0; font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: var(--text); }
-  .panel header h2 .idx { color: var(--amber); margin-right: 10px; font-weight: 700; }
-  .panel header .caret { color: var(--text-dim); font-size: 12px; transition: transform 0.15s; }
-  .panel.open header .caret { transform: rotate(90deg); }
-  .panel .body { padding: 16px; display: none; }
-  .panel.open .body { display: block; }
-
-  /* Form controls */
-  label { display: block; font-size: 9.5px; letter-spacing: 0.2em; color: var(--text-dim); margin: 0 0 6px 0; text-transform: uppercase; font-weight: 500; }
-  input[type="text"], textarea, select { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 8px 10px; font-family: inherit; font-size: 12.5px; transition: border-color 0.12s, background 0.12s; }
-  input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--amber); background: #1f1d18; }
-  textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
-  .row { display: grid; gap: 10px; margin-bottom: 10px; }
-  .row.two { grid-template-columns: 1fr 1fr; }
-  .row.three { grid-template-columns: 1fr 1fr 1fr; }
-  .row.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
-  @media (max-width: 600px) { .row.two, .row.three, .row.four { grid-template-columns: 1fr; } }
-
-  /* List items */
-  .item { border: 1px solid var(--border); padding: 14px; margin-bottom: 10px; background: var(--surface-1); position: relative; }
-  .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .item-head .lbl { font-size: 9.5px; letter-spacing: 0.2em; color: var(--text-dim); }
-  .item-head .lbl .n { color: var(--amber); font-weight: 700; margin-right: 6px; }
-  .icon-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 4px 10px; font-family: inherit; font-size: 10px; letter-spacing: 0.16em; cursor: pointer; transition: all 0.12s; }
-  .icon-btn:hover { border-color: var(--red); color: var(--red); }
-  .bullets { display: flex; flex-direction: column; gap: 6px; }
-  .bullet-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
-  .bullet-row textarea { min-height: 40px; }
-  .add-btn { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-dim); padding: 8px 14px; font-family: inherit; font-size: 10px; letter-spacing: 0.18em; cursor: pointer; width: 100%; margin-top: 4px; transition: all 0.12s; }
-  .add-btn:hover { border-color: var(--amber); color: var(--amber); border-style: solid; }
-
-  /* Template selector */
-  .tpl-select { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  .tpl-chip { border: 1px solid var(--border); background: var(--surface-0); padding: 14px 14px; cursor: pointer; transition: all 0.15s; }
-  .tpl-chip .code { font-size: 10px; letter-spacing: 0.22em; color: var(--text-dim); }
-  .tpl-chip .name { font-size: 14px; font-weight: 600; margin: 6px 0 4px 0; }
-  .tpl-chip .desc { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; }
-  .tpl-chip.active { border-color: var(--amber); background: linear-gradient(180deg, #1a1610 0%, #161410 100%); }
-  .tpl-chip.active .code { color: var(--amber); }
-
-  /* Action bar */
-  .action-bar { position: fixed; bottom: 0; left: 0; right: 50%; background: rgba(10,10,10,0.96); border-top: 1px solid var(--border); border-right: 1px solid var(--border); padding: 14px 32px; display: flex; gap: 12px; align-items: center; z-index: 50; backdrop-filter: blur(8px); }
-  @media (max-width: 1100px) { .action-bar { right: 0; } }
-  .compile-btn { flex: 1; background: var(--amber); color: var(--ink); border: none; padding: 12px 24px; font-family: inherit; font-weight: 700; font-size: 12px; letter-spacing: 0.22em; cursor: pointer; transition: all 0.15s; }
-  .compile-btn:hover { background: #ffa040; box-shadow: 0 0 24px rgba(255,140,26,0.4); }
-  .copy-btn { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); padding: 12px 18px; font-family: inherit; font-size: 11px; letter-spacing: 0.18em; cursor: pointer; transition: all 0.15s; }
-  .copy-btn:hover { border-color: var(--amber); color: var(--amber); }
-
-  /* Preview pane */
-  .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-  .preview-header .label { font-size: 11px; letter-spacing: 0.22em; color: var(--text-dim); font-weight: 600; }
-  .preview-header .label .amber { color: var(--amber); }
-  .preview-header .stats { font-size: 10px; color: var(--text-mute); letter-spacing: 0.14em; }
-  .preview-header .stats .ok { color: var(--sage); }
-  .preview-header .stats .warn { color: var(--amber); font-weight: 700; }
-  .preview-header .stats .err { color: var(--red); font-weight: 700; }
-  /* Font size selector chip strip in the preview header */
-  .font-chips { display: flex; gap: 6px; margin-bottom: 14px; align-items: center; }
-  .font-chips .label { font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-dim); margin-right: 6px; }
-  .font-chip { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-dim); padding: 6px 12px; font-family: inherit; font-size: 10.5px; letter-spacing: 0.14em; cursor: pointer; transition: all 0.12s; }
-  .font-chip:hover { border-color: var(--border-strong); color: var(--text); }
-  .font-chip.active { background: var(--surface-2); border-color: var(--amber); color: var(--amber); font-weight: 700; }
-  .overflow-banner { display: none; padding: 10px 14px; margin-bottom: 12px; font-size: 11px; letter-spacing: 0.14em; font-weight: 500; }
-  .overflow-banner.warn { display: block; background: rgba(255, 140, 26, 0.08); border: 1px solid var(--amber); color: #ffb866; }
-  .overflow-banner.err { display: block; background: rgba(196, 69, 69, 0.12); border: 1px solid var(--red); color: #ff9a9a; }
-  .overflow-banner .amber { color: var(--amber); font-weight: 700; }
-  .overflow-banner .red { color: var(--red); font-weight: 700; }
-  .preview-wrap { position: relative; }
-  .page-break-marker { position: absolute; left: 0; right: 0; pointer-events: none; border-top: 1px dashed rgba(196, 69, 69, 0.6); z-index: 2; }
-  .page-break-marker::before { content: attr(data-label); position: absolute; top: -10px; right: 0; background: var(--bg); color: var(--red); padding: 2px 8px; font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: 0.18em; font-weight: 700; }
-  /* Hidden measurement frame: matches real Letter content-area width so pages are counted accurately */
-  .measure-frame { position: absolute; left: -10000px; top: 0; visibility: hidden; pointer-events: none; padding: 0; box-shadow: none; min-height: 0 !important; }
-  .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 44px 36px 44px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px var(--border-strong); min-height: 700px; line-height: 1.45; font-size: 11.5pt; }
-
-  /* Preview resume styles — mirrors the master templates */
-  .preview-frame.demo_4 { font-size: 12pt; }
-  .preview-frame.demo_2 { font-size: 11pt; }
-  .preview-frame .resume-name { text-align: center; font-weight: 700; font-family: "Newsreader", serif; margin: 0 0 3px 0; line-height: 1.1; }
-  .preview-frame.demo_4 .resume-name { font-size: 20pt; }
-  .preview-frame.demo_2 .resume-name { font-size: 16pt; }
-  .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
-  .preview-frame.demo_2 .resume-contact { border-bottom: none; font-size: 9pt; }
-  .preview-frame.demo_2 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
-  .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
-  .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
-  .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
-  .preview-frame .edu-row, .preview-frame .entry-title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .preview-frame .entry-title-row { margin: 8px 0 2px 0; }
-  .preview-frame .entry-title-row .title { font-weight: 700; }
-  .preview-frame .entry-title-row .date { font-weight: 700; white-space: nowrap; }
-  .preview-frame.demo_2 .entry-title-row .date { font-weight: 700; }
-  .preview-frame .entry-loc { font-style: italic; margin: 0 0 4px 0; font-size: 0.95em; }
-  .preview-frame.demo_2 .entry-loc { font-style: normal; font-size: 1em; margin: 0 0 4px 0; }
-  .preview-frame .bullets-list { margin: 2px 0 0 0; padding-left: 18px; }
-  .preview-frame .bullets-list li { margin: 2px 0; }
-  .preview-frame .skill-cat { margin: 4px 0; }
-  .preview-frame .skill-cat .lbl { font-weight: 700; }
-  .preview-frame .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
-  .preview-frame .skills-2col .left { list-style: disc; }
-  .preview-frame.demo_2 .edu-degree-row { display: flex; justify-content: space-between; font-weight: 700; }
-  .preview-frame.demo_2 .edu-subline { margin: 2px 0; }
-  .preview-frame.demo_2 .edu-coursework { margin: 2px 0; }
-  .preview-frame.demo_2 .edu-subline .bold, .preview-frame.demo_2 .edu-coursework .bold { font-weight: 700; }
-  .preview-frame.demo_2 .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
-  .preview-frame.demo_2 .exp-company { margin: 0 0 2px 0; }
-
-  /* Toast */
-  .toast { position: fixed; bottom: 100px; right: 24px; background: var(--surface-2); border: 1px solid var(--amber); color: var(--text); padding: 12px 18px; font-size: 11px; letter-spacing: 0.16em; z-index: 100; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
-  .toast.show { opacity: 1; transform: translateY(0); }
-
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border-strong); border: 2px solid var(--bg); }
-  ::-webkit-scrollbar-thumb:hover { background: var(--amber-soft); }
-
-  /* Help text */
-  .help { font-size: 10px; color: var(--text-mute); margin-top: 6px; line-height: 1.5; }
-  .help code { background: var(--surface-2); padding: 1px 5px; color: var(--amber); font-size: 9.5px; }
-
-  /* Output modal */
-  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 200; padding: 24px; }
-  .modal-bg.show { display: flex; }
-  .modal { background: var(--surface-0); border: 1px solid var(--border-strong); max-width: 800px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
-  .modal-h { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .modal-h h3 { margin: 0; font-size: 12px; letter-spacing: 0.22em; font-weight: 600; }
-  .modal-h h3 .amber { color: var(--amber); }
-  .modal-b { padding: 20px; overflow-y: auto; flex: 1; }
-  .modal-b pre { background: var(--bg); border: 1px solid var(--border); padding: 14px; overflow: auto; font-size: 11px; line-height: 1.5; color: var(--text); max-height: 400px; }
-  .modal-instructions { font-size: 11.5px; color: var(--text-dim); line-height: 1.7; margin-bottom: 14px; }
-  .modal-instructions .amber { color: var(--amber); }
-  .modal-instructions code { background: var(--surface-2); color: var(--amber); padding: 2px 6px; font-size: 11px; }
-  .modal-f { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
-</style>
 </head>
 <body>
 
@@ -241,11 +64,11 @@
       <div class="body" id="body-skills"></div>
     </div>
 
-    <div class="panel" data-section="certs" id="panel-certs" style="display:none">
+    <div class="panel" data-section="certs" id="panel-certs" class="hidden">
       <header><h2><span class="idx">05</span> CERTIFICATIONS</h2><span class="caret">▶</span></header>
       <div class="body">
         <div id="certs-list"></div>
-        <button class="add-btn" onclick="addCert()">+ ADD CERTIFICATION</button>
+        <button class="add-btn" data-action="addCert">+ ADD CERTIFICATION</button>
       </div>
     </div>
 
@@ -253,7 +76,7 @@
       <header><h2><span class="idx" id="proj-idx">05</span> PROJECTS</h2><span class="caret">▶</span></header>
       <div class="body">
         <div id="projects-list"></div>
-        <button class="add-btn" onclick="addProject()">+ ADD PROJECT</button>
+        <button class="add-btn" data-action="addProject">+ ADD PROJECT</button>
       </div>
     </div>
 
@@ -261,7 +84,7 @@
       <header><h2><span class="idx" id="exp-idx">06</span> WORK EXPERIENCE</h2><span class="caret">▶</span></header>
       <div class="body">
         <div id="experience-list"></div>
-        <button class="add-btn" onclick="addExperience()">+ ADD POSITION</button>
+        <button class="add-btn" data-action="addExperience">+ ADD POSITION</button>
       </div>
     </div>
 
@@ -273,723 +96,63 @@
       <div class="label">LIVE PREVIEW <span class="amber">●</span></div>
       <div class="stats" id="preview-stats">— words / — page</div>
     </div>
-    <div class="font-chips" id="font-chips">
-      <span class="label">FONT</span>
-      <button class="font-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
-      <button class="font-chip" data-font="11" id="font-chip-11">11pt</button>
-      <button class="font-chip" data-font="10" id="font-chip-10">10pt</button>
-      <span class="label" style="margin-left:8px;color:var(--text-mute)">manual override · floor 10pt</span>
+    <div class="preview-toolbar" aria-label="Resume preview tools">
+      <div class="toolbar-group" id="font-chips">
+        <span class="toolbar-label">FONT</span>
+        <button class="toolbar-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
+        <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
+        <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
+        <span class="toolbar-note">manual override · floor 10pt</span>
+      </div>
+      <div class="toolbar-group export-group">
+        <span class="toolbar-label">EXPORT</span>
+        <button class="toolbar-chip primary" data-action="downloadDoc">DOWNLOAD .DOC</button>
+        <button class="toolbar-chip" data-action="printPDF">SAVE PDF</button>
+        <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
+      </div>
     </div>
     <div class="overflow-banner" id="overflow-banner"></div>
     <div class="preview-wrap">
       <div class="preview-frame demo_4" id="preview"></div>
       <div class="preview-frame demo_4 measure-frame" id="measure-frame"></div>
-      <div class="page-break-marker" id="page-break-1" data-label="◆ PAGE 1 ENDS HERE" style="display:none"></div>
+      <div class="page-break-marker" id="page-break-1" data-label="◆ PAGE 1 ENDS HERE" class="hidden"></div>
     </div>
   </div>
 </div>
 
 <!-- Action bar -->
 <div class="action-bar">
-  <button class="copy-btn" onclick="copyJSON()">⧉ COPY JSON</button>
-  <button class="compile-btn" onclick="showCompile()">▼ COMPILE → .DOCX</button>
+  <button class="copy-btn" data-action="copyJSON">⧉ COPY JSON</button>
+  <button class="compile-btn" data-action="showCompile">▼ PAYLOAD / ENGINE</button>
 </div>
 
 <!-- Toast -->
 <div class="toast" id="toast">COPIED</div>
 
 <!-- Modal -->
-<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+<div class="modal-bg" id="modal-bg" data-action="closeModalBackdrop">
   <div class="modal">
     <div class="modal-h">
       <h3><span class="amber">▶</span> COMPILE BRIEFING</h3>
-      <button class="icon-btn" onclick="closeModal()">CLOSE</button>
+      <button class="icon-btn" data-action="closeModal">CLOSE</button>
     </div>
     <div class="modal-b">
       <div class="modal-instructions">
-        The form data below is the compiled payload. To produce the final <span class="amber">.docx</span> from this payload, copy it and paste it into the chat with Claude with the message:<br><br>
+Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF exports. The payload below is for the companion resume engine when you need a generated <span class="amber">.docx</span>:<br><br>
         <code>Generate this resume using template &lt;TEMPLATE&gt;</code><br><br>
-        Claude will run <code>fill_resume()</code> on the payload and return the file. Selected template: <span class="amber" id="modal-tpl">demo_4</span>
+        The engine should run <code>fill_resume()</code> with this JSON and return the Word file. Selected template: <span class="amber" id="modal-tpl">demo_4</span>
       </div>
       <pre id="json-out"></pre>
     </div>
     <div class="modal-f">
-      <button class="copy-btn" onclick="copyPayloadAndPrompt()">⧉ COPY PAYLOAD + PROMPT</button>
-      <button class="compile-btn" style="flex: 0 0 auto; padding: 10px 24px;" onclick="closeModal()">DONE</button>
+      <button class="copy-btn" data-action="copyPayloadAndPrompt">⧉ COPY PAYLOAD + PROMPT</button>
+      <button class="compile-btn modal-done" data-action="closeModal">DONE</button>
     </div>
   </div>
 </div>
 
-<script>
-// ─────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────
+<script src="./app.js" defer></script>
 
-let state = {
-  template: "demo_4",
-  font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
-  // Demo 4 header
-  name: "Jane Doe",
-  location: "North Miami, FL 33161",
-  phone: "786-121-1112",
-  email: "lurlene.carry001@mymdc.net",
-  linkedin: "Linkedin.com/",
-  // Demo 2 header
-  contact_line1: "Miami, FL | (305) 555-1234",
-  contact_line2: "JohnDoe123@gmail.com | LinkedIn.com/in/johndoe",
-  // Both
-  summary: "Business Administration student at Miami Dade College with hands-on experience in administrative operations, sales, and team coordination. Seeking internship opportunities in project management, human resources, marketing, logistics, or general management.",
-  education: [
-    {
-      school: "Miami Dade College",
-      city: "Miami, FL",
-      degree: "Associate in Arts, Business | GPA: 3.5",
-      date: "Expected: May 2027",
-      // Demo 2 extras
-      subline_bold: "",
-      subline_rest: "",
-      coursework: "",
-    },
-  ],
-  // Demo 4 skills
-  skills_categories: [
-    { label: "Technical", content: "Google Sheets, Microsoft Word, Microsoft Excel, Canva, Procreate, PDF Formatting Tools, Social Media Management, Google Workspace" },
-    { label: "Administrative", content: "Data Entry, Records Management, Scheduling & Calendar Management, Document Preparation, Front Desk Operations, Event Coordination" },
-    { label: "Professional", content: "Customer Service, Team Communication, Outreach & Relationship Building, Content Research, Vendor & Client Coordination" },
-    { label: "Language", content: "English (Fluent), Haitian Creole (Intermediate)" },
-  ],
-  // Demo 2 skills
-  skills_two_column: [
-    { left: "Customer Service", right_with_bullet: "• Time Management" },
-    { left: "Microsoft Office Suite", right_with_bullet: "• Team Collaboration" },
-    { left: "Data Entry", right_with_bullet: "• Problem Solving" },
-    { left: "Social Media Management", right_with_bullet: "• Event Coordination" },
-    { left: "Bilingual: English & Haitian Creole", right_with_bullet: "• Adaptable" },
-  ],
-  certifications: [
-    "Google Digital Marketing & E-commerce Certificate (In Progress) — Coursera",
-    "Microsoft Office Specialist: Excel Associate — Certiport (2024)",
-  ],
-  // Both
-  projects: [
-    {
-      title: "Shark Cast — Co-Host & Outreach Team Lead",
-      date: "November 2025 – Present",
-      location: "Miami, FL",
-      bullets: [
-        "Co-host and produce podcast episodes covering business, marketing, and entrepreneurship topics",
-        "Lead outreach strategy by coordinating a small team, assigning weekly tasks, and managing guest communications",
-        "Research and develop engaging content to grow listener base and foster community engagement",
-        "Build partnerships with community members and organizations by scheduling appearances aligned with podcast themes",
-      ],
-    },
-  ],
-  experience: [
-    {
-      title: "North Miami Senior High School — Office Staff",
-      date: "August 2023 – July 2024",
-      location: "North Miami, FL",
-      company_city: "",
-      bullets: [
-        "Provided administrative support including filing, data entry, and document preparation for school staff",
-        "Managed front desk operations, greeting visitors and directing inquiries to appropriate personnel",
-        "Coordinated communication between students, parents, and faculty regarding school events and schedules",
-        "Assisted with organizing school events and maintaining accurate student records",
-      ],
-    },
-    {
-      title: "Star Event Planning Company — Sales Lead",
-      date: "August 2022 – April 2023",
-      location: "Miami, FL",
-      company_city: "",
-      bullets: [
-        "Led sales initiatives and client acquisition, consistently meeting and exceeding monthly targets",
-        "Managed client relationships from initial consultation through event execution, ensuring high satisfaction",
-        "Coordinated with event planning team to deliver customized solutions tailored to client needs and budgets",
-      ],
-    },
-  ],
-};
-
-// ─────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────
-
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-function esc(s) {
-  if (s == null) return "";
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function setCaseId() {
-  if (!state.name) { $("#caseId").textContent = "———"; return; }
-  const initials = state.name.split(/\s+/).filter(Boolean).map(s => s[0]).join("").toUpperCase().slice(0, 3);
-  const tpl = state.template.replace("_", "").toUpperCase();
-  $("#caseId").textContent = `${initials}-${tpl}-${new Date().getFullYear().toString().slice(2)}`;
-}
-
-function toast(msg) {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1500);
-}
-
-// ─────────────────────────────────────────────────────────
-// RENDER FORM
-// ─────────────────────────────────────────────────────────
-
-function renderHeader() {
-  const body = $("#body-header");
-  if (state.template === "demo_4") {
-    body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
-      <div class="row two">
-        <div><label>LOCATION</label><input type="text" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
-        <div><label>PHONE</label><input type="text" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
-      </div>
-      <div class="row two">
-        <div><label>EMAIL</label><input type="text" data-bind="email" value="${esc(state.email)}"></div>
-        <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}"></div>
-      </div>
-    `;
-  } else {
-    body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
-      <div class="row"><label>CONTACT LINE 1</label><input type="text" data-bind="contact_line1" value="${esc(state.contact_line1)}" placeholder="Miami, FL | (305) 555-1234"><div class="help">Free-form. Will appear as the first contact line.</div></div>
-      <div class="row"><label>CONTACT LINE 2</label><input type="text" data-bind="contact_line2" value="${esc(state.contact_line2)}" placeholder="email | LinkedIn URL | site"><div class="help">Free-form. Second contact line. Can hold email + LinkedIn + portfolio.</div></div>
-    `;
-  }
-  bind(body);
-}
-
-function renderSummary() {
-  $("#summary").value = state.summary || "";
-}
-
-function renderEducation() {
-  const body = $("#body-education");
-  const eduSchemaIsDemo2 = state.template === "demo_2";
-  body.innerHTML = state.education.map((e, i) => {
-    const extra = eduSchemaIsDemo2 ? `
-      <div class="row"><label>SUB-LINE — BOLD PORTION (optional)</label><input type="text" data-edu="${i}" data-field="subline_bold" value="${esc(e.subline_bold || "")}" placeholder="e.g. Associate of Arts, Economics"><div class="help">Appears bold at start of a second line. Use for a secondary degree at the same school.</div></div>
-      <div class="row"><label>SUB-LINE — REST (optional)</label><input type="text" data-edu="${i}" data-field="subline_rest" value="${esc(e.subline_rest || "")}" placeholder=" | Minor in Economy | Honors"><div class="help">Plain continuation. Include leading space and separator.</div></div>
-      <div class="row"><label>RELEVANT COURSEWORK (optional)</label><input type="text" data-edu="${i}" data-field="coursework" value="${esc(e.coursework || "")}" placeholder="SQL, Tableau, Power BI, ..."></div>
-    ` : "";
-    return `
-      <div class="item">
-        <div class="item-head">
-          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> ENTRY</div>
-          <button class="icon-btn" onclick="removeEdu(${i})">REMOVE</button>
-        </div>
-        <div class="row two">
-          <div><label>SCHOOL</label><input type="text" data-edu="${i}" data-field="school" value="${esc(e.school || "")}"></div>
-          <div><label>CITY</label><input type="text" data-edu="${i}" data-field="city" value="${esc(e.city || "")}"></div>
-        </div>
-        <div class="row two">
-          <div><label>DEGREE / FIELD</label><input type="text" data-edu="${i}" data-field="degree" value="${esc(e.degree || "")}"></div>
-          <div><label>DATE</label><input type="text" data-edu="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="${eduSchemaIsDemo2 ? '05/2026' : 'Expected: May 2027'}"></div>
-        </div>
-        ${extra}
-      </div>
-    `;
-  }).join("") + `<button class="add-btn" onclick="addEdu()">+ ADD EDUCATION ENTRY</button>`;
-  bindEdu(body);
-}
-
-function renderSkills() {
-  const body = $("#body-skills");
-  if (state.template === "demo_4") {
-    body.innerHTML = state.skills_categories.map((c, i) => `
-      <div class="item">
-        <div class="item-head">
-          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> CATEGORY</div>
-          <button class="icon-btn" onclick="removeSkillCat(${i})">REMOVE</button>
-        </div>
-        <div class="row"><label>LABEL</label><input type="text" data-skill-cat="${i}" data-field="label" value="${esc(c.label)}" placeholder="Technical / Administrative / Language"></div>
-        <div class="row"><label>CONTENT</label><textarea data-skill-cat="${i}" data-field="content" placeholder="Comma-separated items">${esc(c.content)}</textarea></div>
-      </div>
-    `).join("") + `<button class="add-btn" onclick="addSkillCat()">+ ADD CATEGORY</button>`;
-    bindSkillCat(body);
-  } else {
-    body.innerHTML = `
-      <div class="help" style="margin-bottom: 12px;">Two-column layout. Each row pairs a left item with a right item. The right item should start with <code>•</code> if you want a bullet (matches the master).</div>
-    ` + state.skills_two_column.map((r, i) => `
-      <div class="item">
-        <div class="item-head">
-          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> ROW</div>
-          <button class="icon-btn" onclick="removeSkillRow(${i})">REMOVE</button>
-        </div>
-        <div class="row two">
-          <div><label>LEFT</label><input type="text" data-skill-row="${i}" data-field="left" value="${esc(r.left)}" placeholder="SQL, MySQL, Power BI"></div>
-          <div><label>RIGHT (with • bullet)</label><input type="text" data-skill-row="${i}" data-field="right_with_bullet" value="${esc(r.right_with_bullet)}" placeholder="• Pipeline Management"></div>
-        </div>
-      </div>
-    `).join("") + `<button class="add-btn" onclick="addSkillRow()">+ ADD ROW</button>`;
-    bindSkillRow(body);
-  }
-}
-
-function renderCerts() {
-  const body = $("#certs-list");
-  body.innerHTML = state.certifications.map((c, i) => `
-    <div class="item">
-      <div class="item-head">
-        <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> CERTIFICATION</div>
-        <button class="icon-btn" onclick="removeCert(${i})">REMOVE</button>
-      </div>
-      <input type="text" data-cert="${i}" value="${esc(c)}" placeholder="AWS Certified Solutions Architect – Associate (2024)">
-    </div>
-  `).join("");
-  body.querySelectorAll("input[data-cert]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.certifications[+el.dataset.cert] = ev.target.value;
-      render();
-    });
-  });
-}
-
-function renderProjects() {
-  const body = $("#projects-list");
-  body.innerHTML = state.projects.map((p, i) => {
-    const dateLocFields = state.template === "demo_4" ? `
-      <div class="row two">
-        <div><label>DATE</label><input type="text" data-proj="${i}" data-field="date" value="${esc(p.date || "")}" placeholder="November 2025 – Present"></div>
-        <div><label>LOCATION</label><input type="text" data-proj="${i}" data-field="location" value="${esc(p.location || "")}" placeholder="Miami, FL"></div>
-      </div>
-    ` : "";
-    return `
-      <div class="item">
-        <div class="item-head">
-          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> PROJECT</div>
-          <button class="icon-btn" onclick="removeProject(${i})">REMOVE</button>
-        </div>
-        <div class="row"><label>TITLE</label><input type="text" data-proj="${i}" data-field="title" value="${esc(p.title || "")}"></div>
-        ${dateLocFields}
-        <div class="row"><label>BULLETS</label>
-          <div class="bullets" id="proj-bullets-${i}">
-            ${(p.bullets || []).map((b, bi) => `
-              <div class="bullet-row">
-                <textarea data-proj-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
-                <button class="icon-btn" onclick="removeProjBullet(${i}, ${bi})">×</button>
-              </div>
-            `).join("")}
-          </div>
-          <button class="add-btn" onclick="addProjBullet(${i})">+ ADD BULLET</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-  bindProjects(body);
-}
-
-function renderExperience() {
-  const body = $("#experience-list");
-  body.innerHTML = state.experience.map((e, i) => {
-    const sublineField = state.template === "demo_4"
-      ? `<div class="row"><label>LOCATION (ITALIC LINE)</label><input type="text" data-exp="${i}" data-field="location" value="${esc(e.location || "")}" placeholder="North Miami, FL"></div>`
-      : `<div class="row"><label>COMPANY · CITY (PLAIN LINE)</label><input type="text" data-exp="${i}" data-field="company_city" value="${esc(e.company_city || "")}" placeholder="Pinnacle Financial | Miami, FL"></div>`;
-    return `
-      <div class="item">
-        <div class="item-head">
-          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> POSITION</div>
-          <button class="icon-btn" onclick="removeExp(${i})">REMOVE</button>
-        </div>
-        <div class="row two">
-          <div><label>TITLE</label><input type="text" data-exp="${i}" data-field="title" value="${esc(e.title || "")}"></div>
-          <div><label>DATE</label><input type="text" data-exp="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="2023 – Present"></div>
-        </div>
-        ${sublineField}
-        <div class="row"><label>BULLETS</label>
-          <div class="bullets" id="exp-bullets-${i}">
-            ${(e.bullets || []).map((b, bi) => `
-              <div class="bullet-row">
-                <textarea data-exp-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
-                <button class="icon-btn" onclick="removeExpBullet(${i}, ${bi})">×</button>
-              </div>
-            `).join("")}
-          </div>
-          <button class="add-btn" onclick="addExpBullet(${i})">+ ADD BULLET</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-  bindExperience(body);
-}
-
-// ─────────────────────────────────────────────────────────
-// BIND HELPERS
-// ─────────────────────────────────────────────────────────
-
-function bind(container) {
-  container.querySelectorAll("[data-bind]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state[el.dataset.bind] = ev.target.value;
-      setCaseId();
-      renderPreview();
-    });
-  });
-}
-function bindEdu(container) {
-  container.querySelectorAll("[data-edu]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.education[+el.dataset.edu][el.dataset.field] = ev.target.value;
-      renderPreview();
-    });
-  });
-}
-function bindSkillCat(container) {
-  container.querySelectorAll("[data-skill-cat]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.skills_categories[+el.dataset.skillCat][el.dataset.field] = ev.target.value;
-      renderPreview();
-    });
-  });
-}
-function bindSkillRow(container) {
-  container.querySelectorAll("[data-skill-row]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.skills_two_column[+el.dataset.skillRow][el.dataset.field] = ev.target.value;
-      renderPreview();
-    });
-  });
-}
-function bindProjects(container) {
-  container.querySelectorAll("[data-proj]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.projects[+el.dataset.proj][el.dataset.field] = ev.target.value;
-      renderPreview();
-    });
-  });
-  container.querySelectorAll("[data-proj-bullet]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.projects[+el.dataset.projBullet].bullets[+el.dataset.bulletI] = ev.target.value;
-      renderPreview();
-    });
-  });
-}
-function bindExperience(container) {
-  container.querySelectorAll("[data-exp]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.experience[+el.dataset.exp][el.dataset.field] = ev.target.value;
-      renderPreview();
-    });
-  });
-  container.querySelectorAll("[data-exp-bullet]").forEach(el => {
-    el.addEventListener("input", (ev) => {
-      state.experience[+el.dataset.expBullet].bullets[+el.dataset.bulletI] = ev.target.value;
-      renderPreview();
-    });
-  });
-}
-
-// ─────────────────────────────────────────────────────────
-// LIST ACTIONS
-// ─────────────────────────────────────────────────────────
-
-function addSkillCat() { state.skills_categories.push({ label: "", content: "" }); render(); }
-function removeSkillCat(i) { state.skills_categories.splice(i, 1); render(); }
-function addSkillRow() { state.skills_two_column.push({ left: "", right_with_bullet: "" }); render(); }
-function removeSkillRow(i) { state.skills_two_column.splice(i, 1); render(); }
-function addCert() { state.certifications.push(""); render(); }
-function removeCert(i) { state.certifications.splice(i, 1); render(); }
-function addEdu() { state.education.push({ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "" }); render(); }
-function removeEdu(i) { state.education.splice(i, 1); render(); }
-function addProject() { state.projects.push({ title: "", date: "", location: "", bullets: [""] }); render(); }
-function removeProject(i) { state.projects.splice(i, 1); render(); }
-function addProjBullet(i) { state.projects[i].bullets.push(""); render(); }
-function removeProjBullet(i, bi) { state.projects[i].bullets.splice(bi, 1); render(); }
-function addExperience() { state.experience.push({ title: "", date: "", location: "", company_city: "", bullets: [""] }); render(); }
-function removeExp(i) { state.experience.splice(i, 1); render(); }
-function addExpBullet(i) { state.experience[i].bullets.push(""); render(); }
-function removeExpBullet(i, bi) { state.experience[i].bullets.splice(bi, 1); render(); }
-
-// ─────────────────────────────────────────────────────────
-// PANEL TOGGLES
-// ─────────────────────────────────────────────────────────
-
-$$(".panel header").forEach(h => {
-  h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
-});
-
-// ─────────────────────────────────────────────────────────
-// TEMPLATE SWITCH
-// ─────────────────────────────────────────────────────────
-
-$$(".tpl-chip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    if (chip.dataset.tpl === state.template) return;
-    state.template = chip.dataset.tpl;
-    state.font_pt = null; // reset font choice on template switch — each template has its own default
-    $$(".tpl-chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    $$(".font-chip").forEach(c => c.classList.remove("active"));
-    $("#font-chip-default").classList.add("active");
-    $("#panel-certs").style.display = state.template === "demo_2" ? "" : "none";
-    $("#proj-idx").textContent = state.template === "demo_2" ? "06" : "05";
-    $("#exp-idx").textContent = state.template === "demo_2" ? "07" : "06";
-    setCaseId();
-    render();
-  });
-});
-
-// Font chip selector — manual override only
-$$(".font-chip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    $$(".font-chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    const v = chip.dataset.font;
-    state.font_pt = v === "default" ? null : parseInt(v, 10);
-    renderPreview();
-  });
-});
-
-// ─────────────────────────────────────────────────────────
-// LIVE PREVIEW
-// ─────────────────────────────────────────────────────────
-
-function renderPreview() {
-  const tpl = state.template;
-  const f = $("#preview");
-  f.className = "preview-frame " + tpl;
-
-  let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-  if (tpl === "demo_4") {
-    html += `<div class="resume-contact">${esc(state.location)} | ${esc(state.phone)} | <a href="#" style="color:#1a5599;text-decoration:underline">${esc(state.email)}</a> | <a href="#" style="color:#1a5599;text-decoration:underline">${esc(state.linkedin)}</a></div>`;
-  } else {
-    html += `<div class="resume-contact">${esc(state.contact_line1)}<br>${esc(state.contact_line2)}</div>`;
-    html += `<div class="resume-contact-divider"></div>`;
-  }
-
-  // Profile Summary
-  html += `<div class="resume-section-h">PROFILE SUMMARY</div>`;
-  html += `<div>${esc(state.summary)}</div>`;
-
-  if (tpl === "demo_2") {
-    // Demo 2: skills section comes BEFORE education
-    html += `<div class="resume-section-h">HIGHLIGHTED SKILLS</div>`;
-    html += `<ul class="skills-2col">`;
-    state.skills_two_column.forEach(r => {
-      const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
-      const right = r.right_with_bullet ? `<div>${esc(r.right_with_bullet)}</div>` : `<div></div>`;
-      html += left + right;
-    });
-    html += `</ul>`;
-  }
-
-  // Education
-  html += `<div class="resume-section-h">EDUCATION</div>`;
-  state.education.forEach((e, idx) => {
-    const topGap = idx > 0 ? `style="margin-top:8px"` : "";
-    if (tpl === "demo_4") {
-      html += `<div class="edu-row" ${topGap}><div style="font-weight:700">${esc(e.school)}</div><div style="font-weight:700">${esc(e.city)}</div></div>`;
-      html += `<div class="edu-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
-    } else {
-      html += `<div class="edu-row" ${topGap}><div style="font-weight:700">${esc(e.school)}</div><div>${esc(e.city)}</div></div>`;
-      html += `<div class="edu-degree-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
-      if (e.subline_bold || e.subline_rest) {
-        html += `<div class="edu-subline"><span class="bold">${esc(e.subline_bold)}</span>${esc(e.subline_rest)}</div>`;
-      }
-      if (e.coursework) {
-        html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${esc(e.coursework)}</div>`;
-      }
-    }
-  });
-
-  if (tpl === "demo_4") {
-    // Demo 4: skills come AFTER education
-    html += `<div class="resume-section-h">SKILLS</div>`;
-    state.skills_categories.forEach(c => {
-      html += `<div class="skill-cat"><span class="lbl">${esc(c.label)}:</span> ${esc(c.content)}</div>`;
-    });
-  } else {
-    // Demo 2 certifications
-    html += `<div class="resume-section-h">CERTIFICATIONS</div>`;
-    html += `<ul class="bullets-list">`;
-    state.certifications.forEach(c => { html += `<li>${esc(c)}</li>`; });
-    html += `</ul>`;
-  }
-
-  // Projects
-  if (state.projects.length > 0) {
-    html += `<div class="resume-section-h">PROJECTS</div>`;
-    state.projects.forEach(p => {
-      if (tpl === "demo_4") {
-        html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
-        if (p.location) html += `<div class="entry-loc">${esc(p.location)}</div>`;
-      } else {
-        html += `<div class="proj-title">${esc(p.title)}</div>`;
-      }
-      if (p.bullets && p.bullets.length) {
-        html += `<ul class="bullets-list">`;
-        p.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
-        html += `</ul>`;
-      }
-    });
-  }
-
-  // Work Experience
-  if (state.experience.length > 0) {
-    html += `<div class="resume-section-h">WORK EXPERIENCE</div>`;
-    state.experience.forEach(en => {
-      html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
-      if (tpl === "demo_4") {
-        if (en.location) html += `<div class="entry-loc">${esc(en.location)}</div>`;
-      } else {
-        if (en.company_city) html += `<div class="exp-company">${esc(en.company_city)}</div>`;
-      }
-      if (en.bullets && en.bullets.length) {
-        html += `<ul class="bullets-list">`;
-        en.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
-        html += `</ul>`;
-      }
-    });
-  }
-
-  f.innerHTML = html;
-
-  // The preview renders at the user-selected (or default) font size.
-  // We do NOT auto-measure pages from preview pixels — CSS at 696px wide with
-  // web fonts doesn't match Word at 7.25" wide with system fonts, so any
-  // pixel-based page count from the preview is unreliable. The user picks
-  // the size manually; the .docx output uses that exact size.
-  const defaultFontPt = tpl === "demo_4" ? 12 : 11;
-  const fontPt = state.font_pt || defaultFontPt;
-  f.style.fontSize = fontPt + "pt";
-  state._appliedFontPt = fontPt;
-
-  // Stats: words + content density (entries + bullets) + active font
-  const text = f.innerText || "";
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const totalEntries =
-    state.education.filter(e => e.school).length +
-    state.projects.filter(p => p.title).length +
-    state.experience.filter(e => e.title).length;
-  const totalBullets =
-    state.projects.reduce((n, p) => n + (p.bullets || []).filter(Boolean).length, 0) +
-    state.experience.reduce((n, e) => n + (e.bullets || []).filter(Boolean).length, 0);
-  const isDefault = fontPt === defaultFontPt;
-  const fontClass = isDefault ? "ok" : "warn";
-  $("#preview-stats").innerHTML =
-    `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span>`;
-
-  // Hide the overflow banner — no false alarms
-  $("#overflow-banner").className = "overflow-banner";
-  $("#overflow-banner").innerHTML = "";
-
-  // Hide page break marker — preview is a visual reference, not a page-count authority
-  $("#page-break-1").style.display = "none";
-}
-
-// ─────────────────────────────────────────────────────────
-// SUMMARY BINDING (single static field)
-// ─────────────────────────────────────────────────────────
-
-$("#summary").addEventListener("input", (ev) => {
-  state.summary = ev.target.value;
-  renderPreview();
-});
-
-// ─────────────────────────────────────────────────────────
-// FULL RENDER
-// ─────────────────────────────────────────────────────────
-
-function render() {
-  renderHeader();
-  renderSummary();
-  renderEducation();
-  renderSkills();
-  if (state.template === "demo_2") renderCerts();
-  renderProjects();
-  renderExperience();
-  setCaseId();
-  renderPreview();
-}
-
-// ─────────────────────────────────────────────────────────
-// PAYLOAD / EXPORT
-// ─────────────────────────────────────────────────────────
-
-function buildPayload() {
-  const tpl = state.template;
-  const out = { name: state.name, summary: state.summary, font_pt: state._appliedFontPt || (tpl === "demo_4" ? 12 : 11) };
-  if (tpl === "demo_4") {
-    out.location = state.location;
-    out.phone = state.phone;
-    out.email = state.email;
-    out.linkedin = state.linkedin;
-    out.education = state.education
-      .filter(e => e.school || e.degree)
-      .map(e => ({ school: e.school, city: e.city, degree: e.degree, date: e.date }));
-    out.skills_categories = state.skills_categories.filter(c => c.label || c.content);
-    out.projects = state.projects.filter(p => p.title).map(p => ({
-      title: p.title, date: p.date, location: p.location,
-      bullets: (p.bullets || []).filter(Boolean),
-    }));
-    out.experience = state.experience.filter(e => e.title).map(e => ({
-      title: e.title, date: e.date, location: e.location,
-      bullets: (e.bullets || []).filter(Boolean),
-    }));
-  } else {
-    out.contact_line1 = state.contact_line1;
-    out.contact_line2 = state.contact_line2;
-    out.education = state.education
-      .filter(e => e.school || e.degree)
-      .map(e => ({
-        school: e.school, city: e.city,
-        degree: e.degree, date: e.date,
-        subline_bold: e.subline_bold || "",
-        subline_rest: e.subline_rest || "",
-        coursework: e.coursework || "",
-      }));
-    out.skills_two_column = state.skills_two_column.filter(r => r.left || r.right_with_bullet);
-    out.certifications = state.certifications.filter(Boolean);
-    out.projects = state.projects.filter(p => p.title).map(p => ({
-      title: p.title,
-      bullets: (p.bullets || []).filter(Boolean),
-    }));
-    out.experience = state.experience.filter(e => e.title).map(e => ({
-      title: e.title, date: e.date, company_city: e.company_city,
-      bullets: (e.bullets || []).filter(Boolean),
-    }));
-  }
-  return out;
-}
-
-function copyJSON() {
-  const json = JSON.stringify(buildPayload(), null, 2);
-  navigator.clipboard.writeText(json).then(() => toast("JSON COPIED"));
-}
-
-function showCompile() {
-  const payload = buildPayload();
-  $("#json-out").textContent = JSON.stringify(payload, null, 2);
-  $("#modal-tpl").textContent = state.template;
-  $("#modal-bg").classList.add("show");
-}
-
-function closeModal() {
-  $("#modal-bg").classList.remove("show");
-}
-
-function copyPayloadAndPrompt() {
-  const payload = JSON.stringify(buildPayload(), null, 2);
-  const tpl = state.template;
-  const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\``;
-  navigator.clipboard.writeText(text).then(() => {
-    toast("PAYLOAD + PROMPT COPIED");
-    setTimeout(() => closeModal(), 600);
-  });
-}
-
-// ─────────────────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────────────────
-
-render();
-</script>
 
 </body>
 </html>
