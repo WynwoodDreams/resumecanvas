@@ -72,17 +72,31 @@
       </div>
     </div>
 
-    <div class="panel" data-section="projects">
-      <header><h2><span class="idx" id="proj-idx">05</span> PROJECTS</h2><span class="caret">▶</span></header>
+    <div class="panel" data-section="projects" data-optional="true">
+      <header>
+        <h2><span class="idx">05</span> PROJECTS</h2>
+        <div class="header-controls">
+          <button class="section-toggle" data-action="toggleSection" data-section="projects" aria-pressed="true">INCLUDED</button>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
+        <div class="section-off-banner" data-section-banner="projects">Section hidden from resume — re-enable to include in export.</div>
         <div id="projects-list"></div>
         <button class="add-btn" data-action="addProject">+ ADD PROJECT</button>
       </div>
     </div>
 
-    <div class="panel" data-section="experience">
-      <header><h2><span class="idx" id="exp-idx">06</span> WORK EXPERIENCE</h2><span class="caret">▶</span></header>
+    <div class="panel" data-section="experience" data-optional="true">
+      <header>
+        <h2><span class="idx">06</span> WORK EXPERIENCE</h2>
+        <div class="header-controls">
+          <button class="section-toggle" data-action="toggleSection" data-section="experience" aria-pressed="true">INCLUDED</button>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
+        <div class="section-off-banner" data-section-banner="experience">Section hidden from resume — re-enable to include in export.</div>
         <div id="experience-list"></div>
         <button class="add-btn" data-action="addExperience">+ ADD POSITION</button>
       </div>

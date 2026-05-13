@@ -48,6 +48,16 @@
   .panel.open header .caret { transform: rotate(90deg); }
   .panel .body { padding: 16px; display: none; }
   .panel.open .body { display: block; }
+  .header-controls { display: flex; align-items: center; gap: 10px; }
+  .section-toggle { background: rgba(122,154,122,0.08); border: 1px solid var(--sage); color: var(--sage); padding: 4px 10px; font-family: inherit; font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+  .section-toggle:hover { background: rgba(122,154,122,0.18); }
+  .section-toggle[aria-pressed="false"] { background: rgba(196,69,69,0.08); border-color: var(--red); color: var(--red); }
+  .section-toggle[aria-pressed="false"]:hover { background: rgba(196,69,69,0.18); }
+  .section-off-banner { display: none; padding: 8px 12px; margin-bottom: 12px; background: rgba(196,69,69,0.08); border: 1px solid var(--red); color: #ff9a9a; font-size: 10.5px; letter-spacing: 0.12em; }
+  .panel.section-off .section-off-banner { display: block; }
+  .panel.section-off header h2 .idx { opacity: 0.4; }
+  .panel.section-off header h2 { color: var(--text-dim); text-decoration: line-through; text-decoration-color: var(--text-mute); }
+  .panel.section-off .body > *:not(.section-off-banner) { opacity: 0.45; pointer-events: none; }
 
   /* Form controls */
   label { display: block; font-size: 9.5px; letter-spacing: 0.2em; color: var(--text-dim); margin: 0 0 6px 0; text-transform: uppercase; font-weight: 500; }

@@ -5,6 +5,7 @@
 let state = {
   template: "demo_4",
   font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
+  section_enabled: { projects: true, experience: true },
   // Demo 4 header
   name: "Jane Doe",
   location: "North Miami, FL 33161",
@@ -390,6 +391,13 @@ function addExperience() { state.experience.push({ title: "", date: "", location
 function removeExp(i) { state.experience.splice(i, 1); render(); }
 function addExpBullet(i) { state.experience[i].bullets.push(""); render(); }
 function removeExpBullet(i, bi) { state.experience[i].bullets.splice(bi, 1); render(); }
+function toggleSection(name) {
+  if (!(name in state.section_enabled)) return;
+  state.section_enabled[name] = !state.section_enabled[name];
+  applySectionToggleStates();
+  recomputeSectionIndices();
+  renderPreview();
+}
 
 const ACTIONS = {
   addSkillCat: () => addSkillCat(),
@@ -408,6 +416,7 @@ const ACTIONS = {
   removeExp: (btn) => removeExp(+btn.dataset.index),
   addExpBullet: (btn) => addExpBullet(+btn.dataset.index),
   removeExpBullet: (btn) => removeExpBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
+  toggleSection: (btn) => toggleSection(btn.dataset.section),
   copyJSON: () => copyJSON(),
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
@@ -431,8 +440,34 @@ document.addEventListener("click", (ev) => {
 // ─────────────────────────────────────────────────────────
 
 $$(".panel header").forEach(h => {
-  h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
+  h.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-action]")) return;
+    h.parentElement.classList.toggle("open");
+  });
 });
+
+function applySectionToggleStates() {
+  $$(".panel[data-optional='true']").forEach(panel => {
+    const name = panel.dataset.section;
+    const enabled = state.section_enabled[name] !== false;
+    panel.classList.toggle("section-off", !enabled);
+    const btn = panel.querySelector(".section-toggle");
+    if (btn) {
+      btn.textContent = enabled ? "INCLUDED" : "EXCLUDED";
+      btn.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
+  });
+}
+
+function recomputeSectionIndices() {
+  let n = 1;
+  $$(".panel").forEach(panel => {
+    if (panel.classList.contains("hidden")) return;
+    const idxEl = panel.querySelector(".idx");
+    if (idxEl) idxEl.textContent = String(n).padStart(2, "0");
+    n += 1;
+  });
+}
 
 // ─────────────────────────────────────────────────────────
 // TEMPLATE SWITCH
@@ -448,8 +483,6 @@ $$(".tpl-chip").forEach(chip => {
     $$("[data-font]").forEach(c => c.classList.remove("active"));
     $("#font-chip-default").classList.add("active");
     $("#panel-certs").classList.toggle("hidden", state.template !== "demo_2");
-    $("#proj-idx").textContent = state.template === "demo_2" ? "06" : "05";
-    $("#exp-idx").textContent = state.template === "demo_2" ? "07" : "06";
     setCaseId();
     render();
   });
@@ -531,7 +564,7 @@ function renderPreview() {
   }
 
   // Projects
-  if (state.projects.length > 0) {
+  if (state.section_enabled.projects && state.projects.length > 0) {
     html += `<div class="resume-section-h">PROJECTS</div>`;
     state.projects.forEach(p => {
       if (tpl === "demo_4") {
@@ -549,7 +582,7 @@ function renderPreview() {
   }
 
   // Work Experience
-  if (state.experience.length > 0) {
+  if (state.section_enabled.experience && state.experience.length > 0) {
     html += `<div class="resume-section-h">WORK EXPERIENCE</div>`;
     state.experience.forEach(en => {
       html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
@@ -622,6 +655,8 @@ function render() {
   if (state.template === "demo_2") renderCerts();
   renderProjects();
   renderExperience();
+  applySectionToggleStates();
+  recomputeSectionIndices();
   setCaseId();
   renderPreview();
 }
@@ -715,14 +750,18 @@ function buildPayload() {
       .filter(e => e.school || e.degree)
       .map(e => ({ school: e.school, city: e.city, degree: e.degree, date: e.date }));
     out.skills_categories = state.skills_categories.filter(c => c.label || c.content);
-    out.projects = state.projects.filter(p => p.title).map(p => ({
-      title: p.title, date: p.date, location: p.location,
-      bullets: (p.bullets || []).filter(Boolean),
-    }));
-    out.experience = state.experience.filter(e => e.title).map(e => ({
-      title: e.title, date: e.date, location: e.location,
-      bullets: (e.bullets || []).filter(Boolean),
-    }));
+    out.projects = state.section_enabled.projects
+      ? state.projects.filter(p => p.title).map(p => ({
+          title: p.title, date: p.date, location: p.location,
+          bullets: (p.bullets || []).filter(Boolean),
+        }))
+      : [];
+    out.experience = state.section_enabled.experience
+      ? state.experience.filter(e => e.title).map(e => ({
+          title: e.title, date: e.date, location: e.location,
+          bullets: (e.bullets || []).filter(Boolean),
+        }))
+      : [];
   } else {
     out.contact_line1 = state.contact_line1;
     out.contact_line2 = state.contact_line2;
@@ -737,14 +776,18 @@ function buildPayload() {
       }));
     out.skills_two_column = state.skills_two_column.filter(r => r.left || r.right_with_bullet);
     out.certifications = state.certifications.filter(Boolean);
-    out.projects = state.projects.filter(p => p.title).map(p => ({
-      title: p.title,
-      bullets: (p.bullets || []).filter(Boolean),
-    }));
-    out.experience = state.experience.filter(e => e.title).map(e => ({
-      title: e.title, date: e.date, company_city: e.company_city,
-      bullets: (e.bullets || []).filter(Boolean),
-    }));
+    out.projects = state.section_enabled.projects
+      ? state.projects.filter(p => p.title).map(p => ({
+          title: p.title,
+          bullets: (p.bullets || []).filter(Boolean),
+        }))
+      : [];
+    out.experience = state.section_enabled.experience
+      ? state.experience.filter(e => e.title).map(e => ({
+          title: e.title, date: e.date, company_city: e.company_city,
+          bullets: (e.bullets || []).filter(Boolean),
+        }))
+      : [];
   }
   return out;
 }
