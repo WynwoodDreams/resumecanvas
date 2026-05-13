@@ -12,6 +12,7 @@ let state = {
   phone: "786-121-1112",
   email: "lurlene.carry001@mymdc.net",
   linkedin: "Linkedin.com/",
+  links: [],
   // Demo 2 header
   contact_line1: "Miami, FL | (305) 555-1234",
   contact_line2: "JohnDoe123@gmail.com | LinkedIn.com/in/johndoe",
@@ -156,6 +157,15 @@ function toast(msg) {
 function renderHeader() {
   const body = $("#body-header");
   if (state.template === "demo_4") {
+    const linkItems = state.links.map((url, i) => `
+      <div class="item">
+        <div class="item-head">
+          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> LINK</div>
+          <button class="icon-btn" data-action="removeLink" data-index="${i}">REMOVE</button>
+        </div>
+        <input type="text" data-link="${i}" value="${esc(url)}" placeholder="github.com/yourname">
+      </div>
+    `).join("");
     body.innerHTML = `
       <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
       <div class="row two">
@@ -166,6 +176,8 @@ function renderHeader() {
         <div><label>EMAIL</label><input type="text" class="required" data-bind="email" value="${esc(state.email)}" placeholder="name@example.com"></div>
         <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}" placeholder="linkedin.com/in/…"></div>
       </div>
+      ${linkItems}
+      <button class="add-btn" data-action="addLink">+ ADD LINK</button>
     `;
   } else {
     body.innerHTML = `
@@ -175,6 +187,16 @@ function renderHeader() {
     `;
   }
   bind(body);
+  bindLinks(body);
+}
+
+function bindLinks(container) {
+  container.querySelectorAll("input[data-link]").forEach(el => {
+    el.addEventListener("input", (ev) => {
+      state.links[+el.dataset.link] = ev.target.value;
+      renderPreview();
+    });
+  });
 }
 
 function renderSummary() {
@@ -407,6 +429,8 @@ function addSkillRow() { state.skills_two_column.push({ left: "", right: "" }); 
 function removeSkillRow(i) { state.skills_two_column.splice(i, 1); render(); }
 function addCert() { state.certifications.push(""); render(); }
 function removeCert(i) { state.certifications.splice(i, 1); render(); }
+function addLink() { state.links.push(""); render(); }
+function removeLink(i) { state.links.splice(i, 1); render(); }
 function addEdu() { state.education.push({ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "" }); render(); }
 function removeEdu(i) { state.education.splice(i, 1); render(); }
 function addProject() { state.projects.push({ title: "", date: "", location: "", bullets: [""] }); render(); }
@@ -434,6 +458,8 @@ const ACTIONS = {
   removeCert: (btn) => removeCert(+btn.dataset.index),
   addEdu: () => addEdu(),
   removeEdu: (btn) => removeEdu(+btn.dataset.index),
+  addLink: () => addLink(),
+  removeLink: (btn) => removeLink(+btn.dataset.index),
   addProject: () => addProject(),
   removeProject: (btn) => removeProject(+btn.dataset.index),
   addProjBullet: (btn) => addProjBullet(+btn.dataset.index),
@@ -546,7 +572,9 @@ function renderPreview() {
   const f = $("#preview");
   let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
   if (tpl === "demo_4") {
-    html += `<div class="resume-contact">${esc(state.location)} | ${esc(state.phone)} | ${linkify(state.email)} | ${linkify(state.linkedin)}</div>`;
+    const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
+    const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
+    html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
   } else {
     html += `<div class="resume-contact">${linkify(state.contact_line1)}<br>${linkify(state.contact_line2)}</div>`;
     html += `<div class="resume-contact-divider"></div>`;
@@ -844,6 +872,7 @@ function buildPayload() {
     out.phone = state.phone;
     out.email = state.email;
     out.linkedin = state.linkedin;
+    out.links = (state.links || []).filter(Boolean);
     out.education = state.education
       .filter(e => e.school || e.degree)
       .map(e => ({ school: e.school, city: e.city, degree: e.degree, date: e.date }));
