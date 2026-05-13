@@ -41,6 +41,27 @@
       </div>
     </div>
 
+    <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
+    <div class="intake-card collapsed" id="intake-card">
+      <div class="intake-header" data-action="toggleIntake">
+        <div class="intake-title"><span class="amber">▶</span> INTAKE / IMPORT EXISTING RESUME</div>
+        <span class="intake-caret">▼</span>
+      </div>
+      <div class="intake-body">
+        <div class="intake-help">Drop a <code>.txt</code> or <code>.docx</code> resume, or paste the text below. We'll parse the section headers (Education, Skills, etc.) and let you confirm what to import before anything is overwritten.</div>
+        <label class="dropzone" id="dropzone" for="import-file">
+          <div class="dz-title">⤓ DROP RESUME HERE</div>
+          <div class="dz-sub">.txt or .docx · click to browse · for PDFs, paste text below</div>
+        </label>
+        <input type="file" id="import-file" accept=".txt,.docx,text/plain" class="hidden">
+        <div class="paste-block">
+          <label>OR PASTE TEXT</label>
+          <textarea id="import-paste" placeholder="Paste resume text from Word, Google Docs, or a PDF reader…"></textarea>
+          <button class="add-btn" data-action="parseImportText">▶ PARSE PASTED TEXT</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Sections -->
     <div class="panel open" data-section="header">
       <header><h2><span class="idx">01</span> SUBJECT</h2><span class="caret">▶</span></header>
@@ -161,6 +182,26 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
     <div class="modal-f">
       <button class="copy-btn" data-action="copyPayloadAndPrompt">⧉ COPY PAYLOAD + PROMPT</button>
       <button class="compile-btn modal-done" data-action="closeModal">DONE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import confirmation modal -->
+<div class="modal-bg" id="import-modal-bg" data-action="closeImportModalBackdrop">
+  <div class="modal">
+    <div class="modal-h">
+      <h3><span class="amber">▶</span> CONFIRM IMPORT</h3>
+      <button class="icon-btn" data-action="closeImportModal">CLOSE</button>
+    </div>
+    <div class="modal-b">
+      <div class="modal-instructions">
+        Review what we extracted. Uncheck any section you don't want to bring in. Existing data in <span class="amber">checked sections will be replaced</span>; unchecked sections stay untouched.
+      </div>
+      <div id="import-preview"></div>
+    </div>
+    <div class="modal-f">
+      <button class="copy-btn" data-action="closeImportModal">CANCEL</button>
+      <button class="compile-btn modal-done" data-action="applyImport">APPLY IMPORT</button>
     </div>
   </div>
 </div>
