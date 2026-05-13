@@ -139,6 +139,10 @@
         <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
         <span class="toolbar-note">manual override · floor 10pt</span>
       </div>
+      <div class="toolbar-group">
+        <span class="toolbar-label">LAYOUT</span>
+        <button class="toolbar-chip active" data-action="toggleLayoutLock" id="layout-lock-chip">LOCK ROWS</button>
+      </div>
       <div class="toolbar-group export-group">
         <span class="toolbar-label">EXPORT</span>
         <button class="toolbar-chip primary" data-action="downloadDoc">DOWNLOAD .DOC</button>
@@ -148,7 +152,9 @@
     </div>
     <div class="overflow-banner" id="overflow-banner"></div>
     <div class="preview-wrap">
-      <div id="preview" class="preview-pages"></div>
+      <div class="preview-frame demo_4" id="preview"></div>
+      <div class="preview-frame demo_4 measure-frame" id="measure-frame"></div>
+      <div class="page-break-marker" id="page-break-1" data-label="◆ PAGE 1 ENDS HERE" class="hidden"></div>
     </div>
   </div>
 </div>
@@ -180,26 +186,6 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
     <div class="modal-f">
       <button class="copy-btn" data-action="copyPayloadAndPrompt">⧉ COPY PAYLOAD + PROMPT</button>
       <button class="compile-btn modal-done" data-action="closeModal">DONE</button>
-    </div>
-  </div>
-</div>
-
-<!-- Import confirmation modal -->
-<div class="modal-bg" id="import-modal-bg" data-action="closeImportModalBackdrop">
-  <div class="modal">
-    <div class="modal-h">
-      <h3><span class="amber">▶</span> CONFIRM IMPORT</h3>
-      <button class="icon-btn" data-action="closeImportModal">CLOSE</button>
-    </div>
-    <div class="modal-b">
-      <div class="modal-instructions">
-        Review what we extracted. Uncheck any section you don't want to bring in. Existing data in <span class="amber">checked sections will be replaced</span>; unchecked sections stay untouched.
-      </div>
-      <div id="import-preview"></div>
-    </div>
-    <div class="modal-f">
-      <button class="copy-btn" data-action="closeImportModal">CANCEL</button>
-      <button class="compile-btn modal-done" data-action="applyImport">APPLY IMPORT</button>
     </div>
   </div>
 </div>

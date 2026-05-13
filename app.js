@@ -5,7 +5,7 @@
 let state = {
   template: "demo_4",
   font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
-  section_enabled: { projects: true, experience: true },
+  layout_lock: true, // Keeps long titles/degrees from pushing dates out of alignment.
   // Demo 4 header
   name: "Jane Doe",
   location: "North Miami, FL 33161",
@@ -38,11 +38,11 @@ let state = {
   ],
   // Demo 2 skills
   skills_two_column: [
-    { left: "Customer Service", right: "Time Management" },
-    { left: "Microsoft Office Suite", right: "Team Collaboration" },
-    { left: "Data Entry", right: "Problem Solving" },
-    { left: "Social Media Management", right: "Event Coordination" },
-    { left: "Bilingual: English & Haitian Creole", right: "Adaptable" },
+    { left: "Customer Service", right_with_bullet: "• Time Management" },
+    { left: "Microsoft Office Suite", right_with_bullet: "• Team Collaboration" },
+    { left: "Data Entry", right_with_bullet: "• Problem Solving" },
+    { left: "Social Media Management", right_with_bullet: "• Event Coordination" },
+    { left: "Bilingual: English & Haitian Creole", right_with_bullet: "• Adaptable" },
   ],
   certifications: [
     "Google Digital Marketing & E-commerce Certificate (In Progress) — Coursera",
@@ -131,21 +131,21 @@ function renderHeader() {
   const body = $("#body-header");
   if (state.template === "demo_4") {
     body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
+      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
       <div class="row two">
-        <div><label>LOCATION</label><input type="text" class="required" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
-        <div><label>PHONE</label><input type="text" class="required" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
+        <div><label>LOCATION</label><input type="text" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
+        <div><label>PHONE</label><input type="text" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
       </div>
       <div class="row two">
-        <div><label>EMAIL</label><input type="text" class="required" data-bind="email" value="${esc(state.email)}" placeholder="name@example.com"></div>
-        <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}" placeholder="linkedin.com/in/…"></div>
+        <div><label>EMAIL</label><input type="text" data-bind="email" value="${esc(state.email)}"></div>
+        <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}"></div>
       </div>
     `;
   } else {
     body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
-      <div class="row"><label>CONTACT LINE 1</label><input type="text" class="required" data-bind="contact_line1" value="${esc(state.contact_line1)}" placeholder="Miami, FL | (305) 555-1234"><div class="help">Free-form. Will appear as the first contact line.</div></div>
-      <div class="row"><label>CONTACT LINE 2</label><input type="text" class="required" data-bind="contact_line2" value="${esc(state.contact_line2)}" placeholder="email | LinkedIn URL | site"><div class="help">Free-form. Second contact line. Can hold email + LinkedIn + portfolio.</div></div>
+      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
+      <div class="row"><label>CONTACT LINE 1</label><input type="text" data-bind="contact_line1" value="${esc(state.contact_line1)}" placeholder="Miami, FL | (305) 555-1234"><div class="help">Free-form. Will appear as the first contact line.</div></div>
+      <div class="row"><label>CONTACT LINE 2</label><input type="text" data-bind="contact_line2" value="${esc(state.contact_line2)}" placeholder="email | LinkedIn URL | site"><div class="help">Free-form. Second contact line. Can hold email + LinkedIn + portfolio.</div></div>
     `;
   }
   bind(body);
@@ -171,12 +171,12 @@ function renderEducation() {
           <button class="icon-btn" data-action="removeEdu" data-index="${i}">REMOVE</button>
         </div>
         <div class="row two">
-          <div><label>SCHOOL</label><input type="text" class="required" data-edu="${i}" data-field="school" value="${esc(e.school || "")}" placeholder="Miami Dade College"></div>
-          <div><label>CITY</label><input type="text" data-edu="${i}" data-field="city" value="${esc(e.city || "")}" placeholder="Miami, FL"></div>
+          <div><label>SCHOOL</label><input type="text" data-edu="${i}" data-field="school" value="${esc(e.school || "")}"></div>
+          <div><label>CITY</label><input type="text" data-edu="${i}" data-field="city" value="${esc(e.city || "")}"></div>
         </div>
         <div class="row two">
-          <div><label>DEGREE / FIELD</label><input type="text" class="required" data-edu="${i}" data-field="degree" value="${esc(e.degree || "")}" placeholder="Associate in Arts, Business"></div>
-          <div><label>DATE</label><input type="text" class="required" data-edu="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="${eduSchemaIsDemo2 ? '05/2026' : 'Expected: May 2027'}"></div>
+          <div><label>DEGREE / FIELD</label><input type="text" data-edu="${i}" data-field="degree" value="${esc(e.degree || "")}"></div>
+          <div><label>DATE</label><input type="text" data-edu="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="${eduSchemaIsDemo2 ? '05/2026' : 'Expected: May 2027'}"></div>
         </div>
         ${extra}
       </div>
@@ -201,7 +201,7 @@ function renderSkills() {
     bindSkillCat(body);
   } else {
     body.innerHTML = `
-      <div class="help skill-help">Two-column layout. Each row pairs a left item with a right item — bullets are added automatically.</div>
+      <div class="help skill-help">Two-column layout. Each row pairs a left item with a right item. The right item should start with <code>•</code> if you want a bullet (matches the master).</div>
     ` + state.skills_two_column.map((r, i) => `
       <div class="item">
         <div class="item-head">
@@ -210,7 +210,7 @@ function renderSkills() {
         </div>
         <div class="row two">
           <div><label>LEFT</label><input type="text" data-skill-row="${i}" data-field="left" value="${esc(r.left)}" placeholder="SQL, MySQL, Power BI"></div>
-          <div><label>RIGHT</label><input type="text" data-skill-row="${i}" data-field="right" value="${esc(r.right)}" placeholder="Pipeline Management"></div>
+          <div><label>RIGHT (with • bullet)</label><input type="text" data-skill-row="${i}" data-field="right_with_bullet" value="${esc(r.right_with_bullet)}" placeholder="• Pipeline Management"></div>
         </div>
       </div>
     `).join("") + `<button class="add-btn" data-action="addSkillRow">+ ADD ROW</button>`;
@@ -377,7 +377,7 @@ function bindExperience(container) {
 
 function addSkillCat() { state.skills_categories.push({ label: "", content: "" }); render(); }
 function removeSkillCat(i) { state.skills_categories.splice(i, 1); render(); }
-function addSkillRow() { state.skills_two_column.push({ left: "", right: "" }); render(); }
+function addSkillRow() { state.skills_two_column.push({ left: "", right_with_bullet: "" }); render(); }
 function removeSkillRow(i) { state.skills_two_column.splice(i, 1); render(); }
 function addCert() { state.certifications.push(""); render(); }
 function removeCert(i) { state.certifications.splice(i, 1); render(); }
@@ -391,11 +391,9 @@ function addExperience() { state.experience.push({ title: "", date: "", location
 function removeExp(i) { state.experience.splice(i, 1); render(); }
 function addExpBullet(i) { state.experience[i].bullets.push(""); render(); }
 function removeExpBullet(i, bi) { state.experience[i].bullets.splice(bi, 1); render(); }
-function toggleSection(name) {
-  if (!(name in state.section_enabled)) return;
-  state.section_enabled[name] = !state.section_enabled[name];
-  applySectionToggleStates();
-  recomputeSectionIndices();
+function toggleLayoutLock() {
+  state.layout_lock = !state.layout_lock;
+  $("#layout-lock-chip").classList.toggle("active", state.layout_lock);
   renderPreview();
 }
 
@@ -416,7 +414,7 @@ const ACTIONS = {
   removeExp: (btn) => removeExp(+btn.dataset.index),
   addExpBullet: (btn) => addExpBullet(+btn.dataset.index),
   removeExpBullet: (btn) => removeExpBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
-  toggleSection: (btn) => toggleSection(btn.dataset.section),
+  toggleLayoutLock: () => toggleLayoutLock(),
   copyJSON: () => copyJSON(),
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
@@ -424,11 +422,6 @@ const ACTIONS = {
   downloadDoc: () => downloadDoc(),
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
-  toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
-  parseImportText: () => parseImportFromPaste(),
-  applyImport: () => applyImport(),
-  closeImportModal: () => closeImportModal(),
-  closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
 };
 
 document.addEventListener("click", (ev) => {
@@ -445,34 +438,8 @@ document.addEventListener("click", (ev) => {
 // ─────────────────────────────────────────────────────────
 
 $$(".panel header").forEach(h => {
-  h.addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-action]")) return;
-    h.parentElement.classList.toggle("open");
-  });
+  h.addEventListener("click", () => h.parentElement.classList.toggle("open"));
 });
-
-function applySectionToggleStates() {
-  $$(".panel[data-optional='true']").forEach(panel => {
-    const name = panel.dataset.section;
-    const enabled = state.section_enabled[name] !== false;
-    panel.classList.toggle("section-off", !enabled);
-    const btn = panel.querySelector(".section-toggle");
-    if (btn) {
-      btn.textContent = enabled ? "INCLUDED" : "EXCLUDED";
-      btn.setAttribute("aria-pressed", enabled ? "true" : "false");
-    }
-  });
-}
-
-function recomputeSectionIndices() {
-  let n = 1;
-  $$(".panel").forEach(panel => {
-    if (panel.classList.contains("hidden")) return;
-    const idxEl = panel.querySelector(".idx");
-    if (idxEl) idxEl.textContent = String(n).padStart(2, "0");
-    n += 1;
-  });
-}
 
 // ─────────────────────────────────────────────────────────
 // TEMPLATE SWITCH
@@ -488,16 +455,11 @@ $$(".tpl-chip").forEach(chip => {
     $$("[data-font]").forEach(c => c.classList.remove("active"));
     $("#font-chip-default").classList.add("active");
     $("#panel-certs").classList.toggle("hidden", state.template !== "demo_2");
+    $("#proj-idx").textContent = state.template === "demo_2" ? "06" : "05";
+    $("#exp-idx").textContent = state.template === "demo_2" ? "07" : "06";
     setCaseId();
     render();
   });
-});
-
-// Window resize re-paginates the preview at the new width.
-let _resizeTimer = null;
-window.addEventListener("resize", () => {
-  clearTimeout(_resizeTimer);
-  _resizeTimer = setTimeout(() => renderPreview(), 180);
 });
 
 // Font chip selector — manual override only
@@ -536,7 +498,7 @@ function renderPreview() {
     html += `<ul class="skills-2col">`;
     state.skills_two_column.forEach(r => {
       const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
-      const right = r.right ? `<div>• ${esc(r.right)}</div>` : `<div></div>`;
+      const right = r.right_with_bullet ? `<div>${esc(r.right_with_bullet)}</div>` : `<div></div>`;
       html += left + right;
     });
     html += `</ul>`;
@@ -546,12 +508,13 @@ function renderPreview() {
   html += `<div class="resume-section-h">EDUCATION</div>`;
   state.education.forEach((e, idx) => {
     const gapClass = idx > 0 ? " edu-gap" : "";
+    html += `<div class="edu-entry${gapClass}">`;
     if (tpl === "demo_4") {
-      html += `<div class="edu-row${gapClass}"><div class="strong">${esc(e.school)}</div><div class="strong">${esc(e.city)}</div></div>`;
-      html += `<div class="edu-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
+      html += `<div class="edu-row"><div class="strong lock-text">${esc(e.school)}</div><div class="lock-meta strong">${esc(e.city)}</div></div>`;
+      html += `<div class="edu-row"><div class="lock-text">${esc(e.degree)}</div><div class="lock-meta">${esc(e.date)}</div></div>`;
     } else {
-      html += `<div class="edu-row${gapClass}"><div class="strong">${esc(e.school)}</div><div>${esc(e.city)}</div></div>`;
-      html += `<div class="edu-degree-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
+      html += `<div class="edu-row"><div class="strong lock-text">${esc(e.school)}</div><div class="lock-meta">${esc(e.city)}</div></div>`;
+      html += `<div class="edu-degree-row"><div class="lock-text">${esc(e.degree)}</div><div class="lock-meta">${esc(e.date)}</div></div>`;
       if (e.subline_bold || e.subline_rest) {
         html += `<div class="edu-subline"><span class="bold">${esc(e.subline_bold)}</span>${esc(e.subline_rest)}</div>`;
       }
@@ -559,6 +522,7 @@ function renderPreview() {
         html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${esc(e.coursework)}</div>`;
       }
     }
+    html += `</div>`;
   });
 
   if (tpl === "demo_4") {
@@ -576,28 +540,31 @@ function renderPreview() {
   }
 
   // Projects
-  if (state.section_enabled.projects && state.projects.length > 0) {
+  if (state.projects.length > 0) {
     html += `<div class="resume-section-h">PROJECTS</div>`;
     state.projects.forEach(p => {
+      html += `<div class="resume-entry">`;
       if (tpl === "demo_4") {
-        html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
+        html += `<div class="entry-title-row"><div class="title lock-text">${esc(p.title)}</div><div class="date lock-meta">${esc(p.date)}</div></div>`;
         if (p.location) html += `<div class="entry-loc">${esc(p.location)}</div>`;
       } else {
-        html += `<div class="proj-title">${esc(p.title)}</div>`;
+        html += `<div class="proj-title lock-text">${esc(p.title)}</div>`;
       }
       if (p.bullets && p.bullets.length) {
         html += `<ul class="bullets-list">`;
         p.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
         html += `</ul>`;
       }
+      html += `</div>`;
     });
   }
 
   // Work Experience
-  if (state.section_enabled.experience && state.experience.length > 0) {
+  if (state.experience.length > 0) {
     html += `<div class="resume-section-h">WORK EXPERIENCE</div>`;
     state.experience.forEach(en => {
-      html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
+      html += `<div class="resume-entry">`;
+      html += `<div class="entry-title-row"><div class="title lock-text">${esc(en.title)}</div><div class="date lock-meta">${esc(en.date)}</div></div>`;
       if (tpl === "demo_4") {
         if (en.location) html += `<div class="entry-loc">${esc(en.location)}</div>`;
       } else {
@@ -608,19 +575,24 @@ function renderPreview() {
         en.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
         html += `</ul>`;
       }
+      html += `</div>`;
     });
   }
 
+  f.innerHTML = html;
+
+  // The preview renders at the user-selected (or default) font size.
+  // We do NOT auto-measure pages from preview pixels — CSS at 696px wide with
+  // web fonts doesn't match Word at 7.25" wide with system fonts, so any
+  // pixel-based page count from the preview is unreliable. The user picks
+  // the size manually; the .docx output uses that exact size.
   const defaultFontPt = tpl === "demo_4" ? 12 : 11;
   const fontPt = state.font_pt || defaultFontPt;
+  const lockClass = state.layout_lock ? " layout-locked" : "";
+  f.className = `preview-frame ${tpl} font-${fontPt}${lockClass}`;
   state._appliedFontPt = fontPt;
 
-  // Render content into a single frame, then paginate by measuring children.
-  const frameClass = `preview-frame ${tpl} font-${fontPt}`;
-  f.innerHTML = `<div class="${frameClass}">${html}</div>`;
-  const pageCount = paginatePreview(frameClass);
-
-  // Stats: words + content density (entries + bullets) + active font + page count
+  // Stats: words + content density (entries + bullets) + active font
   const text = f.innerText || "";
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   const totalEntries =
@@ -632,74 +604,15 @@ function renderPreview() {
     state.experience.reduce((n, e) => n + (e.bullets || []).filter(Boolean).length, 0);
   const isDefault = fontPt === defaultFontPt;
   const fontClass = isDefault ? "ok" : "warn";
-  const pageLabel = pageCount === 1 ? "1 page" : `${pageCount} pages`;
   $("#preview-stats").innerHTML =
-    `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span> &nbsp;·&nbsp; ${pageLabel}`;
+    `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span>`;
 
+  // Hide the overflow banner — no false alarms
   $("#overflow-banner").className = "overflow-banner";
   $("#overflow-banner").innerHTML = "";
-}
 
-// Measures the first .preview-frame inside #preview and, if its content
-// would overflow one page, splits its children into stacked frames.
-// Returns the resulting page count.
-function paginatePreview(frameClass) {
-  const wrap = $("#preview");
-  const firstFrame = wrap.firstElementChild;
-  if (!firstFrame) return 0;
-
-  // Page content area: aspect-ratio gives us paper-shaped frame height;
-  // subtract vertical padding (22 top + 36 bottom = 58px from .preview-frame).
-  const paperH = firstFrame.clientHeight;
-  const pageContentH = paperH - 58;
-  // Guard against pre-layout race (clientHeight 0) — leave as one page.
-  if (paperH <= 0 || pageContentH <= 0) return 1;
-  if (firstFrame.scrollHeight <= paperH + 1) return 1; // fits on one page
-
-  // Measure each top-level child while still in the live frame.
-  const children = Array.from(firstFrame.children);
-  const measured = children.map(node => {
-    const cs = getComputedStyle(node);
-    const mt = parseFloat(cs.marginTop) || 0;
-    const mb = parseFloat(cs.marginBottom) || 0;
-    return { node, h: node.offsetHeight + mt + mb };
-  });
-
-  const pages = [[]];
-  let pageH = 0;
-  for (const item of measured) {
-    const nextH = pageH + item.h;
-    if (nextH > pageContentH && pages[pages.length - 1].length > 0) {
-      const last = pages[pages.length - 1];
-      // Don't strand a section header at the bottom of a page — push it forward.
-      const tail = last[last.length - 1];
-      if (tail && tail.node.classList.contains("resume-section-h")) {
-        last.pop();
-        pages.push([tail]);
-        pageH = tail.h;
-      } else {
-        pages.push([]);
-        pageH = 0;
-      }
-    }
-    pages[pages.length - 1].push(item);
-    pageH += item.h;
-  }
-
-  wrap.innerHTML = "";
-  pages.forEach((page, i) => {
-    if (i > 0) {
-      const label = document.createElement("div");
-      label.className = "page-label";
-      label.innerHTML = `<span>▸ PAGE ${i + 1}</span>`;
-      wrap.appendChild(label);
-    }
-    const frame = document.createElement("div");
-    frame.className = frameClass;
-    page.forEach(item => frame.appendChild(item.node));
-    wrap.appendChild(frame);
-  });
-  return pages.length;
+  // Hide page break marker — preview is a visual reference, not a page-count authority
+  $("#page-break-1").classList.add("hidden");
 }
 
 // ─────────────────────────────────────────────────────────
@@ -723,8 +636,6 @@ function render() {
   if (state.template === "demo_2") renderCerts();
   renderProjects();
   renderExperience();
-  applySectionToggleStates();
-  recomputeSectionIndices();
   setCaseId();
   renderPreview();
 }
@@ -747,10 +658,6 @@ function buildExportDocument() {
   renderPreview();
   const title = esc(state.name || "Resume");
   const fontPt = state._appliedFontPt || (state.template === "demo_4" ? 12 : 11);
-  // Flatten the paginated frames back into one content flow — Word repaginates
-  // at its own page size; preview pixel breaks don't translate.
-  const frames = $("#preview").querySelectorAll(".preview-frame");
-  const combined = Array.from(frames).map(f => f.innerHTML).join("\n");
   return `<!doctype html>
 <html>
 <head>
@@ -758,18 +665,20 @@ function buildExportDocument() {
 <title>${title}</title>
 <style>
   @page { size: Letter; margin: 0.5in; }
-  body { margin: 0; background: #fff; color: #020826; }
-  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
+  body { margin: 0; background: #fff; color: #000; }
+  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #1a1a17; }
   .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${state.template === "demo_4" ? "20pt" : "16pt"}; }
-  .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8b89f; margin-bottom: 8px; line-height: 1.35; }
+  .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8c2b3; margin-bottom: 8px; line-height: 1.35; }
   .demo_2 .resume-contact { border-bottom: none; }
-  .resume-contact-divider { border-bottom: 0.5pt solid #c8b89f; margin: 2px 0 8px 0; }
-  .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8b89f; margin: 12px 0 6px 0; }
+  .resume-contact-divider { border-bottom: 0.5pt solid #c8c2b3; margin: 2px 0 8px 0; }
+  .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8c2b3; margin: 12px 0 6px 0; }
   .demo_2 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
-  .edu-row, .entry-title-row, .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .edu-entry, .resume-entry { break-inside: avoid; page-break-inside: avoid; }
+  .edu-row, .entry-title-row, .edu-degree-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; justify-content: space-between; align-items: start; gap: 12px; }
   .entry-title-row { margin: 8px 0 2px 0; }
   .title, .date, .strong, .bold, .lbl { font-weight: 700; }
-  .date { white-space: nowrap; }
+  .lock-text { min-width: 0; overflow-wrap: anywhere; }
+  .lock-meta, .date { white-space: nowrap; text-align: right; }
   .entry-loc { font-style: italic; margin: 0 0 4px 0; font-size: 0.95em; }
   .bullets-list { margin: 2px 0 0 0; padding-left: 18px; }
   .bullets-list li { margin: 2px 0; }
@@ -780,7 +689,7 @@ function buildExportDocument() {
 </style>
 </head>
 <body>
-<div class="preview-frame ${state.template}">${combined}</div>
+${$("#preview").outerHTML}
 </body>
 </html>`;
 }
@@ -822,18 +731,14 @@ function buildPayload() {
       .filter(e => e.school || e.degree)
       .map(e => ({ school: e.school, city: e.city, degree: e.degree, date: e.date }));
     out.skills_categories = state.skills_categories.filter(c => c.label || c.content);
-    out.projects = state.section_enabled.projects
-      ? state.projects.filter(p => p.title).map(p => ({
-          title: p.title, date: p.date, location: p.location,
-          bullets: (p.bullets || []).filter(Boolean),
-        }))
-      : [];
-    out.experience = state.section_enabled.experience
-      ? state.experience.filter(e => e.title).map(e => ({
-          title: e.title, date: e.date, location: e.location,
-          bullets: (e.bullets || []).filter(Boolean),
-        }))
-      : [];
+    out.projects = state.projects.filter(p => p.title).map(p => ({
+      title: p.title, date: p.date, location: p.location,
+      bullets: (p.bullets || []).filter(Boolean),
+    }));
+    out.experience = state.experience.filter(e => e.title).map(e => ({
+      title: e.title, date: e.date, location: e.location,
+      bullets: (e.bullets || []).filter(Boolean),
+    }));
   } else {
     out.contact_line1 = state.contact_line1;
     out.contact_line2 = state.contact_line2;
@@ -846,22 +751,16 @@ function buildPayload() {
         subline_rest: e.subline_rest || "",
         coursework: e.coursework || "",
       }));
-    out.skills_two_column = state.skills_two_column
-      .filter(r => r.left || r.right)
-      .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
+    out.skills_two_column = state.skills_two_column.filter(r => r.left || r.right_with_bullet);
     out.certifications = state.certifications.filter(Boolean);
-    out.projects = state.section_enabled.projects
-      ? state.projects.filter(p => p.title).map(p => ({
-          title: p.title,
-          bullets: (p.bullets || []).filter(Boolean),
-        }))
-      : [];
-    out.experience = state.section_enabled.experience
-      ? state.experience.filter(e => e.title).map(e => ({
-          title: e.title, date: e.date, company_city: e.company_city,
-          bullets: (e.bullets || []).filter(Boolean),
-        }))
-      : [];
+    out.projects = state.projects.filter(p => p.title).map(p => ({
+      title: p.title,
+      bullets: (p.bullets || []).filter(Boolean),
+    }));
+    out.experience = state.experience.filter(e => e.title).map(e => ({
+      title: e.title, date: e.date, company_city: e.company_city,
+      bullets: (e.bullets || []).filter(Boolean),
+    }));
   }
   return out;
 }
@@ -919,364 +818,6 @@ async function copyPayloadAndPrompt() {
   const copied = await copyText(text, "PAYLOAD + PROMPT COPIED");
   if (copied) setTimeout(() => closeModal(), 600);
 }
-
-// ─────────────────────────────────────────────────────────
-// IMPORT FROM EXISTING RESUME
-// ─────────────────────────────────────────────────────────
-
-let _pendingImport = null;
-
-const SECTION_PATTERNS = [
-  ["summary", /^(profile\s+summary|professional\s+summary|career\s+summary|summary|objective|profile|about\s+me|about)\s*:?\s*$/i],
-  ["education", /^(education|academic\s+background|academics)\s*:?\s*$/i],
-  ["skills", /^(highlighted\s+skills|technical\s+skills|core\s+competencies|competencies|skills)\s*:?\s*$/i],
-  ["projects", /^(projects|project\s+experience|key\s+projects|selected\s+projects)\s*:?\s*$/i],
-  ["experience", /^(work\s+experience|professional\s+experience|employment\s+history|experience|employment)\s*:?\s*$/i],
-  ["certifications", /^(certifications?|certificates|licenses(\s*&\s*certifications)?|licenses)\s*:?\s*$/i],
-];
-
-const BULLET_RE = /^[•*\-‒–—◦·▪]\s+/;
-const DATE_TOKEN_RE = /((jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\b\d{4}\b|present|current|expected)/i;
-const LOCATION_RE = /[A-Z][a-zA-Z.\s]+,\s*[A-Z]{2}(?:\s+\d{5})?/;
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-const PHONE_RE = /(?:\+?\d[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
-const LINKEDIN_RE = /(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/[^\s|]+/i;
-
-async function handleImportFile(file) {
-  try {
-    let text;
-    if (/\.docx$/i.test(file.name)) {
-      text = await extractDocxText(file);
-    } else if (/\.txt$/i.test(file.name) || /^text\//.test(file.type) || !file.type) {
-      text = await file.text();
-    } else {
-      toast("UNSUPPORTED FILE — paste text instead");
-      return;
-    }
-    if (!text || !text.trim()) {
-      toast("FILE WAS EMPTY");
-      return;
-    }
-    showImportConfirm(parseResumeText(text), file.name);
-  } catch (err) {
-    console.error("Import failed", err);
-    toast("IMPORT FAILED — try pasting text instead");
-  }
-}
-
-function parseImportFromPaste() {
-  const text = $("#import-paste").value;
-  if (!text.trim()) { toast("PASTE SOME TEXT FIRST"); return; }
-  showImportConfirm(parseResumeText(text), "(pasted)");
-}
-
-async function extractDocxText(file) {
-  const buf = await file.arrayBuffer();
-  const u8 = new Uint8Array(buf);
-  const view = new DataView(buf);
-  const TARGET = "word/document.xml";
-  for (let i = 0; i <= u8.length - 30; i++) {
-    if (u8[i] !== 0x50 || u8[i+1] !== 0x4b || u8[i+2] !== 0x03 || u8[i+3] !== 0x04) continue;
-    const compression = view.getUint16(i + 8, true);
-    const compSize = view.getUint32(i + 18, true);
-    const nameLen = view.getUint16(i + 26, true);
-    const extraLen = view.getUint16(i + 28, true);
-    const nameStart = i + 30;
-    if (nameStart + nameLen > u8.length) continue;
-    const name = new TextDecoder().decode(u8.subarray(nameStart, nameStart + nameLen));
-    if (name !== TARGET) continue;
-    const dataStart = nameStart + nameLen + extraLen;
-    const data = u8.subarray(dataStart, dataStart + compSize);
-    let xml;
-    if (compression === 0) {
-      xml = new TextDecoder().decode(data);
-    } else if (compression === 8 && typeof DecompressionStream !== "undefined") {
-      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-      xml = await new Response(stream).text();
-    } else {
-      throw new Error("Unsupported .docx compression");
-    }
-    return docxXmlToText(xml);
-  }
-  throw new Error("Not a valid .docx (document.xml missing)");
-}
-
-function docxXmlToText(xml) {
-  const decode = (s) => s
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-  const paragraphs = xml.split(/<w:p[\s>\/]/).slice(1);
-  const lines = paragraphs.map(p => {
-    const runs = [];
-    const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    let m;
-    while ((m = re.exec(p))) runs.push(m[1]);
-    return decode(runs.join(""));
-  });
-  return lines.join("\n");
-}
-
-function parseResumeText(text) {
-  const rawLines = text.replace(/\r/g, "").split("\n").map(l => l.replace(/•/g, "•").replace(/\t/g, " ").trim());
-  const sections = { header: [], summary: [], education: [], skills: [], projects: [], experience: [], certifications: [] };
-  let current = "header";
-  for (const line of rawLines) {
-    const matched = SECTION_PATTERNS.find(([, re]) => re.test(line));
-    if (matched) { current = matched[0]; continue; }
-    sections[current].push(line);
-  }
-
-  const header = parseHeader(sections.header);
-  const summary = sections.summary.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-  const skills = parseSkills(sections.skills);
-  const education = parseEducationBlocks(sections.education);
-  const projects = parseEntryBlocks(sections.projects);
-  const experience = parseEntryBlocks(sections.experience);
-  const certifications = sections.certifications.filter(Boolean).map(l => l.replace(BULLET_RE, ""));
-
-  return { header, summary, skills, education, projects, experience, certifications };
-}
-
-function parseHeader(lines) {
-  const nonEmpty = lines.filter(Boolean);
-  const name = nonEmpty[0] || "";
-  const rest = nonEmpty.slice(1).join(" | ");
-  const email = (rest.match(EMAIL_RE) || [""])[0];
-  const phone = (rest.match(PHONE_RE) || [""])[0];
-  const linkedin = (rest.match(LINKEDIN_RE) || [""])[0];
-  const location = (rest.match(LOCATION_RE) || [""])[0];
-  return { name, email, phone, linkedin, location };
-}
-
-function parseSkills(lines) {
-  const seen = new Set();
-  const items = [];
-  for (const raw of lines) {
-    if (!raw) continue;
-    const cleaned = raw.replace(BULLET_RE, "").replace(/^[A-Z][a-zA-Z]+:\s*/, ""); // drop "Category: " prefixes
-    cleaned.split(/[,;|·•]/).forEach(piece => {
-      const t = piece.trim();
-      if (t && !seen.has(t.toLowerCase())) {
-        seen.add(t.toLowerCase());
-        items.push(t);
-      }
-    });
-  }
-  return items;
-}
-
-function parseEducationBlocks(lines) {
-  const blocks = groupByBlankLine(lines);
-  return blocks.map(block => {
-    const dateLine = block.find(l => DATE_TOKEN_RE.test(l)) || "";
-    const degreeLine = block.find(l => l !== dateLine && /(associate|bachelor|master|ph\.?d|degree|diploma|certificate|major|minor|gpa)/i.test(l)) || "";
-    let school = block.find(l => l !== degreeLine && l !== dateLine) || block[0] || "";
-    let city = "";
-    const splitMatch = school.match(/^(.+?)\s*[—–\-|]\s*(.+)$/);
-    if (splitMatch && LOCATION_RE.test(splitMatch[2])) {
-      school = splitMatch[1].trim();
-      city = splitMatch[2].trim();
-    } else {
-      const cityInDate = (dateLine.match(LOCATION_RE) || [""])[0];
-      if (cityInDate) city = cityInDate;
-    }
-    return { school, city, degree: degreeLine, date: dateLine };
-  });
-}
-
-function parseEntryBlocks(lines) {
-  const blocks = [];
-  let cur = null;
-  for (const line of lines) {
-    if (!line) {
-      if (cur) { blocks.push(cur); cur = null; }
-      continue;
-    }
-    const isBullet = BULLET_RE.test(line);
-    if (isBullet) {
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.bullets.push(line.replace(BULLET_RE, ""));
-    } else {
-      // a non-bullet line after bullets starts a new block
-      if (cur && cur.bullets.length) { blocks.push(cur); cur = null; }
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.heading.push(line);
-    }
-  }
-  if (cur) blocks.push(cur);
-
-  return blocks.map(b => {
-    const headingJoined = b.heading.join(" | ");
-    const date = (headingJoined.match(new RegExp(`${DATE_TOKEN_RE.source}\\s*[–\\-—]+\\s*${DATE_TOKEN_RE.source}|${DATE_TOKEN_RE.source}`, "i")) || [""])[0];
-    const location = (headingJoined.match(LOCATION_RE) || [""])[0];
-    let title = b.heading[0] || "";
-    // strip trailing date/location from title line
-    title = title.replace(DATE_TOKEN_RE, "").replace(LOCATION_RE, "").replace(/[\s|–—\-]+$/, "").trim();
-    return { title, date, location, bullets: b.bullets };
-  });
-}
-
-function groupByBlankLine(lines) {
-  const out = [];
-  let cur = [];
-  for (const l of lines) {
-    if (!l) {
-      if (cur.length) { out.push(cur); cur = []; }
-    } else {
-      cur.push(l);
-    }
-  }
-  if (cur.length) out.push(cur);
-  return out;
-}
-
-function showImportConfirm(parsed, sourceName) {
-  _pendingImport = parsed;
-  const summarySnippet = parsed.summary.length > 180 ? parsed.summary.slice(0, 180) + "…" : parsed.summary;
-  const row = (key, label, value, hasContent) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${hasContent ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${hasContent ? esc(value) : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
-  const count = (key, label, n, detail) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${n > 0 ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${n > 0 ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
-  const h = parsed.header;
-  $("#import-preview").innerHTML = `
-    <div class="import-source">SOURCE: <span class="amber">${esc(sourceName)}</span></div>
-    ${row("name", "NAME", h.name, !!h.name)}
-    ${row("email", "EMAIL", h.email, !!h.email)}
-    ${row("phone", "PHONE", h.phone, !!h.phone)}
-    ${row("location", "LOCATION", h.location, !!h.location)}
-    ${row("linkedin", "LINKEDIN", h.linkedin, !!h.linkedin)}
-    ${row("summary", "PROFILE SUMMARY", summarySnippet, !!parsed.summary)}
-    ${count("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries")}
-    ${count("skills", "SKILLS", parsed.skills.length, "items")}
-    ${count("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks")}
-    ${count("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions")}
-    ${count("certifications", "CERTIFICATIONS", parsed.certifications.length, "items")}
-  `;
-  $("#import-modal-bg").classList.add("show");
-}
-
-function closeImportModal() {
-  $("#import-modal-bg").classList.remove("show");
-}
-
-function applyImport() {
-  if (!_pendingImport) { closeImportModal(); return; }
-  const enabled = {};
-  $$("#import-preview input[type='checkbox']").forEach(cb => {
-    enabled[cb.dataset.importKey] = cb.checked && !cb.disabled;
-  });
-
-  const p = _pendingImport;
-  const h = p.header;
-  if (enabled.name) state.name = h.name;
-  if (enabled.email) state.email = h.email;
-  if (enabled.phone) state.phone = h.phone;
-  if (enabled.location) state.location = h.location;
-  if (enabled.linkedin) state.linkedin = h.linkedin;
-  if (enabled.summary) state.summary = p.summary;
-
-  // Mirror imported contact fields into demo_2's two contact lines.
-  if (enabled.location || enabled.phone) {
-    const line1 = [state.location, state.phone].filter(Boolean).join(" | ");
-    if (line1) state.contact_line1 = line1;
-  }
-  if (enabled.email || enabled.linkedin) {
-    const line2 = [state.email, state.linkedin].filter(Boolean).join(" | ");
-    if (line2) state.contact_line2 = line2;
-  }
-
-  if (enabled.education && p.education.length) {
-    state.education = p.education.map(e => ({
-      school: e.school || "",
-      city: e.city || "",
-      degree: e.degree || "",
-      date: e.date || "",
-      subline_bold: "",
-      subline_rest: "",
-      coursework: "",
-    }));
-  }
-
-  if (enabled.skills && p.skills.length) {
-    state.skills_categories = [{ label: "Technical", content: p.skills.join(", ") }];
-    state.skills_two_column = [];
-    for (let i = 0; i < p.skills.length; i += 2) {
-      state.skills_two_column.push({ left: p.skills[i] || "", right: p.skills[i + 1] || "" });
-    }
-  }
-
-  if (enabled.projects) {
-    if (p.projects.length) {
-      state.projects = p.projects.map(pr => ({
-        title: pr.title || "",
-        date: pr.date || "",
-        location: pr.location || "",
-        bullets: pr.bullets.length ? pr.bullets : [""],
-      }));
-      state.section_enabled.projects = true;
-    }
-  }
-
-  if (enabled.experience && p.experience.length) {
-    state.experience = p.experience.map(e => ({
-      title: e.title || "",
-      date: e.date || "",
-      location: e.location || "",
-      company_city: e.location || "",
-      bullets: e.bullets.length ? e.bullets : [""],
-    }));
-    state.section_enabled.experience = true;
-  }
-
-  if (enabled.certifications && p.certifications.length) {
-    state.certifications = p.certifications;
-  }
-
-  _pendingImport = null;
-  closeImportModal();
-  $("#intake-card").classList.add("collapsed");
-  $("#import-paste").value = "";
-  render();
-  toast("IMPORT APPLIED");
-}
-
-// File input + dropzone wiring (DOM is ready: app.js is deferred)
-$("#import-file").addEventListener("change", async (ev) => {
-  const file = ev.target.files && ev.target.files[0];
-  if (file) await handleImportFile(file);
-  ev.target.value = "";
-});
-
-(() => {
-  const dz = $("#dropzone");
-  if (!dz) return;
-  ["dragenter", "dragover"].forEach(t => dz.addEventListener(t, (e) => {
-    e.preventDefault();
-    dz.classList.add("drag-over");
-  }));
-  ["dragleave", "dragend"].forEach(t => dz.addEventListener(t, () => dz.classList.remove("drag-over")));
-  dz.addEventListener("drop", async (e) => {
-    e.preventDefault();
-    dz.classList.remove("drag-over");
-    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) await handleImportFile(file);
-  });
-  // Stop the browser from opening a file dropped outside the dropzone.
-  ["dragover", "drop"].forEach(t => window.addEventListener(t, (e) => {
-    if (e.target.closest("#dropzone")) return;
-    e.preventDefault();
-  }));
-})();
 
 // ─────────────────────────────────────────────────────────
 // INIT

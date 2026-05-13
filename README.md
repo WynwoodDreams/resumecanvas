@@ -25,6 +25,7 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 - `DOWNLOAD .DOC` saves the live preview as a Word-compatible `.doc` file.
 - `SAVE PDF` opens the browser print dialog so users can choose “Save as PDF”.
 - `PAYLOAD` keeps the JSON handoff available for the companion `.docx` engine.
+- `LOCK ROWS` keeps long degree names, job titles, dates, and locations aligned in the preview/export.
 
 ## Stack
 
@@ -32,6 +33,13 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 - JetBrains Mono and Newsreader (Google Fonts)
 - External `styles.css` and `app.js` so Vercel can enforce a CSP without `unsafe-inline`
 - Tactical dossier aesthetic, dark theme, amber accent
+- The original dark dossier palette is locked by smoke tests to avoid accidental color drift
+
+## Security hardening
+
+- User-entered resume text is HTML-escaped before form re-rendering and preview output.
+- Static deployment headers set a restrictive CSP, deny framing/object embedding, and disable unused browser permissions.
+- Clipboard actions use a fallback path and show a failure toast if copying is blocked.
 
 ## Security hardening
 

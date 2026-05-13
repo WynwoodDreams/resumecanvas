@@ -40,5 +40,23 @@ assert(app.includes('application/msword'), 'DOC export must use a Word-compatibl
 assert(app.includes('window.print()'), 'PDF export must open the browser print/save-PDF flow');
 assert(css.includes('.preview-toolbar'), 'styles.css must include visible toolbar styling');
 assert(css.includes('@media print'), 'styles.css must include print/PDF styles');
+assert(html.includes('data-action="toggleLayoutLock"'), 'toolbar must include layout lock action');
+assert(app.includes('layout_lock'), 'app.js must track layout lock state');
+assert(css.includes('.preview-frame.layout-locked'), 'styles.css must include layout lock styles');
+
+const expectedThemeTokens = [
+  '--bg: #0a0a0a',
+  '--surface-0: #111110',
+  '--surface-1: #161614',
+  '--surface-2: #1d1d1a',
+  '--text: #e8e3d6',
+  '--amber: #ff8c1a',
+  '--sage: #7a9a7a',
+  '--paper: #f5f1e8',
+  '--ink: #1a1a17',
+];
+for (const token of expectedThemeTokens) {
+  assert(css.includes(token), `theme token changed or missing: ${token}`);
+}
 
 console.log('Smoke checks passed');
