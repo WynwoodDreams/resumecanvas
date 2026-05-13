@@ -424,6 +424,11 @@ const ACTIONS = {
   downloadDoc: () => downloadDoc(),
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
+  toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
+  parseImportText: () => parseImportFromPaste(),
+  applyImport: () => applyImport(),
+  closeImportModal: () => closeImportModal(),
+  closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
 };
 
 document.addEventListener("click", (ev) => {
@@ -847,6 +852,364 @@ async function copyPayloadAndPrompt() {
   const copied = await copyText(text, "PAYLOAD + PROMPT COPIED");
   if (copied) setTimeout(() => closeModal(), 600);
 }
+
+// ─────────────────────────────────────────────────────────
+// IMPORT FROM EXISTING RESUME
+// ─────────────────────────────────────────────────────────
+
+let _pendingImport = null;
+
+const SECTION_PATTERNS = [
+  ["summary", /^(profile\s+summary|professional\s+summary|career\s+summary|summary|objective|profile|about\s+me|about)\s*:?\s*$/i],
+  ["education", /^(education|academic\s+background|academics)\s*:?\s*$/i],
+  ["skills", /^(highlighted\s+skills|technical\s+skills|core\s+competencies|competencies|skills)\s*:?\s*$/i],
+  ["projects", /^(projects|project\s+experience|key\s+projects|selected\s+projects)\s*:?\s*$/i],
+  ["experience", /^(work\s+experience|professional\s+experience|employment\s+history|experience|employment)\s*:?\s*$/i],
+  ["certifications", /^(certifications?|certificates|licenses(\s*&\s*certifications)?|licenses)\s*:?\s*$/i],
+];
+
+const BULLET_RE = /^[•*\-‒–—◦·▪]\s+/;
+const DATE_TOKEN_RE = /((jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\b\d{4}\b|present|current|expected)/i;
+const LOCATION_RE = /[A-Z][a-zA-Z.\s]+,\s*[A-Z]{2}(?:\s+\d{5})?/;
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+const PHONE_RE = /(?:\+?\d[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
+const LINKEDIN_RE = /(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/[^\s|]+/i;
+
+async function handleImportFile(file) {
+  try {
+    let text;
+    if (/\.docx$/i.test(file.name)) {
+      text = await extractDocxText(file);
+    } else if (/\.txt$/i.test(file.name) || /^text\//.test(file.type) || !file.type) {
+      text = await file.text();
+    } else {
+      toast("UNSUPPORTED FILE — paste text instead");
+      return;
+    }
+    if (!text || !text.trim()) {
+      toast("FILE WAS EMPTY");
+      return;
+    }
+    showImportConfirm(parseResumeText(text), file.name);
+  } catch (err) {
+    console.error("Import failed", err);
+    toast("IMPORT FAILED — try pasting text instead");
+  }
+}
+
+function parseImportFromPaste() {
+  const text = $("#import-paste").value;
+  if (!text.trim()) { toast("PASTE SOME TEXT FIRST"); return; }
+  showImportConfirm(parseResumeText(text), "(pasted)");
+}
+
+async function extractDocxText(file) {
+  const buf = await file.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  const view = new DataView(buf);
+  const TARGET = "word/document.xml";
+  for (let i = 0; i <= u8.length - 30; i++) {
+    if (u8[i] !== 0x50 || u8[i+1] !== 0x4b || u8[i+2] !== 0x03 || u8[i+3] !== 0x04) continue;
+    const compression = view.getUint16(i + 8, true);
+    const compSize = view.getUint32(i + 18, true);
+    const nameLen = view.getUint16(i + 26, true);
+    const extraLen = view.getUint16(i + 28, true);
+    const nameStart = i + 30;
+    if (nameStart + nameLen > u8.length) continue;
+    const name = new TextDecoder().decode(u8.subarray(nameStart, nameStart + nameLen));
+    if (name !== TARGET) continue;
+    const dataStart = nameStart + nameLen + extraLen;
+    const data = u8.subarray(dataStart, dataStart + compSize);
+    let xml;
+    if (compression === 0) {
+      xml = new TextDecoder().decode(data);
+    } else if (compression === 8 && typeof DecompressionStream !== "undefined") {
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      xml = await new Response(stream).text();
+    } else {
+      throw new Error("Unsupported .docx compression");
+    }
+    return docxXmlToText(xml);
+  }
+  throw new Error("Not a valid .docx (document.xml missing)");
+}
+
+function docxXmlToText(xml) {
+  const decode = (s) => s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  const paragraphs = xml.split(/<w:p[\s>\/]/).slice(1);
+  const lines = paragraphs.map(p => {
+    const runs = [];
+    const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let m;
+    while ((m = re.exec(p))) runs.push(m[1]);
+    return decode(runs.join(""));
+  });
+  return lines.join("\n");
+}
+
+function parseResumeText(text) {
+  const rawLines = text.replace(/\r/g, "").split("\n").map(l => l.replace(/•/g, "•").replace(/\t/g, " ").trim());
+  const sections = { header: [], summary: [], education: [], skills: [], projects: [], experience: [], certifications: [] };
+  let current = "header";
+  for (const line of rawLines) {
+    const matched = SECTION_PATTERNS.find(([, re]) => re.test(line));
+    if (matched) { current = matched[0]; continue; }
+    sections[current].push(line);
+  }
+
+  const header = parseHeader(sections.header);
+  const summary = sections.summary.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  const skills = parseSkills(sections.skills);
+  const education = parseEducationBlocks(sections.education);
+  const projects = parseEntryBlocks(sections.projects);
+  const experience = parseEntryBlocks(sections.experience);
+  const certifications = sections.certifications.filter(Boolean).map(l => l.replace(BULLET_RE, ""));
+
+  return { header, summary, skills, education, projects, experience, certifications };
+}
+
+function parseHeader(lines) {
+  const nonEmpty = lines.filter(Boolean);
+  const name = nonEmpty[0] || "";
+  const rest = nonEmpty.slice(1).join(" | ");
+  const email = (rest.match(EMAIL_RE) || [""])[0];
+  const phone = (rest.match(PHONE_RE) || [""])[0];
+  const linkedin = (rest.match(LINKEDIN_RE) || [""])[0];
+  const location = (rest.match(LOCATION_RE) || [""])[0];
+  return { name, email, phone, linkedin, location };
+}
+
+function parseSkills(lines) {
+  const seen = new Set();
+  const items = [];
+  for (const raw of lines) {
+    if (!raw) continue;
+    const cleaned = raw.replace(BULLET_RE, "").replace(/^[A-Z][a-zA-Z]+:\s*/, ""); // drop "Category: " prefixes
+    cleaned.split(/[,;|·•]/).forEach(piece => {
+      const t = piece.trim();
+      if (t && !seen.has(t.toLowerCase())) {
+        seen.add(t.toLowerCase());
+        items.push(t);
+      }
+    });
+  }
+  return items;
+}
+
+function parseEducationBlocks(lines) {
+  const blocks = groupByBlankLine(lines);
+  return blocks.map(block => {
+    const dateLine = block.find(l => DATE_TOKEN_RE.test(l)) || "";
+    const degreeLine = block.find(l => l !== dateLine && /(associate|bachelor|master|ph\.?d|degree|diploma|certificate|major|minor|gpa)/i.test(l)) || "";
+    let school = block.find(l => l !== degreeLine && l !== dateLine) || block[0] || "";
+    let city = "";
+    const splitMatch = school.match(/^(.+?)\s*[—–\-|]\s*(.+)$/);
+    if (splitMatch && LOCATION_RE.test(splitMatch[2])) {
+      school = splitMatch[1].trim();
+      city = splitMatch[2].trim();
+    } else {
+      const cityInDate = (dateLine.match(LOCATION_RE) || [""])[0];
+      if (cityInDate) city = cityInDate;
+    }
+    return { school, city, degree: degreeLine, date: dateLine };
+  });
+}
+
+function parseEntryBlocks(lines) {
+  const blocks = [];
+  let cur = null;
+  for (const line of lines) {
+    if (!line) {
+      if (cur) { blocks.push(cur); cur = null; }
+      continue;
+    }
+    const isBullet = BULLET_RE.test(line);
+    if (isBullet) {
+      if (!cur) cur = { heading: [], bullets: [] };
+      cur.bullets.push(line.replace(BULLET_RE, ""));
+    } else {
+      // a non-bullet line after bullets starts a new block
+      if (cur && cur.bullets.length) { blocks.push(cur); cur = null; }
+      if (!cur) cur = { heading: [], bullets: [] };
+      cur.heading.push(line);
+    }
+  }
+  if (cur) blocks.push(cur);
+
+  return blocks.map(b => {
+    const headingJoined = b.heading.join(" | ");
+    const date = (headingJoined.match(new RegExp(`${DATE_TOKEN_RE.source}\\s*[–\\-—]+\\s*${DATE_TOKEN_RE.source}|${DATE_TOKEN_RE.source}`, "i")) || [""])[0];
+    const location = (headingJoined.match(LOCATION_RE) || [""])[0];
+    let title = b.heading[0] || "";
+    // strip trailing date/location from title line
+    title = title.replace(DATE_TOKEN_RE, "").replace(LOCATION_RE, "").replace(/[\s|–—\-]+$/, "").trim();
+    return { title, date, location, bullets: b.bullets };
+  });
+}
+
+function groupByBlankLine(lines) {
+  const out = [];
+  let cur = [];
+  for (const l of lines) {
+    if (!l) {
+      if (cur.length) { out.push(cur); cur = []; }
+    } else {
+      cur.push(l);
+    }
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+function showImportConfirm(parsed, sourceName) {
+  _pendingImport = parsed;
+  const summarySnippet = parsed.summary.length > 180 ? parsed.summary.slice(0, 180) + "…" : parsed.summary;
+  const row = (key, label, value, hasContent) => `
+    <label class="import-row">
+      <input type="checkbox" data-import-key="${key}" ${hasContent ? "checked" : "disabled"}>
+      <div class="ir-label">${label}</div>
+      <div class="ir-value">${hasContent ? esc(value) : '<span class="none">none detected</span>'}</div>
+    </label>
+  `;
+  const count = (key, label, n, detail) => `
+    <label class="import-row">
+      <input type="checkbox" data-import-key="${key}" ${n > 0 ? "checked" : "disabled"}>
+      <div class="ir-label">${label}</div>
+      <div class="ir-value">${n > 0 ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}</div>
+    </label>
+  `;
+  const h = parsed.header;
+  $("#import-preview").innerHTML = `
+    <div class="import-source">SOURCE: <span class="amber">${esc(sourceName)}</span></div>
+    ${row("name", "NAME", h.name, !!h.name)}
+    ${row("email", "EMAIL", h.email, !!h.email)}
+    ${row("phone", "PHONE", h.phone, !!h.phone)}
+    ${row("location", "LOCATION", h.location, !!h.location)}
+    ${row("linkedin", "LINKEDIN", h.linkedin, !!h.linkedin)}
+    ${row("summary", "PROFILE SUMMARY", summarySnippet, !!parsed.summary)}
+    ${count("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries")}
+    ${count("skills", "SKILLS", parsed.skills.length, "items")}
+    ${count("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks")}
+    ${count("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions")}
+    ${count("certifications", "CERTIFICATIONS", parsed.certifications.length, "items")}
+  `;
+  $("#import-modal-bg").classList.add("show");
+}
+
+function closeImportModal() {
+  $("#import-modal-bg").classList.remove("show");
+}
+
+function applyImport() {
+  if (!_pendingImport) { closeImportModal(); return; }
+  const enabled = {};
+  $$("#import-preview input[type='checkbox']").forEach(cb => {
+    enabled[cb.dataset.importKey] = cb.checked && !cb.disabled;
+  });
+
+  const p = _pendingImport;
+  const h = p.header;
+  if (enabled.name) state.name = h.name;
+  if (enabled.email) state.email = h.email;
+  if (enabled.phone) state.phone = h.phone;
+  if (enabled.location) state.location = h.location;
+  if (enabled.linkedin) state.linkedin = h.linkedin;
+  if (enabled.summary) state.summary = p.summary;
+
+  // Mirror imported contact fields into demo_2's two contact lines.
+  if (enabled.location || enabled.phone) {
+    const line1 = [state.location, state.phone].filter(Boolean).join(" | ");
+    if (line1) state.contact_line1 = line1;
+  }
+  if (enabled.email || enabled.linkedin) {
+    const line2 = [state.email, state.linkedin].filter(Boolean).join(" | ");
+    if (line2) state.contact_line2 = line2;
+  }
+
+  if (enabled.education && p.education.length) {
+    state.education = p.education.map(e => ({
+      school: e.school || "",
+      city: e.city || "",
+      degree: e.degree || "",
+      date: e.date || "",
+      subline_bold: "",
+      subline_rest: "",
+      coursework: "",
+    }));
+  }
+
+  if (enabled.skills && p.skills.length) {
+    state.skills_categories = [{ label: "Technical", content: p.skills.join(", ") }];
+    state.skills_two_column = [];
+    for (let i = 0; i < p.skills.length; i += 2) {
+      state.skills_two_column.push({ left: p.skills[i] || "", right: p.skills[i + 1] || "" });
+    }
+  }
+
+  if (enabled.projects) {
+    if (p.projects.length) {
+      state.projects = p.projects.map(pr => ({
+        title: pr.title || "",
+        date: pr.date || "",
+        location: pr.location || "",
+        bullets: pr.bullets.length ? pr.bullets : [""],
+      }));
+      state.section_enabled.projects = true;
+    }
+  }
+
+  if (enabled.experience && p.experience.length) {
+    state.experience = p.experience.map(e => ({
+      title: e.title || "",
+      date: e.date || "",
+      location: e.location || "",
+      company_city: e.location || "",
+      bullets: e.bullets.length ? e.bullets : [""],
+    }));
+    state.section_enabled.experience = true;
+  }
+
+  if (enabled.certifications && p.certifications.length) {
+    state.certifications = p.certifications;
+  }
+
+  _pendingImport = null;
+  closeImportModal();
+  $("#intake-card").classList.add("collapsed");
+  $("#import-paste").value = "";
+  render();
+  toast("IMPORT APPLIED");
+}
+
+// File input + dropzone wiring (DOM is ready: app.js is deferred)
+$("#import-file").addEventListener("change", async (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  if (file) await handleImportFile(file);
+  ev.target.value = "";
+});
+
+(() => {
+  const dz = $("#dropzone");
+  if (!dz) return;
+  ["dragenter", "dragover"].forEach(t => dz.addEventListener(t, (e) => {
+    e.preventDefault();
+    dz.classList.add("drag-over");
+  }));
+  ["dragleave", "dragend"].forEach(t => dz.addEventListener(t, () => dz.classList.remove("drag-over")));
+  dz.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dz.classList.remove("drag-over");
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) await handleImportFile(file);
+  });
+  // Stop the browser from opening a file dropped outside the dropzone.
+  ["dragover", "drop"].forEach(t => window.addEventListener(t, (e) => {
+    if (e.target.closest("#dropzone")) return;
+    e.preventDefault();
+  }));
+})();
 
 // ─────────────────────────────────────────────────────────
 // INIT
