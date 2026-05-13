@@ -41,6 +41,12 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 - Static deployment headers set a restrictive CSP, deny framing/object embedding, and disable unused browser permissions.
 - Clipboard actions use a fallback path and show a failure toast if copying is blocked.
 
+## Security hardening
+
+- User-entered resume text is HTML-escaped before form re-rendering and preview output.
+- Static deployment headers set a restrictive CSP, deny framing/object embedding, and disable unused browser permissions.
+- Clipboard actions use a fallback path and show a failure toast if copying is blocked.
+
 ## Companion engine
 
 The `.docx` generation engine (`resume_builder.py`) lives separately. The UI emits a JSON payload that the engine consumes to produce the final Word document.

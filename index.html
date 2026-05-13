@@ -41,6 +41,27 @@
       </div>
     </div>
 
+    <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
+    <div class="intake-card collapsed" id="intake-card">
+      <div class="intake-header" data-action="toggleIntake">
+        <div class="intake-title"><span class="amber">▶</span> INTAKE / IMPORT EXISTING RESUME</div>
+        <span class="intake-caret">▼</span>
+      </div>
+      <div class="intake-body">
+        <div class="intake-help">Drop a <code>.txt</code> or <code>.docx</code> resume, or paste the text below. We'll parse the section headers (Education, Skills, etc.) and let you confirm what to import before anything is overwritten.</div>
+        <label class="dropzone" id="dropzone" for="import-file">
+          <div class="dz-title">⤓ DROP RESUME HERE</div>
+          <div class="dz-sub">.txt or .docx · click to browse · for PDFs, paste text below</div>
+        </label>
+        <input type="file" id="import-file" accept=".txt,.docx,text/plain" class="hidden">
+        <div class="paste-block">
+          <label>OR PASTE TEXT</label>
+          <textarea id="import-paste" placeholder="Paste resume text from Word, Google Docs, or a PDF reader…"></textarea>
+          <button class="add-btn" data-action="parseImportText">▶ PARSE PASTED TEXT</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Sections -->
     <div class="panel open" data-section="header">
       <header><h2><span class="idx">01</span> SUBJECT</h2><span class="caret">▶</span></header>
@@ -50,7 +71,7 @@
     <div class="panel open" data-section="summary">
       <header><h2><span class="idx">02</span> PROFILE SUMMARY</h2><span class="caret">▶</span></header>
       <div class="body">
-        <textarea id="summary" placeholder="3–4 sentences. Who they are, key skills, what they're seeking."></textarea>
+        <textarea id="summary" class="required" placeholder="3–4 sentences. Who they are, key skills, what they're seeking."></textarea>
       </div>
     </div>
 
@@ -72,17 +93,31 @@
       </div>
     </div>
 
-    <div class="panel" data-section="projects">
-      <header><h2><span class="idx" id="proj-idx">05</span> PROJECTS</h2><span class="caret">▶</span></header>
+    <div class="panel" data-section="projects" data-optional="true">
+      <header>
+        <h2><span class="idx">05</span> PROJECTS</h2>
+        <div class="header-controls">
+          <button class="section-toggle" data-action="toggleSection" data-section="projects" aria-pressed="true">INCLUDED</button>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
+        <div class="section-off-banner" data-section-banner="projects">Section hidden from resume — re-enable to include in export.</div>
         <div id="projects-list"></div>
         <button class="add-btn" data-action="addProject">+ ADD PROJECT</button>
       </div>
     </div>
 
-    <div class="panel" data-section="experience">
-      <header><h2><span class="idx" id="exp-idx">06</span> WORK EXPERIENCE</h2><span class="caret">▶</span></header>
+    <div class="panel" data-section="experience" data-optional="true">
+      <header>
+        <h2><span class="idx">06</span> WORK EXPERIENCE</h2>
+        <div class="header-controls">
+          <button class="section-toggle" data-action="toggleSection" data-section="experience" aria-pressed="true">INCLUDED</button>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
+        <div class="section-off-banner" data-section-banner="experience">Section hidden from resume — re-enable to include in export.</div>
         <div id="experience-list"></div>
         <button class="add-btn" data-action="addExperience">+ ADD POSITION</button>
       </div>
