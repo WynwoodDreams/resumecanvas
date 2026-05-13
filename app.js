@@ -109,6 +109,32 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (ch) => HTML_ENTITY_MAP[ch]);
 }
 
+const LINKIFY_RE = /([\w.+-]+@[\w-]+\.[\w.-]+)|((?:https?:\/\/|www\.)[^\s<>"'|,;)]+)|((?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|me|co|app|ai|tech|xyz|edu|gov|info|us|uk|ca)(?:\/[^\s<>"'|,;)]*)?)/gi;
+
+function linkify(s) {
+  if (s == null) return "";
+  const text = String(s);
+  let out = "";
+  let lastIdx = 0;
+  let m;
+  LINKIFY_RE.lastIndex = 0;
+  while ((m = LINKIFY_RE.exec(text)) !== null) {
+    out += esc(text.slice(lastIdx, m.index));
+    let matched = m[0];
+    let trailing = "";
+    const t = matched.match(/[.,;:!?)\]]+$/);
+    if (t) { trailing = t[0]; matched = matched.slice(0, -trailing.length); }
+    let href;
+    if (m[1]) href = `mailto:${matched}`;
+    else if (m[2]) href = matched.toLowerCase().startsWith("http") ? matched : `https://${matched}`;
+    else href = `https://${matched}`;
+    out += `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" class="preview-link">${esc(matched)}</a>${esc(trailing)}`;
+    lastIdx = m.index + m[0].length;
+  }
+  out += esc(text.slice(lastIdx));
+  return out;
+}
+
 function setCaseId() {
   if (!state.name) { $("#caseId").textContent = "———"; return; }
   const initials = state.name.split(/\s+/).filter(Boolean).map(s => s[0]).join("").toUpperCase().slice(0, 3);
@@ -520,15 +546,15 @@ function renderPreview() {
   const f = $("#preview");
   let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
   if (tpl === "demo_4") {
-    html += `<div class="resume-contact">${esc(state.location)} | ${esc(state.phone)} | <a href="#" class="preview-link">${esc(state.email)}</a> | <a href="#" class="preview-link">${esc(state.linkedin)}</a></div>`;
+    html += `<div class="resume-contact">${esc(state.location)} | ${esc(state.phone)} | ${linkify(state.email)} | ${linkify(state.linkedin)}</div>`;
   } else {
-    html += `<div class="resume-contact">${esc(state.contact_line1)}<br>${esc(state.contact_line2)}</div>`;
+    html += `<div class="resume-contact">${linkify(state.contact_line1)}<br>${linkify(state.contact_line2)}</div>`;
     html += `<div class="resume-contact-divider"></div>`;
   }
 
   // Profile Summary
   html += `<div class="resume-section-h">PROFILE SUMMARY</div>`;
-  html += `<div>${esc(state.summary)}</div>`;
+  html += `<div>${linkify(state.summary)}</div>`;
 
   if (tpl === "demo_2") {
     // Demo 2: skills section comes BEFORE education
@@ -553,10 +579,10 @@ function renderPreview() {
       html += `<div class="edu-row${gapClass}"><div class="strong">${esc(e.school)}</div><div>${esc(e.city)}</div></div>`;
       html += `<div class="edu-degree-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
       if (e.subline_bold || e.subline_rest) {
-        html += `<div class="edu-subline"><span class="bold">${esc(e.subline_bold)}</span>${esc(e.subline_rest)}</div>`;
+        html += `<div class="edu-subline"><span class="bold">${esc(e.subline_bold)}</span>${linkify(e.subline_rest)}</div>`;
       }
       if (e.coursework) {
-        html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${esc(e.coursework)}</div>`;
+        html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${linkify(e.coursework)}</div>`;
       }
     }
   });
@@ -571,7 +597,7 @@ function renderPreview() {
     // Demo 2 certifications
     html += `<div class="resume-section-h">CERTIFICATIONS</div>`;
     html += `<ul class="bullets-list">`;
-    state.certifications.forEach(c => { html += `<li>${esc(c)}</li>`; });
+    state.certifications.forEach(c => { html += `<li>${linkify(c)}</li>`; });
     html += `</ul>`;
   }
 
@@ -581,13 +607,13 @@ function renderPreview() {
     state.projects.forEach(p => {
       if (tpl === "demo_4") {
         html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
-        if (p.location) html += `<div class="entry-loc">${esc(p.location)}</div>`;
+        if (p.location) html += `<div class="entry-loc">${linkify(p.location)}</div>`;
       } else {
         html += `<div class="proj-title">${esc(p.title)}</div>`;
       }
       if (p.bullets && p.bullets.length) {
         html += `<ul class="bullets-list">`;
-        p.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
+        p.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
         html += `</ul>`;
       }
     });
@@ -599,13 +625,13 @@ function renderPreview() {
     state.experience.forEach(en => {
       html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
       if (tpl === "demo_4") {
-        if (en.location) html += `<div class="entry-loc">${esc(en.location)}</div>`;
+        if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
       } else {
-        if (en.company_city) html += `<div class="exp-company">${esc(en.company_city)}</div>`;
+        if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
       }
       if (en.bullets && en.bullets.length) {
         html += `<ul class="bullets-list">`;
-        en.bullets.forEach(b => { if (b) html += `<li>${esc(b)}</li>`; });
+        en.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
         html += `</ul>`;
       }
     });
