@@ -65,6 +65,8 @@
   label { display: block; font-size: 9.5px; letter-spacing: 0.2em; color: var(--text-dim); margin: 0 0 6px 0; text-transform: uppercase; font-weight: 500; }
   input[type="text"], textarea, select { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 8px 10px; font-family: inherit; font-size: 12.5px; transition: border-color 0.12s, background 0.12s; }
   input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--amber); background: #fdf6eb; }
+  input.required:placeholder-shown, textarea.required:placeholder-shown { border-color: var(--red); background: rgba(242,80,66,0.05); }
+  input.required:placeholder-shown:focus, textarea.required:placeholder-shown:focus { border-color: var(--red); background: rgba(242,80,66,0.10); }
   textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
   .row { display: grid; gap: 10px; margin-bottom: 10px; }
   .row.two { grid-template-columns: 1fr 1fr; }
@@ -155,11 +157,11 @@
   .overflow-banner .amber { color: var(--amber-soft); font-weight: 700; }
   .overflow-banner .red { color: var(--red-ink); font-weight: 700; }
   .preview-wrap { position: relative; }
-  .page-break-marker { position: absolute; left: 0; right: 0; pointer-events: none; border-top: 1px dashed rgba(242,80,66,0.55); z-index: 2; }
-  .page-break-marker::before { content: attr(data-label); position: absolute; top: -10px; right: 0; background: var(--bg); color: var(--red-ink); padding: 2px 8px; font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: 0.18em; font-weight: 700; }
-  /* Hidden measurement frame: matches real Letter content-area width so pages are counted accurately */
-  .measure-frame { position: absolute; left: -10000px; top: 0; visibility: hidden; pointer-events: none; padding: 0; box-shadow: none; min-height: 0 !important; }
-  .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 44px 36px 44px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 14px 40px rgba(2,8,38,0.14), 0 0 0 1px var(--border-strong); min-height: 700px; line-height: 1.45; font-size: 11.5pt; }
+  .preview-pages { display: flex; flex-direction: column; gap: 26px; }
+  .page-label { font-family: "JetBrains Mono", monospace; font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-mute); font-weight: 700; text-align: center; padding: 4px 0; border-top: 1px dashed var(--border-strong); position: relative; }
+  .page-label::before { content: ""; position: absolute; left: 50%; top: -0.5px; transform: translateX(-50%); width: 80px; height: 1px; background: var(--bg); }
+  .page-label span { position: relative; background: var(--bg); padding: 0 10px; }
+  .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 44px 36px 44px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 14px 40px rgba(2,8,38,0.14), 0 0 0 1px var(--border-strong); line-height: 1.45; font-size: 11.5pt; aspect-ratio: 8.5 / 11; overflow: hidden; }
 
   /* Preview resume styles — mirrors the master templates */
   .preview-frame.demo_4 { font-size: 12pt; }
@@ -237,5 +239,8 @@
     body { background: #fff !important; }
     body * { visibility: hidden; }
     #preview, #preview * { visibility: visible; }
-    #preview { position: absolute; left: 0; top: 0; width: 100%; min-height: auto; padding: 0; box-shadow: none; background: #fff; color: #000; }
+    #preview { position: absolute; left: 0; top: 0; width: 100%; gap: 0; }
+    #preview .preview-frame { background: #fff; color: #000; padding: 0; box-shadow: none; aspect-ratio: auto; overflow: visible; page-break-after: always; }
+    #preview .preview-frame:last-child { page-break-after: auto; }
+    #preview .page-label { display: none; }
   }

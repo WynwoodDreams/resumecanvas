@@ -131,21 +131,21 @@ function renderHeader() {
   const body = $("#body-header");
   if (state.template === "demo_4") {
     body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
+      <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
       <div class="row two">
-        <div><label>LOCATION</label><input type="text" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
-        <div><label>PHONE</label><input type="text" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
+        <div><label>LOCATION</label><input type="text" class="required" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
+        <div><label>PHONE</label><input type="text" class="required" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
       </div>
       <div class="row two">
-        <div><label>EMAIL</label><input type="text" data-bind="email" value="${esc(state.email)}"></div>
-        <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}"></div>
+        <div><label>EMAIL</label><input type="text" class="required" data-bind="email" value="${esc(state.email)}" placeholder="name@example.com"></div>
+        <div><label>LINKEDIN</label><input type="text" data-bind="linkedin" value="${esc(state.linkedin)}" placeholder="linkedin.com/in/…"></div>
       </div>
     `;
   } else {
     body.innerHTML = `
-      <div class="row"><label>FULL NAME</label><input type="text" data-bind="name" value="${esc(state.name)}"></div>
-      <div class="row"><label>CONTACT LINE 1</label><input type="text" data-bind="contact_line1" value="${esc(state.contact_line1)}" placeholder="Miami, FL | (305) 555-1234"><div class="help">Free-form. Will appear as the first contact line.</div></div>
-      <div class="row"><label>CONTACT LINE 2</label><input type="text" data-bind="contact_line2" value="${esc(state.contact_line2)}" placeholder="email | LinkedIn URL | site"><div class="help">Free-form. Second contact line. Can hold email + LinkedIn + portfolio.</div></div>
+      <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
+      <div class="row"><label>CONTACT LINE 1</label><input type="text" class="required" data-bind="contact_line1" value="${esc(state.contact_line1)}" placeholder="Miami, FL | (305) 555-1234"><div class="help">Free-form. Will appear as the first contact line.</div></div>
+      <div class="row"><label>CONTACT LINE 2</label><input type="text" class="required" data-bind="contact_line2" value="${esc(state.contact_line2)}" placeholder="email | LinkedIn URL | site"><div class="help">Free-form. Second contact line. Can hold email + LinkedIn + portfolio.</div></div>
     `;
   }
   bind(body);
@@ -171,12 +171,12 @@ function renderEducation() {
           <button class="icon-btn" data-action="removeEdu" data-index="${i}">REMOVE</button>
         </div>
         <div class="row two">
-          <div><label>SCHOOL</label><input type="text" data-edu="${i}" data-field="school" value="${esc(e.school || "")}"></div>
-          <div><label>CITY</label><input type="text" data-edu="${i}" data-field="city" value="${esc(e.city || "")}"></div>
+          <div><label>SCHOOL</label><input type="text" class="required" data-edu="${i}" data-field="school" value="${esc(e.school || "")}" placeholder="Miami Dade College"></div>
+          <div><label>CITY</label><input type="text" data-edu="${i}" data-field="city" value="${esc(e.city || "")}" placeholder="Miami, FL"></div>
         </div>
         <div class="row two">
-          <div><label>DEGREE / FIELD</label><input type="text" data-edu="${i}" data-field="degree" value="${esc(e.degree || "")}"></div>
-          <div><label>DATE</label><input type="text" data-edu="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="${eduSchemaIsDemo2 ? '05/2026' : 'Expected: May 2027'}"></div>
+          <div><label>DEGREE / FIELD</label><input type="text" class="required" data-edu="${i}" data-field="degree" value="${esc(e.degree || "")}" placeholder="Associate in Arts, Business"></div>
+          <div><label>DATE</label><input type="text" class="required" data-edu="${i}" data-field="date" value="${esc(e.date || "")}" placeholder="${eduSchemaIsDemo2 ? '05/2026' : 'Expected: May 2027'}"></div>
         </div>
         ${extra}
       </div>
@@ -493,6 +493,13 @@ $$(".tpl-chip").forEach(chip => {
   });
 });
 
+// Window resize re-paginates the preview at the new width.
+let _resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => renderPreview(), 180);
+});
+
 // Font chip selector — manual override only
 $$("[data-font]").forEach(chip => {
   chip.addEventListener("click", () => {
@@ -604,19 +611,16 @@ function renderPreview() {
     });
   }
 
-  f.innerHTML = html;
-
-  // The preview renders at the user-selected (or default) font size.
-  // We do NOT auto-measure pages from preview pixels — CSS at 696px wide with
-  // web fonts doesn't match Word at 7.25" wide with system fonts, so any
-  // pixel-based page count from the preview is unreliable. The user picks
-  // the size manually; the .docx output uses that exact size.
   const defaultFontPt = tpl === "demo_4" ? 12 : 11;
   const fontPt = state.font_pt || defaultFontPt;
-  f.className = `preview-frame ${tpl} font-${fontPt}`;
   state._appliedFontPt = fontPt;
 
-  // Stats: words + content density (entries + bullets) + active font
+  // Render content into a single frame, then paginate by measuring children.
+  const frameClass = `preview-frame ${tpl} font-${fontPt}`;
+  f.innerHTML = `<div class="${frameClass}">${html}</div>`;
+  const pageCount = paginatePreview(frameClass);
+
+  // Stats: words + content density (entries + bullets) + active font + page count
   const text = f.innerText || "";
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   const totalEntries =
@@ -628,15 +632,74 @@ function renderPreview() {
     state.experience.reduce((n, e) => n + (e.bullets || []).filter(Boolean).length, 0);
   const isDefault = fontPt === defaultFontPt;
   const fontClass = isDefault ? "ok" : "warn";
+  const pageLabel = pageCount === 1 ? "1 page" : `${pageCount} pages`;
   $("#preview-stats").innerHTML =
-    `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span>`;
+    `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span> &nbsp;·&nbsp; ${pageLabel}`;
 
-  // Hide the overflow banner — no false alarms
   $("#overflow-banner").className = "overflow-banner";
   $("#overflow-banner").innerHTML = "";
+}
 
-  // Hide page break marker — preview is a visual reference, not a page-count authority
-  $("#page-break-1").classList.add("hidden");
+// Measures the first .preview-frame inside #preview and, if its content
+// would overflow one page, splits its children into stacked frames.
+// Returns the resulting page count.
+function paginatePreview(frameClass) {
+  const wrap = $("#preview");
+  const firstFrame = wrap.firstElementChild;
+  if (!firstFrame) return 0;
+
+  // Page content area: aspect-ratio gives us paper-shaped frame height;
+  // subtract vertical padding (22 top + 36 bottom = 58px from .preview-frame).
+  const paperH = firstFrame.clientHeight;
+  const pageContentH = paperH - 58;
+  // Guard against pre-layout race (clientHeight 0) — leave as one page.
+  if (paperH <= 0 || pageContentH <= 0) return 1;
+  if (firstFrame.scrollHeight <= paperH + 1) return 1; // fits on one page
+
+  // Measure each top-level child while still in the live frame.
+  const children = Array.from(firstFrame.children);
+  const measured = children.map(node => {
+    const cs = getComputedStyle(node);
+    const mt = parseFloat(cs.marginTop) || 0;
+    const mb = parseFloat(cs.marginBottom) || 0;
+    return { node, h: node.offsetHeight + mt + mb };
+  });
+
+  const pages = [[]];
+  let pageH = 0;
+  for (const item of measured) {
+    const nextH = pageH + item.h;
+    if (nextH > pageContentH && pages[pages.length - 1].length > 0) {
+      const last = pages[pages.length - 1];
+      // Don't strand a section header at the bottom of a page — push it forward.
+      const tail = last[last.length - 1];
+      if (tail && tail.node.classList.contains("resume-section-h")) {
+        last.pop();
+        pages.push([tail]);
+        pageH = tail.h;
+      } else {
+        pages.push([]);
+        pageH = 0;
+      }
+    }
+    pages[pages.length - 1].push(item);
+    pageH += item.h;
+  }
+
+  wrap.innerHTML = "";
+  pages.forEach((page, i) => {
+    if (i > 0) {
+      const label = document.createElement("div");
+      label.className = "page-label";
+      label.innerHTML = `<span>▸ PAGE ${i + 1}</span>`;
+      wrap.appendChild(label);
+    }
+    const frame = document.createElement("div");
+    frame.className = frameClass;
+    page.forEach(item => frame.appendChild(item.node));
+    wrap.appendChild(frame);
+  });
+  return pages.length;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -684,6 +747,10 @@ function buildExportDocument() {
   renderPreview();
   const title = esc(state.name || "Resume");
   const fontPt = state._appliedFontPt || (state.template === "demo_4" ? 12 : 11);
+  // Flatten the paginated frames back into one content flow — Word repaginates
+  // at its own page size; preview pixel breaks don't translate.
+  const frames = $("#preview").querySelectorAll(".preview-frame");
+  const combined = Array.from(frames).map(f => f.innerHTML).join("\n");
   return `<!doctype html>
 <html>
 <head>
@@ -713,7 +780,7 @@ function buildExportDocument() {
 </style>
 </head>
 <body>
-${$("#preview").outerHTML}
+<div class="preview-frame ${state.template}">${combined}</div>
 </body>
 </html>`;
 }
