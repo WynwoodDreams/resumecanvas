@@ -38,11 +38,11 @@ let state = {
   ],
   // Demo 2 skills
   skills_two_column: [
-    { left: "Customer Service", right_with_bullet: "• Time Management" },
-    { left: "Microsoft Office Suite", right_with_bullet: "• Team Collaboration" },
-    { left: "Data Entry", right_with_bullet: "• Problem Solving" },
-    { left: "Social Media Management", right_with_bullet: "• Event Coordination" },
-    { left: "Bilingual: English & Haitian Creole", right_with_bullet: "• Adaptable" },
+    { left: "Customer Service", right: "Time Management" },
+    { left: "Microsoft Office Suite", right: "Team Collaboration" },
+    { left: "Data Entry", right: "Problem Solving" },
+    { left: "Social Media Management", right: "Event Coordination" },
+    { left: "Bilingual: English & Haitian Creole", right: "Adaptable" },
   ],
   certifications: [
     "Google Digital Marketing & E-commerce Certificate (In Progress) — Coursera",
@@ -201,7 +201,7 @@ function renderSkills() {
     bindSkillCat(body);
   } else {
     body.innerHTML = `
-      <div class="help skill-help">Two-column layout. Each row pairs a left item with a right item. The right item should start with <code>•</code> if you want a bullet (matches the master).</div>
+      <div class="help skill-help">Two-column layout. Each row pairs a left item with a right item — bullets are added automatically.</div>
     ` + state.skills_two_column.map((r, i) => `
       <div class="item">
         <div class="item-head">
@@ -210,7 +210,7 @@ function renderSkills() {
         </div>
         <div class="row two">
           <div><label>LEFT</label><input type="text" data-skill-row="${i}" data-field="left" value="${esc(r.left)}" placeholder="SQL, MySQL, Power BI"></div>
-          <div><label>RIGHT (with • bullet)</label><input type="text" data-skill-row="${i}" data-field="right_with_bullet" value="${esc(r.right_with_bullet)}" placeholder="• Pipeline Management"></div>
+          <div><label>RIGHT</label><input type="text" data-skill-row="${i}" data-field="right" value="${esc(r.right)}" placeholder="Pipeline Management"></div>
         </div>
       </div>
     `).join("") + `<button class="add-btn" data-action="addSkillRow">+ ADD ROW</button>`;
@@ -377,7 +377,7 @@ function bindExperience(container) {
 
 function addSkillCat() { state.skills_categories.push({ label: "", content: "" }); render(); }
 function removeSkillCat(i) { state.skills_categories.splice(i, 1); render(); }
-function addSkillRow() { state.skills_two_column.push({ left: "", right_with_bullet: "" }); render(); }
+function addSkillRow() { state.skills_two_column.push({ left: "", right: "" }); render(); }
 function removeSkillRow(i) { state.skills_two_column.splice(i, 1); render(); }
 function addCert() { state.certifications.push(""); render(); }
 function removeCert(i) { state.certifications.splice(i, 1); render(); }
@@ -524,7 +524,7 @@ function renderPreview() {
     html += `<ul class="skills-2col">`;
     state.skills_two_column.forEach(r => {
       const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
-      const right = r.right_with_bullet ? `<div>${esc(r.right_with_bullet)}</div>` : `<div></div>`;
+      const right = r.right ? `<div>• ${esc(r.right)}</div>` : `<div></div>`;
       html += left + right;
     });
     html += `</ul>`;
@@ -774,7 +774,9 @@ function buildPayload() {
         subline_rest: e.subline_rest || "",
         coursework: e.coursework || "",
       }));
-    out.skills_two_column = state.skills_two_column.filter(r => r.left || r.right_with_bullet);
+    out.skills_two_column = state.skills_two_column
+      .filter(r => r.left || r.right)
+      .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
     out.certifications = state.certifications.filter(Boolean);
     out.projects = state.section_enabled.projects
       ? state.projects.filter(p => p.title).map(p => ({
