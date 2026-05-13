@@ -691,13 +691,13 @@ function buildExportDocument() {
 <title>${title}</title>
 <style>
   @page { size: Letter; margin: 0.5in; }
-  body { margin: 0; background: #fff; color: #000; }
-  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #1a1a17; }
+  body { margin: 0; background: #fff; color: #020826; }
+  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
   .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${state.template === "demo_4" ? "20pt" : "16pt"}; }
-  .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8c2b3; margin-bottom: 8px; line-height: 1.35; }
+  .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8b89f; margin-bottom: 8px; line-height: 1.35; }
   .demo_2 .resume-contact { border-bottom: none; }
-  .resume-contact-divider { border-bottom: 0.5pt solid #c8c2b3; margin: 2px 0 8px 0; }
-  .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8c2b3; margin: 12px 0 6px 0; }
+  .resume-contact-divider { border-bottom: 0.5pt solid #c8b89f; margin: 2px 0 8px 0; }
+  .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8b89f; margin: 12px 0 6px 0; }
   .demo_2 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
   .edu-row, .entry-title-row, .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .entry-title-row { margin: 8px 0 2px 0; }
