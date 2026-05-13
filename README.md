@@ -33,6 +33,7 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 - JetBrains Mono and Newsreader (Google Fonts)
 - External `styles.css` and `app.js` so Vercel can enforce a CSP without `unsafe-inline`
 - Tactical dossier aesthetic, dark theme, amber accent
+- The original dark dossier palette is locked by smoke tests to avoid accidental color drift
 
 ## Security hardening
 
