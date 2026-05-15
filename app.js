@@ -63,6 +63,7 @@ let state = {
       ],
     },
   ],
+  match: { on: false, jd: "" },
   experience: [
     {
       title: "North Miami Senior High School — Office Staff",
@@ -673,6 +674,7 @@ function renderPreview() {
   const frameClass = `preview-frame ${tpl} font-${fontPt}`;
   f.innerHTML = `<div class="${frameClass}">${html}</div>`;
   const pageCount = paginatePreview(frameClass);
+  runMatch();
 
   // Stats: words + content density (entries + bullets) + active font + page count
   const text = f.innerText || "";
@@ -1332,6 +1334,383 @@ $("#import-file").addEventListener("change", async (ev) => {
     e.preventDefault();
   }));
 })();
+
+// ─────────────────────────────────────────────────────────
+// JOB-DESCRIPTION MATCH (local scoring · no AI · no exaggeration)
+// ─────────────────────────────────────────────────────────
+//
+// We tokenize the JD and resume, collapse a small synonym/phrase set, and
+// compare normalized term sets. Scores are coverage of JD-weighted terms.
+// Missing keywords are phrased as gaps — never as bullets to add — so the
+// user can't be nudged into claiming something untrue.
+
+const MATCH_STOPWORDS = new Set([
+  "a","an","the","and","or","but","of","to","in","for","on","with","at","by","from","as","is","are","was","were","be","been","being","have","has","had","do","does","did","will","would","should","could","may","might","can","this","that","these","those","you","your","our","we","they","their","them","its","it","what","which","who","when","where","why","how","all","each","every","both","few","more","most","some","such","no","nor","not","only","own","same","than","too","very","just","also","up","out","into","over","under","again","further","then","once","here","there","any","s","t","d","ll","m","o","re","ve","y","etc","via","per","upon","across","through","within","while","whether","including","include","includes","using","use","used","work","working","worked","ability","able","strong","excellent","good","great","required","preferred","plus","candidate","candidates","role","position","applicant","applicants","job","jobs","opportunity","company","companies","team","teams","year","years","yrs","new","other","others","day","days","time","times","based","level","levels","high","low","key","best","various","multiple","one","two","three","four","five","first","second","third","please","must","need","needs","needed","want","wants","look","looking","seeking","etc","make","makes","made","provide","provides","provided","helping","help","helps","helped","ensure","ensures","ensured","support","supports","supported","including","includes","included","across","along","among","beyond","over","into","upon","under","throughout","general","overall","daily","weekly","monthly","yearly","etc","you'll","we'll","they'll","i'm","you're","we're","they're","it's","that's","there's","here's","let's","cannot","can't","won't","don't","doesn't","didn't","isn't","aren't","wasn't","weren't","hasn't","haven't","hadn't"
+]);
+
+const MATCH_SYNONYMS = {
+  // Tech shorthand
+  "js": "javascript", "ts": "typescript", "py": "python",
+  "node": "nodejs", "nodejs": "nodejs", "k8s": "kubernetes",
+  "db": "database", "ml": "machinelearning", "ai": "artificialintelligence",
+  "ux": "userexperience", "ui": "userinterface",
+  "pm": "projectmanagement", "qa": "qualityassurance",
+  "hr": "humanresources", "ms": "microsoft", "msft": "microsoft",
+  "xls": "excel", "ppt": "powerpoint", "doc": "microsoftword",
+  "aws": "aws", "gcp": "googlecloud", "azure": "azure",
+  "ci": "continuousintegration", "cd": "continuousdeployment",
+  // Verb forms → canonical root
+  "managed": "manage", "managing": "manage", "manager": "manage", "management": "manage",
+  "developed": "develop", "developing": "develop", "developer": "develop", "development": "develop",
+  "led": "lead", "leading": "lead", "leader": "lead", "leadership": "lead",
+  "communicated": "communicate", "communicating": "communicate", "communication": "communicate", "communications": "communicate",
+  "coordinated": "coordinate", "coordinating": "coordinate", "coordination": "coordinate", "coordinator": "coordinate",
+  "analyzed": "analyze", "analyzing": "analyze", "analysis": "analyze", "analytical": "analyze", "analyst": "analyze", "analytics": "analyze",
+  "organized": "organize", "organizing": "organize", "organization": "organize", "organizational": "organize",
+  "trained": "train", "training": "train", "trainer": "train",
+  "presented": "present", "presenting": "present", "presentation": "present", "presentations": "present",
+  "designed": "design", "designing": "design", "designer": "design",
+  "built": "build", "building": "build", "builder": "build",
+  "created": "create", "creating": "create", "creation": "create", "creator": "create", "creative": "create",
+  "implemented": "implement", "implementing": "implement", "implementation": "implement",
+  "delivered": "deliver", "delivering": "deliver", "delivery": "deliver",
+  "researched": "research", "researching": "research", "researcher": "research",
+  "documented": "document", "documenting": "document", "documentation": "document",
+  "scheduled": "schedule", "scheduling": "schedule",
+  "negotiated": "negotiate", "negotiating": "negotiate", "negotiation": "negotiate",
+  "collaborated": "collaborate", "collaborating": "collaborate", "collaboration": "collaborate", "collaborative": "collaborate",
+  "operated": "operate", "operating": "operate", "operation": "operate", "operations": "operate", "operational": "operate",
+  "marketed": "marketing", "marketed": "marketing",
+  "sales": "sale", "selling": "sale", "sold": "sale",
+  "served": "serve", "serving": "serve", "service": "serve", "services": "serve",
+  "supports": "support", "supporting": "support", "supported": "support",
+  "clients": "client", "customers": "customer",
+  "events": "event",
+};
+
+// Multi-word phrases collapsed pre-tokenization so they survive as single terms.
+const MATCH_PHRASES = [
+  ["project management", "projectmanagement"],
+  ["product management", "productmanagement"],
+  ["account management", "accountmanagement"],
+  ["operations management", "operationsmanagement"],
+  ["records management", "recordsmanagement"],
+  ["time management", "timemanagement"],
+  ["customer service", "customerservice"],
+  ["client service", "customerservice"],
+  ["data entry", "dataentry"],
+  ["data analysis", "dataanalysis"],
+  ["data analytics", "dataanalysis"],
+  ["business administration", "businessadministration"],
+  ["business operations", "businessoperations"],
+  ["business development", "businessdevelopment"],
+  ["social media", "socialmedia"],
+  ["digital marketing", "digitalmarketing"],
+  ["content creation", "contentcreation"],
+  ["content marketing", "contentmarketing"],
+  ["event planning", "eventplanning"],
+  ["event coordination", "eventcoordination"],
+  ["event management", "eventmanagement"],
+  ["public speaking", "publicspeaking"],
+  ["problem solving", "problemsolving"],
+  ["critical thinking", "criticalthinking"],
+  ["team work", "teamwork"],
+  ["team building", "teambuilding"],
+  ["team coordination", "teamcoordination"],
+  ["user experience", "userexperience"],
+  ["user interface", "userinterface"],
+  ["machine learning", "machinelearning"],
+  ["artificial intelligence", "artificialintelligence"],
+  ["quality assurance", "qualityassurance"],
+  ["human resources", "humanresources"],
+  ["microsoft office", "microsoftoffice"],
+  ["microsoft excel", "microsoftexcel"],
+  ["microsoft word", "microsoftword"],
+  ["microsoft powerpoint", "microsoftpowerpoint"],
+  ["google workspace", "googleworkspace"],
+  ["google docs", "googledocs"],
+  ["google sheets", "googlesheets"],
+  ["google drive", "googledrive"],
+  ["power bi", "powerbi"],
+  ["power point", "powerpoint"],
+  ["front desk", "frontdesk"],
+  ["administrative support", "administrativesupport"],
+  ["office operations", "officeoperations"],
+  ["calendar management", "calendarmanagement"],
+  ["document preparation", "documentpreparation"],
+  ["vendor management", "vendormanagement"],
+  ["relationship building", "relationshipbuilding"],
+  ["written communication", "writtencommunication"],
+  ["verbal communication", "verbalcommunication"],
+  ["bilingual", "bilingual"],
+];
+
+const MATCH_PHRASE_DISPLAY = Object.fromEntries(MATCH_PHRASES.map(([p, n]) => [n, p]));
+
+function matchPreprocess(text) {
+  if (!text) return "";
+  let s = " " + text.toLowerCase() + " ";
+  for (const [phrase, repl] of MATCH_PHRASES) {
+    if (s.includes(phrase)) s = s.split(phrase).join(repl);
+  }
+  return s;
+}
+
+function normalizeTerm(token) {
+  // Collapsed phrases ("dataanalysis", "humanresources") are already canonical —
+  // don't strip suffixes from them or the display lookup breaks.
+  if (MATCH_PHRASE_DISPLAY[token]) return token;
+  if (MATCH_SYNONYMS[token]) return MATCH_SYNONYMS[token];
+  let t = token;
+  if (t.length > 5 && t.endsWith("ing")) t = t.slice(0, -3);
+  else if (t.length > 4 && t.endsWith("ies")) t = t.slice(0, -3) + "y";
+  else if (t.length > 4 && t.endsWith("ed")) t = t.slice(0, -2);
+  else if (t.length > 4 && t.endsWith("es")) t = t.slice(0, -2);
+  else if (t.length > 3 && t.endsWith("s")) t = t.slice(0, -1);
+  if (MATCH_SYNONYMS[t]) return MATCH_SYNONYMS[t];
+  return t;
+}
+
+function extractMatchTerms(text) {
+  const set = new Set();
+  const freq = new Map();
+  const surface = new Map();
+  if (!text || !text.trim()) return { set, freq, surface };
+  const pre = matchPreprocess(text);
+  const raws = pre.split(/[\s,;:.\/()\[\]{}<>!?"'`~=*•|·–—\-]+/);
+  for (const raw of raws) {
+    const cleaned = raw.replace(/^[^a-z0-9+#]+|[^a-z0-9+#.]+$/g, "");
+    if (!cleaned || cleaned.length < 3) continue;
+    if (/^\d+$/.test(cleaned)) continue;
+    if (MATCH_STOPWORDS.has(cleaned)) continue;
+    const n = normalizeTerm(cleaned);
+    if (!n || n.length < 3 || MATCH_STOPWORDS.has(n)) continue;
+    set.add(n);
+    freq.set(n, (freq.get(n) || 0) + 1);
+    if (!surface.has(n)) {
+      surface.set(n, MATCH_PHRASE_DISPLAY[n] || cleaned);
+    }
+  }
+  return { set, freq, surface };
+}
+
+function resumeSectionTexts() {
+  const skillsText = state.template === "demo_4"
+    ? state.skills_categories.map(c => `${c.label} ${c.content}`).join(" ")
+    : state.skills_two_column.map(r => `${r.left} ${r.right}`).join(" ");
+  const expText = state.section_enabled.experience
+    ? state.experience.map(e => `${e.title} ${(e.bullets || []).join(" ")}`).join(" ")
+    : "";
+  const projText = state.section_enabled.projects
+    ? state.projects.map(p => `${p.title} ${(p.bullets || []).join(" ")}`).join(" ")
+    : "";
+  const summaryText = state.summary || "";
+  return {
+    skills: skillsText,
+    experience: `${expText} ${projText}`.trim(),
+    summary: summaryText,
+    all: `${summaryText} ${skillsText} ${expText} ${projText}`,
+  };
+}
+
+function coverageScore(jdFreq, sectionSet) {
+  let total = 0, matched = 0;
+  for (const [term, f] of jdFreq) {
+    total += f;
+    if (sectionSet.has(term)) matched += f;
+  }
+  if (total === 0) return 0;
+  return Math.round((matched / total) * 100);
+}
+
+function analyzeMatch(jd) {
+  const jdT = extractMatchTerms(jd);
+  if (jdT.set.size === 0) return null;
+  const sections = resumeSectionTexts();
+  const skillsT = extractMatchTerms(sections.skills);
+  const expT = extractMatchTerms(sections.experience);
+  const summaryT = extractMatchTerms(sections.summary);
+  const allT = extractMatchTerms(sections.all);
+
+  const overall = coverageScore(jdT.freq, allT.set);
+  const skills = coverageScore(jdT.freq, skillsT.set);
+  const experience = coverageScore(jdT.freq, expT.set);
+  const summary = coverageScore(jdT.freq, summaryT.set);
+
+  // Missing: in JD but not in resume; rank by JD frequency.
+  const missing = [];
+  for (const [term, f] of jdT.freq) {
+    if (!allT.set.has(term)) missing.push({ term, surface: jdT.surface.get(term) || term, freq: f });
+  }
+  missing.sort((a, b) => b.freq - a.freq || a.term.localeCompare(b.term));
+
+  return {
+    jdSet: jdT.set,
+    jdTermCount: jdT.set.size,
+    overall, skills, experience, summary,
+    missing,
+  };
+}
+
+function countTermHits(text, jdSet) {
+  if (!text || !jdSet || jdSet.size === 0) return 0;
+  const { set } = extractMatchTerms(text);
+  let hits = 0;
+  for (const t of set) if (jdSet.has(t)) hits++;
+  return hits;
+}
+
+function bulletClass(hits, hotMin, warmMin) {
+  if (hits >= hotMin) return "bullet-hot";
+  if (hits >= warmMin) return "bullet-warm";
+  return "bullet-cold";
+}
+
+function applyHeatMap(ctx) {
+  const frames = $$("#preview .preview-frame");
+  if (!ctx) {
+    frames.forEach(f => f.classList.remove("match-mode"));
+    $$("#preview .bullet-hot, #preview .bullet-warm, #preview .bullet-cold").forEach(el => {
+      el.classList.remove("bullet-hot", "bullet-warm", "bullet-cold");
+    });
+    return;
+  }
+  frames.forEach(f => f.classList.add("match-mode"));
+  $$("#preview .bullets-list li").forEach(li => {
+    const hits = countTermHits(li.textContent, ctx.jdSet);
+    li.classList.remove("bullet-hot", "bullet-warm", "bullet-cold");
+    li.classList.add(bulletClass(hits, 2, 1));
+  });
+  $$("#preview .skill-cat").forEach(el => {
+    const hits = countTermHits(el.textContent, ctx.jdSet);
+    el.classList.remove("bullet-hot", "bullet-warm", "bullet-cold");
+    el.classList.add(bulletClass(hits, 2, 1));
+  });
+  $$("#preview .skills-2col > *").forEach(el => {
+    const hits = countTermHits(el.textContent, ctx.jdSet);
+    el.classList.remove("bullet-hot", "bullet-warm", "bullet-cold");
+    el.classList.add(hits >= 1 ? "bullet-hot" : "bullet-cold");
+  });
+}
+
+function verdictFor(score, missingCount) {
+  if (score >= 75) return `Strong match — ${missingCount} term${missingCount === 1 ? "" : "s"} from the JD not on the resume.`;
+  if (score >= 55) return `Solid match — ${missingCount} key term${missingCount === 1 ? "" : "s"} missing. Worth tailoring.`;
+  if (score >= 35) return `Partial match — ${missingCount} JD term${missingCount === 1 ? "" : "s"} missing. Add only what's true.`;
+  return `Low match — ${missingCount} JD term${missingCount === 1 ? "" : "s"} missing. This role may not fit yet.`;
+}
+
+function gradeTone(score) {
+  if (score >= 70) return "";
+  if (score >= 45) return "warn";
+  return "poor";
+}
+
+function barTone(score) {
+  if (score >= 70) return "";
+  if (score >= 45) return "warn";
+  return "poor";
+}
+
+function renderMatchUI(ctx) {
+  const scoreEl = $("#match-score");
+  const missingEl = $("#match-missing");
+  if (!ctx) {
+    scoreEl.innerHTML = `<div class="match-placeholder">Paste a job description to score the resume.</div>`;
+    missingEl.classList.add("hidden");
+    missingEl.innerHTML = "";
+    return;
+  }
+  const verdict = verdictFor(ctx.overall, ctx.missing.length);
+  scoreEl.innerHTML = `
+    <div class="grade-card">
+      <div class="grade-circle ${gradeTone(ctx.overall)}">
+        <div class="grade-num">${ctx.overall}</div>
+        <div class="grade-lbl">/100</div>
+      </div>
+      <div class="grade-verdict">
+        <div class="verdict-text">${esc(verdict)}</div>
+        <div class="subscores">
+          ${subscoreRow("SKILLS", ctx.skills)}
+          ${subscoreRow("EXPERIENCE", ctx.experience)}
+          ${subscoreRow("SUMMARY", ctx.summary)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (ctx.missing.length === 0) {
+    missingEl.classList.remove("hidden");
+    missingEl.innerHTML = `<div class="match-h">MISSING KEYWORDS</div><div class="missing-empty">▶ NO GAPS — every JD term shows up somewhere on the resume.</div>`;
+    return;
+  }
+  const top = ctx.missing.slice(0, 16);
+  const overflow = ctx.missing.length - top.length;
+  const chips = top.map((m, i) => {
+    const cls = i < 8 ? "missing-chip" : "missing-chip weak";
+    return `<span class="${cls}">${esc(m.surface)}</span>`;
+  }).join("");
+  const more = overflow > 0 ? `<span class="missing-chip weak">+${overflow} more</span>` : "";
+  missingEl.classList.remove("hidden");
+  missingEl.innerHTML = `
+    <div class="match-h">MISSING KEYWORDS <span class="match-note">found in JD, not on resume — add only if true</span></div>
+    <div class="missing-list">${chips}${more}</div>
+  `;
+}
+
+function widthBucket(pct) {
+  // Round to nearest 5% so we can drive bar widths via CSS classes (no inline styles).
+  const clamped = Math.max(0, Math.min(100, pct));
+  return Math.round(clamped / 5) * 5;
+}
+
+function subscoreRow(label, pct) {
+  const w = widthBucket(pct);
+  return `
+    <div class="subscore">
+      <span class="lbl">${label}</span>
+      <div class="bar"><span class="bar-fill w-${w} ${barTone(pct)}"></span></div>
+      <span class="pct">${pct}</span>
+    </div>
+  `;
+}
+
+function runMatch() {
+  if (!state.match.on) {
+    applyHeatMap(null);
+    return;
+  }
+  const ctx = state.match.jd.trim() ? analyzeMatch(state.match.jd) : null;
+  applyHeatMap(ctx);
+  renderMatchUI(ctx);
+}
+
+function toggleMatch() {
+  state.match.on = !state.match.on;
+  const chip = $("#match-chip");
+  const panel = $("#match-panel");
+  const missing = $("#match-missing");
+  chip.setAttribute("aria-pressed", state.match.on ? "true" : "false");
+  panel.classList.toggle("hidden", !state.match.on);
+  if (!state.match.on) {
+    missing.classList.add("hidden");
+    missing.innerHTML = "";
+  }
+  runMatch();
+  if (state.match.on) {
+    const jd = $("#jd-input");
+    if (jd) setTimeout(() => jd.focus(), 60);
+  }
+}
+
+ACTIONS.toggleMatch = () => toggleMatch();
+
+let _matchDebounce = null;
+$("#jd-input").addEventListener("input", (ev) => {
+  state.match.jd = ev.target.value;
+  clearTimeout(_matchDebounce);
+  _matchDebounce = setTimeout(() => runMatch(), 200);
+});
 
 // ─────────────────────────────────────────────────────────
 // INIT

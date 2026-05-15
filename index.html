@@ -132,6 +132,10 @@
       <div class="stats" id="preview-stats">— words / — page</div>
     </div>
     <div class="preview-toolbar" aria-label="Resume preview tools">
+      <div class="toolbar-group">
+        <span class="toolbar-label">VIEW</span>
+        <button class="toolbar-chip" data-action="toggleMatch" id="match-chip" aria-pressed="false">MATCH</button>
+      </div>
       <div class="toolbar-group" id="font-chips">
         <span class="toolbar-label">FONT</span>
         <button class="toolbar-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
@@ -146,10 +150,25 @@
         <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
       </div>
     </div>
+
+    <div class="match-panel hidden" id="match-panel">
+      <div class="match-jd">
+        <div class="match-jd-head">
+          <label for="jd-input">JOB DESCRIPTION</label>
+          <span class="match-jd-note">cleared on reload · compared locally · no AI, no exaggeration</span>
+        </div>
+        <textarea id="jd-input" placeholder="Paste the full job description here. The preview below will heat-map matches and the panel will score the fit."></textarea>
+      </div>
+      <div class="match-score" id="match-score">
+        <div class="match-placeholder">Paste a job description to score the resume.</div>
+      </div>
+    </div>
+
     <div class="overflow-banner" id="overflow-banner"></div>
     <div class="preview-wrap">
       <div id="preview" class="preview-pages"></div>
     </div>
+    <div class="match-missing hidden" id="match-missing"></div>
   </div>
 </div>
 
