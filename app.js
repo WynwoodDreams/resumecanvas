@@ -446,6 +446,28 @@ function addExperience() { state.experience.push({ title: "", date: "", location
 function removeExp(i) { state.experience.splice(i, 1); render(); }
 function addExpBullet(i) { state.experience[i].bullets.push(""); render(); }
 function removeExpBullet(i, bi) { state.experience[i].bullets.splice(bi, 1); render(); }
+function clearAll() {
+  const ok = window.confirm("Erase every field on the resume? This cannot be undone.");
+  if (!ok) return;
+  state.name = "";
+  state.location = "";
+  state.phone = "";
+  state.email = "";
+  state.linkedin = "";
+  state.links = [];
+  state.contact_line1 = "";
+  state.contact_line2 = "";
+  state.summary = "";
+  state.education = [{ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "" }];
+  state.skills_categories = [{ label: "", content: "" }];
+  state.skills_two_column = [{ left: "", right: "" }];
+  state.certifications = [""];
+  state.projects = [{ title: "", date: "", location: "", bullets: [""] }];
+  state.experience = [{ title: "", date: "", location: "", company_city: "", bullets: [""] }];
+  render();
+  toast("CLEARED");
+}
+
 function toggleSection(name) {
   if (!(name in state.section_enabled)) return;
   state.section_enabled[name] = !state.section_enabled[name];
@@ -490,6 +512,7 @@ const ACTIONS = {
   toggleSection: (btn) => toggleSection(btn.dataset.section),
   movePanel: (btn) => movePanel(btn.dataset.section, btn.dataset.dir),
   copyJSON: () => copyJSON(),
+  clearAll: () => clearAll(),
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
   copyPayloadAndPrompt: () => copyPayloadAndPrompt(),
