@@ -1688,9 +1688,13 @@ function runMatch() {
 function toggleMatch() {
   state.match.on = !state.match.on;
   const chip = $("#match-chip");
+  const chipText = $("#match-chip-text");
+  const toolbar = $("#preview-toolbar");
   const panel = $("#match-panel");
   const missing = $("#match-missing");
   chip.setAttribute("aria-pressed", state.match.on ? "true" : "false");
+  if (chipText) chipText.textContent = state.match.on ? "EXIT MATCH MODE" : "MATCH JOB DESCRIPTION";
+  toolbar.classList.toggle("match-active", state.match.on);
   panel.classList.toggle("hidden", !state.match.on);
   if (!state.match.on) {
     missing.classList.add("hidden");
