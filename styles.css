@@ -51,6 +51,10 @@
   .panel .body { padding: 16px; display: none; }
   .panel.open .body { display: block; }
   .header-controls { display: flex; align-items: center; gap: 10px; }
+  .reorder-controls { display: inline-flex; gap: 2px; }
+  .reorder-btn { background: var(--surface-0); border: 1px solid var(--border); color: var(--text-mute); padding: 3px 7px; font-family: inherit; font-size: 9px; line-height: 1; cursor: pointer; transition: all 0.12s; }
+  .reorder-btn:hover { border-color: var(--amber); color: var(--amber-soft); background: rgba(140,120,81,0.08); }
+  .reorder-btn[aria-disabled="true"] { opacity: 0.25; cursor: default; pointer-events: none; }
   .section-toggle { background: rgba(110,140,74,0.10); border: 1px solid var(--sage); color: var(--sage-ink); padding: 4px 10px; font-family: inherit; font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700; cursor: pointer; transition: all 0.12s; }
   .section-toggle:hover { background: rgba(110,140,74,0.20); }
   .section-toggle[aria-pressed="false"] { background: rgba(242,80,66,0.10); border-color: var(--red); color: var(--red-ink); }
