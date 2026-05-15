@@ -68,35 +68,73 @@
       <div class="body" id="body-header"></div>
     </div>
 
-    <div class="panel open" data-section="summary">
-      <header><h2><span class="idx">02</span> PROFILE SUMMARY</h2><span class="caret">▶</span></header>
+    <div class="panel open" data-section="summary" data-optional="true">
+      <header>
+        <h2><span class="idx">02</span> PROFILE SUMMARY</h2>
+        <div class="header-controls">
+          <button class="section-toggle" data-action="toggleSection" data-section="summary" aria-pressed="true">INCLUDED</button>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
+        <div class="section-off-banner" data-section-banner="summary">Section hidden from resume — re-enable to include in export.</div>
         <textarea id="summary" class="required" placeholder="3–4 sentences. Who they are, key skills, what they're seeking."></textarea>
       </div>
     </div>
 
-    <div class="panel open" data-section="education">
-      <header><h2><span class="idx">03</span> EDUCATION</h2><span class="caret">▶</span></header>
+    <div class="panel open" data-section="education" data-reorderable="true">
+      <header>
+        <h2><span class="idx">03</span> EDUCATION</h2>
+        <div class="header-controls">
+          <div class="reorder-controls">
+            <button class="reorder-btn" data-action="movePanel" data-section="education" data-dir="up" aria-label="Move education up" title="Move up">▲</button>
+            <button class="reorder-btn" data-action="movePanel" data-section="education" data-dir="down" aria-label="Move education down" title="Move down">▼</button>
+          </div>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body" id="body-education"></div>
     </div>
 
-    <div class="panel open" data-section="skills">
-      <header><h2><span class="idx">04</span> SKILLS</h2><span class="caret">▶</span></header>
+    <div class="panel open" data-section="skills" data-reorderable="true">
+      <header>
+        <h2><span class="idx">04</span> SKILLS</h2>
+        <div class="header-controls">
+          <div class="reorder-controls">
+            <button class="reorder-btn" data-action="movePanel" data-section="skills" data-dir="up" aria-label="Move skills up" title="Move up">▲</button>
+            <button class="reorder-btn" data-action="movePanel" data-section="skills" data-dir="down" aria-label="Move skills down" title="Move down">▼</button>
+          </div>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body" id="body-skills"></div>
     </div>
 
-    <div class="panel" data-section="certs" id="panel-certs" class="hidden">
-      <header><h2><span class="idx">05</span> CERTIFICATIONS</h2><span class="caret">▶</span></header>
+    <div class="panel hidden" data-section="certs" data-reorderable="true" id="panel-certs">
+      <header>
+        <h2><span class="idx">05</span> CERTIFICATIONS</h2>
+        <div class="header-controls">
+          <div class="reorder-controls">
+            <button class="reorder-btn" data-action="movePanel" data-section="certs" data-dir="up" aria-label="Move certifications up" title="Move up">▲</button>
+            <button class="reorder-btn" data-action="movePanel" data-section="certs" data-dir="down" aria-label="Move certifications down" title="Move down">▼</button>
+          </div>
+          <span class="caret">▶</span>
+        </div>
+      </header>
       <div class="body">
         <div id="certs-list"></div>
         <button class="add-btn" data-action="addCert">+ ADD CERTIFICATION</button>
       </div>
     </div>
 
-    <div class="panel" data-section="projects" data-optional="true">
+    <div class="panel" data-section="projects" data-optional="true" data-reorderable="true">
       <header>
         <h2><span class="idx">05</span> PROJECTS</h2>
         <div class="header-controls">
+          <div class="reorder-controls">
+            <button class="reorder-btn" data-action="movePanel" data-section="projects" data-dir="up" aria-label="Move projects up" title="Move up">▲</button>
+            <button class="reorder-btn" data-action="movePanel" data-section="projects" data-dir="down" aria-label="Move projects down" title="Move down">▼</button>
+          </div>
           <button class="section-toggle" data-action="toggleSection" data-section="projects" aria-pressed="true">INCLUDED</button>
           <span class="caret">▶</span>
         </div>
@@ -108,10 +146,14 @@
       </div>
     </div>
 
-    <div class="panel" data-section="experience" data-optional="true">
+    <div class="panel" data-section="experience" data-optional="true" data-reorderable="true">
       <header>
         <h2><span class="idx">06</span> WORK EXPERIENCE</h2>
         <div class="header-controls">
+          <div class="reorder-controls">
+            <button class="reorder-btn" data-action="movePanel" data-section="experience" data-dir="up" aria-label="Move work experience up" title="Move up">▲</button>
+            <button class="reorder-btn" data-action="movePanel" data-section="experience" data-dir="down" aria-label="Move work experience down" title="Move down">▼</button>
+          </div>
           <button class="section-toggle" data-action="toggleSection" data-section="experience" aria-pressed="true">INCLUDED</button>
           <span class="caret">▶</span>
         </div>

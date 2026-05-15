@@ -5,7 +5,12 @@
 let state = {
   template: "demo_4",
   font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
-  section_enabled: { projects: true, experience: true },
+  section_enabled: { summary: true, projects: true, experience: true },
+  section_order: {
+    demo_4: ["education", "skills", "projects", "experience"],
+    demo_2: ["skills", "education", "certs", "projects", "experience"],
+  },
+  match: { on: false, jd: "" },
   // Demo 4 header
   name: "Jane Doe",
   location: "North Miami, FL 33161",
@@ -63,7 +68,6 @@ let state = {
       ],
     },
   ],
-  match: { on: false, jd: "" },
   experience: [
     {
       title: "North Miami Senior High School — Office Staff",
@@ -450,6 +454,20 @@ function toggleSection(name) {
   renderPreview();
 }
 
+function movePanel(section, dir) {
+  const tpl = state.template;
+  const order = state.section_order[tpl];
+  if (!order) return;
+  const idx = order.indexOf(section);
+  if (idx === -1) return;
+  const newIdx = dir === "up" ? idx - 1 : idx + 1;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  reorderPanels();
+  recomputeSectionIndices();
+  renderPreview();
+}
+
 const ACTIONS = {
   addSkillCat: () => addSkillCat(),
   removeSkillCat: (btn) => removeSkillCat(+btn.dataset.index),
@@ -470,6 +488,7 @@ const ACTIONS = {
   addExpBullet: (btn) => addExpBullet(+btn.dataset.index),
   removeExpBullet: (btn) => removeExpBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
   toggleSection: (btn) => toggleSection(btn.dataset.section),
+  movePanel: (btn) => movePanel(btn.dataset.section, btn.dataset.dir),
   copyJSON: () => copyJSON(),
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
@@ -527,6 +546,40 @@ function recomputeSectionIndices() {
   });
 }
 
+// Pull each reorderable form panel into the order specified by
+// state.section_order[template]. Sections not in the current template's
+// order (e.g. certs in demo_4) are left untouched and hidden separately.
+function reorderPanels() {
+  const tpl = state.template;
+  const order = state.section_order[tpl] || [];
+  const panels = {};
+  $$(".panel[data-reorderable='true']").forEach(p => { panels[p.dataset.section] = p; });
+  const summaryPanel = $(".panel[data-section='summary']");
+  let anchor = summaryPanel;
+  for (const sec of order) {
+    const panel = panels[sec];
+    if (!panel) continue;
+    if (anchor.nextElementSibling !== panel) anchor.after(panel);
+    anchor = panel;
+  }
+  updateReorderButtonStates();
+}
+
+function updateReorderButtonStates() {
+  const tpl = state.template;
+  const order = state.section_order[tpl] || [];
+  $$(".reorder-btn").forEach(btn => {
+    const sec = btn.dataset.section;
+    const idx = order.indexOf(sec);
+    const dir = btn.dataset.dir;
+    let disabled = false;
+    if (idx === -1) disabled = true;
+    else if (dir === "up" && idx === 0) disabled = true;
+    else if (dir === "down" && idx === order.length - 1) disabled = true;
+    btn.setAttribute("aria-disabled", disabled ? "true" : "false");
+  });
+}
+
 // ─────────────────────────────────────────────────────────
 // TEMPLATE SWITCH
 // ─────────────────────────────────────────────────────────
@@ -541,6 +594,7 @@ $$(".tpl-chip").forEach(chip => {
     $$("[data-font]").forEach(c => c.classList.remove("active"));
     $("#font-chip-default").classList.add("active");
     $("#panel-certs").classList.toggle("hidden", state.template !== "demo_2");
+    reorderPanels();
     setCaseId();
     render();
   });
@@ -568,37 +622,14 @@ $$("[data-font]").forEach(chip => {
 // LIVE PREVIEW
 // ─────────────────────────────────────────────────────────
 
-function renderPreview() {
-  const tpl = state.template;
-  const f = $("#preview");
-  let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-  if (tpl === "demo_4") {
-    const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
-    const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
-    html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
-  } else {
-    html += `<div class="resume-contact">${linkify(state.contact_line1)}<br>${linkify(state.contact_line2)}</div>`;
-    html += `<div class="resume-contact-divider"></div>`;
-  }
-
-  // Profile Summary
-  html += `<div class="resume-section-h">PROFILE SUMMARY</div>`;
+function renderSummaryPreviewHtml() {
+  let html = `<div class="resume-section-h">PROFILE SUMMARY</div>`;
   html += `<div>${linkify(state.summary)}</div>`;
+  return html;
+}
 
-  if (tpl === "demo_2") {
-    // Demo 2: skills section comes BEFORE education
-    html += `<div class="resume-section-h">HIGHLIGHTED SKILLS</div>`;
-    html += `<ul class="skills-2col">`;
-    state.skills_two_column.forEach(r => {
-      const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
-      const right = r.right ? `<div>• ${esc(r.right)}</div>` : `<div></div>`;
-      html += left + right;
-    });
-    html += `</ul>`;
-  }
-
-  // Education
-  html += `<div class="resume-section-h">EDUCATION</div>`;
+function renderEducationPreviewHtml(tpl) {
+  let html = `<div class="resume-section-h">EDUCATION</div>`;
   state.education.forEach((e, idx) => {
     const gapClass = idx > 0 ? " edu-gap" : "";
     if (tpl === "demo_4") {
@@ -615,55 +646,102 @@ function renderPreview() {
       }
     }
   });
+  return html;
+}
 
+function renderSkillsPreviewHtml(tpl) {
+  let html = "";
   if (tpl === "demo_4") {
-    // Demo 4: skills come AFTER education
     html += `<div class="resume-section-h">SKILLS</div>`;
     state.skills_categories.forEach(c => {
       html += `<div class="skill-cat"><span class="lbl">${esc(c.label)}:</span> ${esc(c.content)}</div>`;
     });
   } else {
-    // Demo 2 certifications
-    html += `<div class="resume-section-h">CERTIFICATIONS</div>`;
-    html += `<ul class="bullets-list">`;
-    state.certifications.forEach(c => { html += `<li>${linkify(c)}</li>`; });
+    html += `<div class="resume-section-h">HIGHLIGHTED SKILLS</div>`;
+    html += `<ul class="skills-2col">`;
+    state.skills_two_column.forEach(r => {
+      const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
+      const right = r.right ? `<div>• ${esc(r.right)}</div>` : `<div></div>`;
+      html += left + right;
+    });
     html += `</ul>`;
   }
+  return html;
+}
 
-  // Projects
-  if (state.section_enabled.projects && state.projects.length > 0) {
-    html += `<div class="resume-section-h">PROJECTS</div>`;
-    state.projects.forEach(p => {
-      if (tpl === "demo_4") {
-        html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
-        if (p.location) html += `<div class="entry-loc">${linkify(p.location)}</div>`;
-      } else {
-        html += `<div class="proj-title">${esc(p.title)}</div>`;
-      }
-      if (p.bullets && p.bullets.length) {
-        html += `<ul class="bullets-list">`;
-        p.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
-        html += `</ul>`;
-      }
-    });
+function renderCertsPreviewHtml() {
+  let html = `<div class="resume-section-h">CERTIFICATIONS</div>`;
+  html += `<ul class="bullets-list">`;
+  state.certifications.forEach(c => { html += `<li>${linkify(c)}</li>`; });
+  html += `</ul>`;
+  return html;
+}
+
+function renderProjectsPreviewHtml(tpl) {
+  let html = `<div class="resume-section-h">PROJECTS</div>`;
+  state.projects.forEach(p => {
+    if (tpl === "demo_4") {
+      html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
+      if (p.location) html += `<div class="entry-loc">${linkify(p.location)}</div>`;
+    } else {
+      html += `<div class="proj-title">${esc(p.title)}</div>`;
+    }
+    if (p.bullets && p.bullets.length) {
+      html += `<ul class="bullets-list">`;
+      p.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
+      html += `</ul>`;
+    }
+  });
+  return html;
+}
+
+function renderExperiencePreviewHtml(tpl) {
+  let html = `<div class="resume-section-h">WORK EXPERIENCE</div>`;
+  state.experience.forEach(en => {
+    html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
+    if (tpl === "demo_4") {
+      if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
+    } else {
+      if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
+    }
+    if (en.bullets && en.bullets.length) {
+      html += `<ul class="bullets-list">`;
+      en.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
+      html += `</ul>`;
+    }
+  });
+  return html;
+}
+
+const PREVIEW_SECTION_RENDERERS = {
+  education: (tpl) => renderEducationPreviewHtml(tpl),
+  skills: (tpl) => renderSkillsPreviewHtml(tpl),
+  certs: (tpl) => tpl === "demo_2" ? renderCertsPreviewHtml() : "",
+  projects: (tpl) => (state.section_enabled.projects && state.projects.length > 0) ? renderProjectsPreviewHtml(tpl) : "",
+  experience: (tpl) => (state.section_enabled.experience && state.experience.length > 0) ? renderExperiencePreviewHtml(tpl) : "",
+};
+
+function renderPreview() {
+  const tpl = state.template;
+  const f = $("#preview");
+  let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
+  if (tpl === "demo_4") {
+    const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
+    const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
+    html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
+  } else {
+    html += `<div class="resume-contact">${linkify(state.contact_line1)}<br>${linkify(state.contact_line2)}</div>`;
+    html += `<div class="resume-contact-divider"></div>`;
   }
 
-  // Work Experience
-  if (state.section_enabled.experience && state.experience.length > 0) {
-    html += `<div class="resume-section-h">WORK EXPERIENCE</div>`;
-    state.experience.forEach(en => {
-      html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
-      if (tpl === "demo_4") {
-        if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
-      } else {
-        if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
-      }
-      if (en.bullets && en.bullets.length) {
-        html += `<ul class="bullets-list">`;
-        en.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
-        html += `</ul>`;
-      }
-    });
+  if (state.section_enabled.summary !== false) {
+    html += renderSummaryPreviewHtml();
+  }
+
+  const order = state.section_order[tpl] || [];
+  for (const sec of order) {
+    const fn = PREVIEW_SECTION_RENDERERS[sec];
+    if (fn) html += fn(tpl);
   }
 
   const defaultFontPt = tpl === "demo_4" ? 12 : 11;
@@ -780,6 +858,7 @@ function render() {
   renderProjects();
   renderExperience();
   applySectionToggleStates();
+  reorderPanels();
   recomputeSectionIndices();
   setCaseId();
   renderPreview();
@@ -868,7 +947,13 @@ function printPDF() {
 
 function buildPayload() {
   const tpl = state.template;
-  const out = { name: state.name, summary: state.summary, font_pt: state._appliedFontPt || (tpl === "demo_4" ? 12 : 11) };
+  const summaryOn = state.section_enabled.summary !== false;
+  const out = {
+    name: state.name,
+    summary: summaryOn ? state.summary : "",
+    font_pt: state._appliedFontPt || (tpl === "demo_4" ? 12 : 11),
+    section_order: (state.section_order[tpl] || []).slice(),
+  };
   if (tpl === "demo_4") {
     out.location = state.location;
     out.phone = state.phone;
