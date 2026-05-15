@@ -131,19 +131,21 @@
       <div class="label">LIVE PREVIEW <span class="amber">●</span></div>
       <div class="stats" id="preview-stats">— words / — page</div>
     </div>
-    <div class="preview-toolbar" aria-label="Resume preview tools">
-      <div class="toolbar-group">
+    <div class="preview-toolbar" id="preview-toolbar" aria-label="Resume preview tools">
+      <div class="toolbar-group view-group">
         <span class="toolbar-label">VIEW</span>
-        <button class="toolbar-chip" data-action="toggleMatch" id="match-chip" aria-pressed="false">MATCH</button>
+        <button class="toolbar-chip match-cta" data-action="toggleMatch" id="match-chip" aria-pressed="false">
+          <span class="match-cta-icon" aria-hidden="true">▶</span>
+          <span class="match-cta-text" id="match-chip-text">MATCH JOB DESCRIPTION</span>
+        </button>
       </div>
-      <div class="toolbar-group" id="font-chips">
-        <span class="toolbar-label">FONT</span>
+      <div class="toolbar-group hide-in-match" id="font-chips">
+        <span class="toolbar-label" title="Manual override — floor 10pt">FONT</span>
         <button class="toolbar-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
         <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
         <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
-        <span class="toolbar-note">manual override · floor 10pt</span>
       </div>
-      <div class="toolbar-group export-group">
+      <div class="toolbar-group export-group hide-in-match">
         <span class="toolbar-label">EXPORT</span>
         <button class="toolbar-chip primary" data-action="downloadDoc">DOWNLOAD .DOC</button>
         <button class="toolbar-chip" data-action="printPDF">SAVE PDF</button>
