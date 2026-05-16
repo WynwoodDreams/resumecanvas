@@ -1802,6 +1802,57 @@ $("#jd-input").addEventListener("input", (ev) => {
 });
 
 // ─────────────────────────────────────────────────────────
+// MOBILE PANE SWIPE / TABS
+// ─────────────────────────────────────────────────────────
+
+(function setupPaneSwipe() {
+  const shell = document.getElementById("shell");
+  const tabs = document.querySelectorAll(".pane-tab");
+  if (!shell || tabs.length === 0) return;
+
+  const panes = {
+    left: shell.querySelector(".pane.left"),
+    right: shell.querySelector(".pane.right"),
+  };
+
+  function isMobile() {
+    return window.matchMedia("(max-width: 1100px)").matches;
+  }
+
+  function scrollToPane(target) {
+    const pane = panes[target];
+    if (!pane || !isMobile()) return;
+    shell.scrollTo({ left: pane.offsetLeft, behavior: "smooth" });
+  }
+
+  function setActive(target) {
+    tabs.forEach(t => {
+      const on = t.dataset.paneTarget === target;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+  }
+
+  tabs.forEach(t => {
+    t.addEventListener("click", () => {
+      const target = t.dataset.paneTarget;
+      setActive(target);
+      scrollToPane(target);
+    });
+  });
+
+  let _scrollTimer = null;
+  shell.addEventListener("scroll", () => {
+    if (!isMobile()) return;
+    clearTimeout(_scrollTimer);
+    _scrollTimer = setTimeout(() => {
+      const target = shell.scrollLeft > shell.clientWidth / 2 ? "right" : "left";
+      setActive(target);
+    }, 60);
+  });
+})();
+
+// ─────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────
 
