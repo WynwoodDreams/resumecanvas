@@ -23,7 +23,13 @@
   </div>
 </div>
 
-<div class="shell">
+<div class="pane-tabs" id="pane-tabs" role="tablist" aria-label="Switch between editor and preview">
+  <button class="pane-tab active" data-pane-target="left" role="tab" aria-selected="true">EDIT</button>
+  <span class="pane-tab-hint" aria-hidden="true">swipe ⇄</span>
+  <button class="pane-tab" data-pane-target="right" role="tab" aria-selected="false">PREVIEW</button>
+</div>
+
+<div class="shell" id="shell">
   <!-- LEFT: FORM -->
   <div class="pane left">
 
