@@ -25,6 +25,12 @@
 
   /* Top bar */
   .topbar { position: sticky; top: 0; z-index: 40; background: rgba(249,244,239,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
+  @media (max-width: 1100px) {
+    .topbar { padding: 12px 16px; gap: 12px; }
+    .topbar .brand .sub { display: none; }
+    .topbar .meta { gap: 10px; font-size: 9px; letter-spacing: 0.12em; }
+    .topbar .meta .id { display: none; }
+  }
   .brand { display: flex; align-items: baseline; gap: 14px; font-weight: 700; letter-spacing: 0.06em; font-size: 13px; color: var(--text); }
   .brand .slash { color: var(--red); }
   .brand .sub { color: var(--text-dim); font-weight: 400; font-size: 11px; letter-spacing: 0.18em; }
@@ -105,6 +111,26 @@
       height: 100%;
     }
     .pane.left { border-right: none; }
+    .pane { padding: 18px 14px 120px 14px; }
+    .preview-frame { padding: 18px 20px 28px 20px; }
+    .preview-frame.demo_4 { font-size: 10.5pt; }
+    .preview-frame.demo_2 { font-size: 10pt; }
+    .preview-frame .entry-title-row,
+    .preview-frame .edu-row,
+    .preview-frame.demo_2 .edu-degree-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1px;
+    }
+    .preview-frame .entry-title-row .date,
+    .preview-frame .edu-row > *:last-child,
+    .preview-frame.demo_2 .edu-degree-row > *:last-child {
+      font-size: 0.92em;
+      font-weight: 600;
+      color: var(--ink-soft);
+      white-space: normal;
+    }
+    .preview-frame .skills-2col { grid-template-columns: 1fr; gap: 2px 0; }
   }
 
   .pane { padding: 28px 32px 120px 32px; }
@@ -259,10 +285,10 @@
   .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
   .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
   .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
-  .preview-frame .edu-row, .preview-frame .entry-title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .preview-frame .edu-row, .preview-frame .entry-title-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
   .preview-frame .edu-row > *, .preview-frame .entry-title-row > * { min-width: 0; }
-  .preview-frame .edu-row > *:first-child, .preview-frame .entry-title-row .title { flex: 1 1 auto; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
-  .preview-frame .edu-row > *:last-child, .preview-frame .entry-title-row .date { flex: 0 0 auto; }
+  .preview-frame .edu-row > *:first-child, .preview-frame .entry-title-row .title { flex: 1 1 60%; overflow-wrap: break-word; word-break: normal; hyphens: auto; }
+  .preview-frame .edu-row > *:last-child, .preview-frame .entry-title-row .date { flex: 0 1 auto; }
   .preview-frame .entry-title-row { margin: 8px 0 2px 0; }
   .preview-frame .entry-title-row .title { font-weight: 700; }
   .preview-frame .entry-title-row .date { font-weight: 700; white-space: nowrap; }
@@ -275,10 +301,10 @@
   .preview-frame .skill-cat .lbl { font-weight: 700; }
   .preview-frame .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
   .preview-frame .skills-2col .left { list-style: disc; }
-  .preview-frame.demo_2 .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-weight: 700; }
+  .preview-frame.demo_2 .edu-degree-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; font-weight: 700; }
   .preview-frame.demo_2 .edu-degree-row > * { min-width: 0; }
-  .preview-frame.demo_2 .edu-degree-row > *:first-child { flex: 1 1 auto; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
-  .preview-frame.demo_2 .edu-degree-row > *:last-child { flex: 0 0 auto; white-space: nowrap; }
+  .preview-frame.demo_2 .edu-degree-row > *:first-child { flex: 1 1 60%; overflow-wrap: break-word; word-break: normal; hyphens: auto; }
+  .preview-frame.demo_2 .edu-degree-row > *:last-child { flex: 0 1 auto; white-space: nowrap; }
   .preview-frame.demo_2 .edu-subline { margin: 2px 0; }
   .preview-frame.demo_2 .edu-coursework { margin: 2px 0; }
   .preview-frame.demo_2 .edu-subline .bold, .preview-frame.demo_2 .edu-coursework .bold { font-weight: 700; }
