@@ -91,6 +91,14 @@ assert(html.includes('data-mic-target="summary"'), 'index.html must wire a mic b
 assert(css.includes('.mic-btn') && css.includes('.mic-btn.recording'), 'styles.css must style mic buttons with a recording state');
 const permPolicy = vercel.headers[0].headers.find((h) => h.key === 'Permissions-Policy');
 assert(permPolicy && permPolicy.value.includes('microphone=(self)'), 'Permissions-Policy must allow microphone=(self) for voice dictation');
+
+// Camera scan (phase 7)
+assert(html.includes('id="camera-input"') && html.includes('capture="environment"'), 'index.html must include the camera capture input');
+assert(html.includes('data-action="triggerCamera"'), 'index.html must include the camera trigger button');
+assert(app.includes('function triggerCamera') && app.includes('function handleCameraCapture'), 'app.js must implement camera scan handlers');
+assert(app.includes('TextDetector'), 'app.js must attempt in-browser TextDetector OCR when available');
+assert(permPolicy.value.includes('camera=(self)'), 'Permissions-Policy must allow camera=(self) for in-app camera scan');
+assert(css.includes('.camera-preview'), 'styles.css must style the camera preview card');
 const swCacheRule = vercel.headers?.find((rule) => rule.source === '/sw.js');
 assert(swCacheRule, 'vercel.json must include a /sw.js header rule');
 assert(swCacheRule.headers.some((h) => h.key === 'Cache-Control' && h.value.includes('max-age=0')), '/sw.js must be served with max-age=0 so updates land immediately');

@@ -76,6 +76,15 @@
           <div class="dz-sub">.txt or .docx · click to browse · for PDFs, paste text below</div>
         </label>
         <input type="file" id="import-file" accept=".txt,.docx,text/plain" class="hidden">
+        <div class="camera-row">
+          <button class="add-btn camera-btn" type="button" data-action="triggerCamera">📷 SCAN WITH PHONE CAMERA</button>
+          <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+        </div>
+        <div class="camera-preview hidden" id="camera-preview">
+          <div class="cp-status" id="cp-status">Processing image…</div>
+          <img id="cp-image" alt="Captured resume page" class="cp-image">
+          <div class="cp-help" id="cp-help"></div>
+        </div>
         <div class="paste-block">
           <label>OR PASTE TEXT</label>
           <textarea id="import-paste" placeholder="Paste resume text from Word, Google Docs, or a PDF reader…"></textarea>

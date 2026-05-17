@@ -381,6 +381,21 @@
   .clipboard-fallback { position: fixed; left: -9999px; }
 
   /* ─────────────────────────────────────────────────────────
+     CAMERA SCAN (phase 7)
+     ───────────────────────────────────────────────────────── */
+  .camera-row { margin-top: 10px; }
+  .camera-btn { background: linear-gradient(180deg, rgba(140,120,81,0.10), rgba(140,120,81,0.04)); border-style: solid; border-color: var(--border-strong); color: var(--text); font-weight: 700; }
+  .camera-btn:hover { background: rgba(140,120,81,0.16); border-color: var(--amber); color: var(--amber-soft); }
+  .camera-preview { margin-top: 12px; padding: 12px; background: var(--surface-0); border: 1px solid var(--border-strong); }
+  .camera-preview .cp-status { font-size: 10.5px; letter-spacing: 0.18em; font-weight: 700; color: var(--amber-soft); margin-bottom: 8px; }
+  .camera-preview .cp-status.ok { color: var(--sage-ink); }
+  .camera-preview .cp-status.err { color: var(--red-ink); }
+  .camera-preview .cp-image { max-width: 100%; max-height: 320px; display: block; margin: 0 auto; border: 1px solid var(--border); background: #fff; }
+  .camera-preview .cp-help { margin-top: 10px; font-size: 10.5px; color: var(--text-dim); line-height: 1.6; }
+  .camera-preview .cp-help strong { color: var(--text); }
+  .camera-preview .cp-help kbd { display: inline-block; padding: 1px 6px; background: var(--surface-1); border: 1px solid var(--border-strong); font-family: inherit; font-size: 10px; color: var(--text); }
+
+  /* ─────────────────────────────────────────────────────────
      VOICE-TO-BULLET (phase 6)
      ───────────────────────────────────────────────────────── */
   .mic-btn { background: var(--surface-0); border: 1px solid var(--border-strong); color: var(--text-dim); padding: 6px 9px; font-family: inherit; font-size: 14px; line-height: 1; cursor: pointer; transition: all 0.15s; position: relative; min-height: 36px; min-width: 36px; display: inline-flex; align-items: center; justify-content: center; }

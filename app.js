@@ -835,6 +835,7 @@ const ACTIONS = {
   closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
+  triggerCamera: () => triggerCamera(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -2334,6 +2335,83 @@ $("#import-file").addEventListener("change", async (ev) => {
   if (file) await handleImportFile(file);
   ev.target.value = "";
 });
+
+// ─────────────────────────────────────────────────────────
+// CAMERA SCAN (phase 7)
+// Captures a photo via the system camera. Tries the in-browser TextDetector
+// when available (Chrome on Android); otherwise leans on the OS's built-in
+// text-recognition (iOS Live Text / Google Lens) by showing the image
+// inline and telling the user to long-press → copy → paste.
+// ─────────────────────────────────────────────────────────
+
+const cameraInput = $("#camera-input");
+if (cameraInput) {
+  cameraInput.addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (file) await handleCameraCapture(file);
+    ev.target.value = "";
+  });
+}
+
+function triggerCamera() {
+  const input = $("#camera-input");
+  if (!input) return;
+  // Make the intake card visible if the user invoked from elsewhere.
+  $("#intake-card").classList.remove("collapsed");
+  input.click();
+}
+
+async function handleCameraCapture(file) {
+  const preview = $("#camera-preview");
+  const status = $("#cp-status");
+  const img = $("#cp-image");
+  const help = $("#cp-help");
+  if (!preview || !status || !img || !help) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  img.src = objectUrl;
+  preview.classList.remove("hidden");
+  status.className = "cp-status";
+  status.textContent = "Reading image…";
+  help.innerHTML = "";
+
+  // Path A: in-browser TextDetector (Chrome on Android, behind no flag).
+  if (typeof window.TextDetector === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const detector = new window.TextDetector();
+      const blocks = await detector.detect(bitmap);
+      const text = blocks.map((b) => b.rawValue || "").join("\n").trim();
+      if (text) {
+        status.className = "cp-status ok";
+        status.textContent = "TEXT DETECTED — REVIEW AND PARSE";
+        const paste = $("#import-paste");
+        if (paste) {
+          paste.value = text;
+          paste.focus();
+        }
+        help.innerHTML = `Edit the extracted text above if anything looks off, then tap <strong>▶ PARSE PASTED TEXT</strong>.`;
+        return;
+      }
+      // Fall through to manual path if nothing was extracted.
+    } catch (_err) {
+      // Detector unavailable on this device — fall through to manual flow.
+    }
+  }
+
+  // Path B: lean on the OS's built-in text recognition.
+  status.className = "cp-status";
+  status.textContent = "USE YOUR PHONE'S TEXT RECOGNITION";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  if (isIOS) {
+    help.innerHTML = `On iOS, <strong>tap and hold</strong> on text in the image above → <strong>Select All</strong> → <strong>Copy</strong>, then paste into the text box below.`;
+  } else if (isAndroid) {
+    help.innerHTML = `On Android, <strong>long-press</strong> the image → open in <strong>Google Lens</strong> or <strong>Photos</strong> → copy the text, then paste into the text box below.`;
+  } else {
+    help.innerHTML = `Open the image in your OS's photo viewer, copy the recognized text (most modern OSes do this automatically), and paste into the text box below.`;
+  }
+}
 
 (() => {
   const dz = $("#dropzone");
