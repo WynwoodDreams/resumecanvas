@@ -1935,6 +1935,21 @@ $("#jd-input").addEventListener("input", (ev) => {
 })();
 
 // ─────────────────────────────────────────────────────────
+// SERVICE WORKER REGISTRATION (phase 2)
+// ─────────────────────────────────────────────────────────
+
+if ("serviceWorker" in navigator) {
+  // Defer registration to idle so it never delays first paint.
+  const register = () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // Registration failure is non-fatal — the app still works online.
+    });
+  };
+  if (document.readyState === "complete") register();
+  else window.addEventListener("load", register);
+}
+
+// ─────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────
 
