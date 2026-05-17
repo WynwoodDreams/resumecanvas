@@ -72,6 +72,17 @@ assert(app.includes('function downloadPdf') && app.includes('application/pdf'), 
 assert(app.includes('buildResumePdfBytes'), 'app.js must implement buildResumePdfBytes');
 const sw = read('sw.js');
 assert(sw.includes('./vendor/pdf-writer.js'), 'service worker must precache the PDF writer for offline export');
+
+// Native share + QR vCard (phase 5)
+assert(fs.existsSync(path.join(root, 'vendor/qr.js')), 'vendor/qr.js must exist');
+const qr = read('vendor/qr.js');
+assert(qr.includes('RcQr') && qr.includes('encode'), 'qr.js must expose RcQr.encode');
+assert(html.includes('id="share-modal-bg"'), 'index.html must include the share modal');
+assert(html.includes('data-action="openShareModal"'), 'toolbar must expose the share modal');
+assert(app.includes('function buildVCard') && app.includes('BEGIN:VCARD'), 'app.js must build a vCard for the QR code');
+assert(app.includes('navigator.share'), 'app.js must use the Web Share API');
+assert(sw.includes('./vendor/qr.js'), 'service worker must precache the QR encoder');
+assert(css.includes('.share-modal') && css.includes('.qr-frame'), 'styles.css must style the share modal and QR frame');
 const swCacheRule = vercel.headers?.find((rule) => rule.source === '/sw.js');
 assert(swCacheRule, 'vercel.json must include a /sw.js header rule');
 assert(swCacheRule.headers.some((h) => h.key === 'Cache-Control' && h.value.includes('max-age=0')), '/sw.js must be served with max-age=0 so updates land immediately');

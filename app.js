@@ -828,6 +828,10 @@ const ACTIONS = {
   libDelete: (btn) => deleteResume(btn.dataset.id),
   newResumeBlank: () => createNewResume({ fromSample: false }),
   newResumeSample: () => createNewResume({ fromSample: true }),
+  openShareModal: () => openShareModal(),
+  closeShareModal: () => closeShareModal(),
+  closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
+  sharePdf: () => sharePdf(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1577,6 +1581,128 @@ function downloadPdf() {
   } catch (err) {
     toast("PDF EXPORT FAILED — TRY PRINT");
     // Keep diagnostic in console for debugging without leaking to the UI.
+    if (typeof console !== "undefined") console.error(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// SHARE + QR (phase 5)
+// ─────────────────────────────────────────────────────────
+
+function buildVCard() {
+  // Strip any leading "mailto:" or "tel:" the user might have pasted in.
+  const clean = (s) => String(s || "").trim().replace(/^(mailto:|tel:)/i, "");
+  const name = clean(state.name);
+  const email = clean(state.email) || pickContactPart(state.contact_line2, /[\w.+-]+@[\w.-]+/);
+  const phone = clean(state.phone) || pickContactPart(state.contact_line1, /[+\d][\d().\s-]{7,}/);
+  const location = clean(state.location) || pickContactPart(state.contact_line1, /^[^|()]+/);
+  const linkedin = clean(state.linkedin) || pickContactPart(state.contact_line2, /linkedin\.com\/\S+/i);
+  const url = linkedin && !/^https?:/i.test(linkedin) ? `https://${linkedin}` : linkedin;
+  // Naive N field — last name = last token, first = the rest.
+  const parts = name.split(/\s+/).filter(Boolean);
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  const first = parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || "");
+  const lines = ["BEGIN:VCARD", "VERSION:3.0"];
+  if (name) lines.push(`N:${vCardEscape(last)};${vCardEscape(first)};;;`);
+  if (name) lines.push(`FN:${vCardEscape(name)}`);
+  if (phone) lines.push(`TEL;TYPE=CELL:${vCardEscape(phone)}`);
+  if (email) lines.push(`EMAIL;TYPE=INTERNET:${vCardEscape(email)}`);
+  if (url) lines.push(`URL:${vCardEscape(url)}`);
+  if (location) lines.push(`ADR;TYPE=HOME:;;${vCardEscape(location)};;;;`);
+  lines.push("END:VCARD");
+  return lines.join("\n");
+}
+
+function pickContactPart(line, re) {
+  if (!line) return "";
+  const m = String(line).match(re);
+  return m ? m[0].trim().replace(/[|,]+$/, "").trim() : "";
+}
+
+function vCardEscape(s) {
+  return String(s || "").replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+}
+
+function openShareModal() {
+  const bg = $("#share-modal-bg");
+  if (!bg) return;
+  bg.classList.add("show");
+  renderShareModal();
+}
+
+function closeShareModal() {
+  const bg = $("#share-modal-bg");
+  if (bg) bg.classList.remove("show");
+}
+
+function renderShareModal() {
+  const frame = $("#qr-frame");
+  const preview = $("#vcard-preview");
+  const qrFallback = $("#share-qr-fallback");
+  const pdfFallback = $("#share-pdf-fallback");
+  const shareBtn = $("#share-pdf-btn");
+
+  // vCard preview text
+  const vcard = buildVCard();
+  if (preview) preview.textContent = vcard;
+
+  // QR render — depends on vendor/qr.js
+  if (frame) {
+    frame.innerHTML = "";
+    if (window.RcQr) {
+      try {
+        const r = window.RcQr.encode(vcard, "M");
+        frame.innerHTML = window.RcQr.toSvg(r.modules, { scale: 6, margin: 3 });
+        if (qrFallback) qrFallback.hidden = true;
+      } catch (err) {
+        frame.innerHTML = `<div class="qr-empty">CONTACT TOO LONG — clear extra fields</div>`;
+        if (typeof console !== "undefined") console.error(err);
+      }
+    } else {
+      frame.innerHTML = `<div class="qr-empty">QR not loaded</div>`;
+      if (qrFallback) qrFallback.hidden = false;
+    }
+  }
+
+  // Web Share API availability — checked at open time, not at load,
+  // because canShare needs a File instance to evaluate correctly.
+  if (shareBtn && pdfFallback) {
+    const supported = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    if (!supported) {
+      shareBtn.disabled = true;
+      pdfFallback.hidden = false;
+    } else {
+      shareBtn.disabled = false;
+      pdfFallback.hidden = true;
+    }
+  }
+}
+
+async function sharePdf() {
+  if (!navigator || typeof navigator.share !== "function") {
+    toast("SHARING NOT SUPPORTED — USE DOWNLOAD");
+    return;
+  }
+  try {
+    const bytes = buildResumePdfBytes();
+    const filename = `${slugFileName(state.name)}-${state.template}.pdf`;
+    const file = new File([bytes], filename, { type: "application/pdf" });
+    const data = {
+      files: [file],
+      title: `${state.name || "Resume"} — Resume`,
+      text: `${state.name || ""}'s resume`,
+    };
+    // canShare with files is the right pre-flight; some browsers (older Android)
+    // implement navigator.share but not canShare — fall through and try anyway.
+    if (typeof navigator.canShare === "function" && !navigator.canShare(data)) {
+      toast("THIS BROWSER CAN'T SHARE FILES");
+      return;
+    }
+    await navigator.share(data);
+  } catch (err) {
+    // User cancellation throws AbortError — treat as a no-op, no toast spam.
+    if (err && err.name === "AbortError") return;
+    toast("SHARE FAILED — TRY DOWNLOAD");
     if (typeof console !== "undefined") console.error(err);
   }
 }

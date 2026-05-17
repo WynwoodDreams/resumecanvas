@@ -212,7 +212,8 @@
       <div class="toolbar-group export-group hide-in-match">
         <span class="toolbar-label">EXPORT</span>
         <button class="toolbar-chip primary" data-action="downloadPdf">DOWNLOAD PDF</button>
-        <button class="toolbar-chip" data-action="downloadDoc">DOWNLOAD .DOC</button>
+        <button class="toolbar-chip" data-action="openShareModal">↗ SHARE</button>
+        <button class="toolbar-chip" data-action="downloadDoc">.DOC</button>
         <button class="toolbar-chip" data-action="printPDF">PRINT</button>
         <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
       </div>
@@ -314,7 +315,38 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
   </div>
 </div>
 
+<!-- Share modal -->
+<div class="modal-bg" id="share-modal-bg" data-action="closeShareBackdrop">
+  <div class="modal share-modal">
+    <div class="modal-h">
+      <h3><span class="amber">↗</span> SHARE RESUME</h3>
+      <button class="icon-btn" data-action="closeShareModal">CLOSE</button>
+    </div>
+    <div class="modal-b">
+      <div class="share-grid">
+        <div class="share-col share-pdf">
+          <div class="share-h">SEND PDF</div>
+          <div class="share-help">Send your resume PDF straight to a recruiter via the native share sheet — Gmail, WhatsApp, AirDrop, Drive, anything.</div>
+          <button class="compile-btn share-cta" data-action="sharePdf" id="share-pdf-btn">↗ SHARE PDF</button>
+          <div class="share-fallback" id="share-pdf-fallback" hidden>This browser doesn't support file sharing. Use <strong>DOWNLOAD PDF</strong> on the toolbar instead.</div>
+        </div>
+        <div class="share-col share-qr">
+          <div class="share-h">QR CONTACT CARD</div>
+          <div class="share-help">A recruiter at a career fair can scan this with their phone camera and add your contact details instantly.</div>
+          <div class="qr-frame" id="qr-frame" aria-label="QR code with contact info"></div>
+          <div class="share-fallback" id="share-qr-fallback" hidden>QR generator failed to load.</div>
+          <div class="vcard-preview" id="vcard-preview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="compile-btn modal-done" data-action="closeShareModal">DONE</button>
+    </div>
+  </div>
+</div>
+
 <script src="./vendor/pdf-writer.js" defer></script>
+<script src="./vendor/qr.js" defer></script>
 <script src="./app.js" defer></script>
 
 
