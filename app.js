@@ -160,15 +160,22 @@ function toast(msg) {
 }
 
 // ─────────────────────────────────────────────────────────
-// AUTOSAVE + LIBRARY (phases 1 & 3)
+// AUTOSAVE + LIBRARY (phases 1, 3, 8)
+// Two buckets: DRAFTS (work-in-progress, max 3) and SAVED (finished,
+// max 3). SAVE moves a draft into the saved bucket. Editing a saved
+// entry mutates it in place — no "make a new draft on edit" magic.
 // ─────────────────────────────────────────────────────────
 
-const LEGACY_STATE_KEY = "resumecanvas:v1:state"; // phase 1, single-resume slot
-const LIBRARY_KEY = "resumecanvas:v2:library";    // phase 3, multi-resume library
+const LEGACY_STATE_KEY   = "resumecanvas:v1:state";   // single-resume slot
+const LEGACY_LIBRARY_KEY = "resumecanvas:v2:library"; // flat list
+const LIBRARY_KEY        = "resumecanvas:v3:library"; // drafts + saved
+
+const DRAFT_LIMIT = 3;
+const SAVED_LIMIT = 3;
 
 let _persistTimer = null;
 let _saveIndicatorTimer = null;
-let _library = { resumes: [], activeId: null };
+let _library = { drafts: [], saved: [], activeId: null };
 
 function showSaveIndicator(mode) {
   const el = $("#save-indicator");
@@ -190,8 +197,29 @@ function newResumeId() {
   return "r_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
 }
 
+function bucketArr(bucket) {
+  return bucket === "saved" ? _library.saved : _library.drafts;
+}
+
+function findResume(id) {
+  for (const bucket of ["drafts", "saved"]) {
+    const arr = bucketArr(bucket);
+    const idx = arr.findIndex((r) => r.id === id);
+    if (idx !== -1) return { resume: arr[idx], bucket, index: idx };
+  }
+  return null;
+}
+
 function activeResume() {
-  return _library.resumes.find((r) => r.id === _library.activeId) || null;
+  if (!_library.activeId) return null;
+  const found = findResume(_library.activeId);
+  return found ? found.resume : null;
+}
+
+function activeBucket() {
+  if (!_library.activeId) return null;
+  const found = findResume(_library.activeId);
+  return found ? found.bucket : null;
 }
 
 function defaultResumeName() {
@@ -239,9 +267,27 @@ function loadLibrary() {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.resumes)) return parsed;
+    if (parsed && Array.isArray(parsed.drafts) && Array.isArray(parsed.saved)) return parsed;
   } catch (_err) { /* fallthrough */ }
   return null;
+}
+
+function migrateLegacyLibrary() {
+  let raw;
+  try { raw = localStorage.getItem(LEGACY_LIBRARY_KEY); } catch (_err) { return null; }
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.resumes)) return null;
+    // Everything from the flat v2 list moves into drafts. Soft over-cap is
+    // tolerated on migration — the per-bucket limit only blocks new additions.
+    return {
+      drafts: parsed.resumes,
+      saved: [],
+      activeId: parsed.activeId || (parsed.resumes[0] && parsed.resumes[0].id) || null,
+      _migratedFromV2: true,
+    };
+  } catch (_err) { return null; }
 }
 
 function migrateLegacyState() {
@@ -254,7 +300,7 @@ function migrateLegacyState() {
     const id = newResumeId();
     const now = Date.now();
     const resume = { id, name: parsed.name ? `${parsed.name}'s resume` : defaultResumeName(), createdAt: now, updatedAt: now, state: parsed };
-    return { resumes: [resume], activeId: id, _migratedFromLegacy: true };
+    return { drafts: [resume], saved: [], activeId: id, _migratedFromLegacy: true };
   } catch (_err) { return null; }
 }
 
@@ -262,15 +308,21 @@ function seedLibrary() {
   const id = newResumeId();
   const now = Date.now();
   const seed = JSON.parse(_DEFAULT_STATE_JSON);
-  return { resumes: [{ id, name: "MDC Sample Resume", createdAt: now, updatedAt: now, state: seed }], activeId: id };
+  return { drafts: [{ id, name: "MDC Sample Resume", createdAt: now, updatedAt: now, state: seed }], saved: [], activeId: id };
 }
 
 function restoreState() {
-  const loaded = loadLibrary() || migrateLegacyState();
+  const loaded = loadLibrary() || migrateLegacyLibrary() || migrateLegacyState();
   _library = loaded || seedLibrary();
+  const wasV2 = !!_library._migratedFromV2;
   const wasLegacy = !!_library._migratedFromLegacy;
+  delete _library._migratedFromV2;
   delete _library._migratedFromLegacy;
-  if (!activeResume() && _library.resumes.length > 0) _library.activeId = _library.resumes[0].id;
+  // Guarantee activeId points at something that still exists.
+  if (!activeResume()) {
+    const fallback = _library.drafts[0] || _library.saved[0];
+    _library.activeId = fallback ? fallback.id : null;
+  }
   const active = activeResume();
   if (active && active.state) {
     for (const key of Object.keys(state)) {
@@ -279,13 +331,14 @@ function restoreState() {
     state.match = { on: false, jd: "" };
   }
   writeLibrary();
-  // Only remove the legacy slot after we've confirmed the new library wrote.
-  if (wasLegacy) {
-    try {
-      const check = localStorage.getItem(LIBRARY_KEY);
-      if (check) localStorage.removeItem(LEGACY_STATE_KEY);
-    } catch (_err) { /* keep legacy as fallback */ }
-  }
+  // Only retire the legacy keys after we've confirmed the new library wrote.
+  try {
+    const check = localStorage.getItem(LIBRARY_KEY);
+    if (check) {
+      if (wasV2) localStorage.removeItem(LEGACY_LIBRARY_KEY);
+      if (wasLegacy) localStorage.removeItem(LEGACY_STATE_KEY);
+    }
+  } catch (_err) { /* keep legacy as fallback */ }
 }
 
 function updateLibraryPill() {
@@ -293,36 +346,40 @@ function updateLibraryPill() {
   const countEl = $("#library-pill-count");
   const active = activeResume();
   if (nameEl) nameEl.textContent = active ? active.name : defaultResumeName();
-  if (countEl) countEl.textContent = String(_library.resumes.length);
+  if (countEl) countEl.textContent = `${_library.drafts.length + _library.saved.length}`;
 }
 
 function switchToResume(id) {
   if (id === _library.activeId) { closeLibrary(); return; }
   // Snapshot the resume we're leaving so any unsaved edits survive the switch.
   persistStateNow();
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
+  const found = findResume(id);
+  if (!found) return;
   _library.activeId = id;
-  replaceStateWith(target.state);
+  replaceStateWith(found.resume.state);
   writeLibrary();
   closeLibrary();
   render();
-  toast(`SWITCHED → ${target.name.toUpperCase()}`);
+  toast(`SWITCHED → ${found.resume.name.toUpperCase()}`);
 }
 
 function createNewResume(opts) {
+  if (_library.drafts.length >= DRAFT_LIMIT) {
+    toast(`DRAFT LIMIT REACHED — DELETE ONE FIRST`);
+    return;
+  }
   persistStateNow(); // save the current one before swapping out
   const id = newResumeId();
   const now = Date.now();
   const seed = opts && opts.fromSample ? JSON.parse(_DEFAULT_STATE_JSON) : blankResumeState();
   const name = (opts && opts.name) || (opts && opts.fromSample ? "New Sample Resume" : "New Blank Resume");
-  _library.resumes.push({ id, name, createdAt: now, updatedAt: now, state: seed });
+  _library.drafts.push({ id, name, createdAt: now, updatedAt: now, state: seed });
   _library.activeId = id;
   replaceStateWith(seed);
   writeLibrary();
   closeLibrary();
   render();
-  toast("RESUME CREATED");
+  toast("DRAFT CREATED");
 }
 
 function blankResumeState() {
@@ -350,52 +407,83 @@ function blankResumeState() {
 }
 
 function duplicateResume(id) {
-  const src = _library.resumes.find((r) => r.id === id);
-  if (!src) return;
+  const found = findResume(id);
+  if (!found) return;
+  // Duplicates land in drafts (the working bucket). Saved cannot grow this way.
+  if (_library.drafts.length >= DRAFT_LIMIT) {
+    toast("DRAFT LIMIT REACHED — DELETE ONE FIRST");
+    return;
+  }
   persistStateNow();
-  const copy = JSON.parse(JSON.stringify(src));
+  const copy = JSON.parse(JSON.stringify(found.resume));
   copy.id = newResumeId();
-  copy.name = `${src.name} (copy)`;
+  copy.name = `${found.resume.name} (copy)`;
   copy.createdAt = Date.now();
   copy.updatedAt = Date.now();
-  _library.resumes.push(copy);
+  _library.drafts.push(copy);
   _library.activeId = copy.id;
   replaceStateWith(copy.state);
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
   render();
-  toast("DUPLICATED");
+  toast("DUPLICATED → DRAFTS");
+}
+
+function saveDraft(id) {
+  const found = findResume(id);
+  if (!found || found.bucket !== "drafts") return;
+  if (_library.saved.length >= SAVED_LIMIT) {
+    toast(`SAVED IS FULL (${SAVED_LIMIT}) — DELETE ONE FIRST`);
+    return;
+  }
+  // Persist current state into the draft before we move it, otherwise the
+  // act of saving a non-active draft would freeze an outdated snapshot.
+  if (id === _library.activeId) persistStateNow();
+  const [moved] = _library.drafts.splice(found.index, 1);
+  moved.updatedAt = Date.now();
+  _library.saved.push(moved);
+  writeLibrary();
+  renderLibraryList();
+  updateLibraryPill();
+  toast(`SAVED → "${moved.name.toUpperCase()}"`);
 }
 
 function renameResume(id) {
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
-  const next = prompt("Rename this resume:", target.name);
+  const found = findResume(id);
+  if (!found) return;
+  const next = prompt("Rename this resume:", found.resume.name);
   if (next == null) return;
   const trimmed = next.trim();
   if (!trimmed) return;
-  target.name = trimmed.slice(0, 60);
-  target.updatedAt = Date.now();
+  found.resume.name = trimmed.slice(0, 60);
+  found.resume.updatedAt = Date.now();
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
 }
 
 function deleteResume(id) {
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
-  const ok = confirm(`Delete "${target.name}"? This cannot be undone.`);
+  const found = findResume(id);
+  if (!found) return;
+  const bucketLabel = found.bucket === "saved" ? "saved" : "draft";
+  const ok = confirm(`Delete ${bucketLabel} "${found.resume.name}"? This cannot be undone.`);
   if (!ok) return;
-  _library.resumes = _library.resumes.filter((r) => r.id !== id);
-  if (_library.resumes.length === 0) {
-    const fresh = seedLibrary();
-    _library = fresh;
-  } else if (_library.activeId === id) {
-    _library.activeId = _library.resumes[0].id;
+  bucketArr(found.bucket).splice(found.index, 1);
+  // If we just deleted the active resume, fall back to the next available one.
+  if (_library.activeId === id) {
+    const fallback = _library.drafts[0] || _library.saved[0];
+    if (fallback) {
+      _library.activeId = fallback.id;
+      replaceStateWith(fallback.state);
+    } else {
+      // Both buckets empty — seed a fresh draft so the form never goes blank.
+      const fresh = seedLibrary();
+      _library = fresh;
+      const newActive = activeResume();
+      if (newActive) replaceStateWith(newActive.state);
+    }
   }
-  const active = activeResume();
-  if (active) replaceStateWith(active.state);
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
@@ -414,44 +502,76 @@ function closeLibrary() {
   if (bg) bg.classList.remove("show");
 }
 
+function libraryRowHtml(r, bucket, fmt) {
+  const isActive = r.id === _library.activeId;
+  const person = (r.state && r.state.name) ? r.state.name : "(no name yet)";
+  const tpl = r.state && r.state.template ? r.state.template.replace("_", " ").toUpperCase() : "—";
+  const when = r.updatedAt ? fmt.format(new Date(r.updatedAt)) : "—";
+  const saveBtn = bucket === "drafts"
+    ? `<button class="lib-btn save" data-action="libSaveDraft" data-id="${esc(r.id)}" ${_library.saved.length >= SAVED_LIMIT ? "disabled" : ""} title="${_library.saved.length >= SAVED_LIMIT ? "Saved bucket is full — delete one to save this draft" : "Move this draft into Saved"}">★ SAVE</button>`
+    : "";
+  return `
+    <div class="lib-row ${isActive ? "active" : ""}" role="listitem">
+      <div class="lib-main">
+        <div class="lib-name">${esc(r.name)} <span class="lib-active-flag">● ACTIVE</span></div>
+        <div class="lib-meta">
+          <span class="person">${esc(person)}</span>
+          <span class="tag">${esc(tpl)}</span>
+          <span>${esc(when)}</span>
+        </div>
+      </div>
+      <div class="lib-actions">
+        <button class="lib-btn primary" data-action="libSwitch" data-id="${esc(r.id)}">OPEN</button>
+        ${saveBtn}
+        <button class="lib-btn" data-action="libRename" data-id="${esc(r.id)}">RENAME</button>
+        <button class="lib-btn" data-action="libDuplicate" data-id="${esc(r.id)}" ${_library.drafts.length >= DRAFT_LIMIT ? "disabled" : ""}>DUPLICATE</button>
+        <button class="lib-btn danger" data-action="libDelete" data-id="${esc(r.id)}">DELETE</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderLibraryList() {
   const list = $("#library-list");
   if (!list) return;
-  if (_library.resumes.length === 0) {
-    list.innerHTML = `<div class="lib-empty">No resumes yet.</div>`;
-    return;
-  }
   const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  // Most-recently-updated first; active always pinned to top.
-  const sorted = _library.resumes.slice().sort((a, b) => {
+  const sortFn = (a, b) => {
     if (a.id === _library.activeId) return -1;
     if (b.id === _library.activeId) return 1;
     return (b.updatedAt || 0) - (a.updatedAt || 0);
+  };
+  const draftRows = _library.drafts.slice().sort(sortFn).map((r) => libraryRowHtml(r, "drafts", fmt)).join("");
+  const savedRows = _library.saved.slice().sort(sortFn).map((r) => libraryRowHtml(r, "saved", fmt)).join("");
+
+  const draftsOverCap = _library.drafts.length > DRAFT_LIMIT;
+  const savedOverCap = _library.saved.length > SAVED_LIMIT;
+  const draftsHeaderClass = _library.drafts.length >= DRAFT_LIMIT ? "lib-bucket-h full" : "lib-bucket-h";
+  const savedHeaderClass = _library.saved.length >= SAVED_LIMIT ? "lib-bucket-h full" : "lib-bucket-h";
+
+  list.innerHTML = `
+    <div class="${draftsHeaderClass}">
+      <span class="lib-bucket-title">DRAFTS</span>
+      <span class="lib-bucket-count">${_library.drafts.length}/${DRAFT_LIMIT}</span>
+      <span class="lib-bucket-hint">${_library.drafts.length === 0 ? "No drafts yet." : (draftsOverCap ? "OVER CAP — delete some to add new drafts" : "Work in progress · autosaves as you type")}</span>
+    </div>
+    ${draftRows || `<div class="lib-empty">No drafts. Use the buttons below to create one.</div>`}
+    <div class="${savedHeaderClass}">
+      <span class="lib-bucket-title">★ SAVED</span>
+      <span class="lib-bucket-count">${_library.saved.length}/${SAVED_LIMIT}</span>
+      <span class="lib-bucket-hint">${_library.saved.length === 0 ? "Tap ★ SAVE on a draft to file it here." : (savedOverCap ? "OVER CAP — delete some to file more" : "Finished versions · max " + SAVED_LIMIT)}</span>
+    </div>
+    ${savedRows || `<div class="lib-empty">Nothing saved yet.</div>`}
+  `;
+
+  // Toggle the "+ NEW" buttons in the modal footer based on draft headroom.
+  const blankBtn = list.parentElement && list.parentElement.querySelector('[data-action="newResumeBlank"]');
+  const sampleBtn = list.parentElement && list.parentElement.querySelector('[data-action="newResumeSample"]');
+  const draftsFull = _library.drafts.length >= DRAFT_LIMIT;
+  [blankBtn, sampleBtn].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = draftsFull;
+    btn.title = draftsFull ? "Drafts is full — delete one to add a new draft" : "";
   });
-  list.innerHTML = sorted.map((r) => {
-    const isActive = r.id === _library.activeId;
-    const person = (r.state && r.state.name) ? r.state.name : "(no name yet)";
-    const tpl = r.state && r.state.template ? r.state.template.replace("_", " ").toUpperCase() : "—";
-    const when = r.updatedAt ? fmt.format(new Date(r.updatedAt)) : "—";
-    return `
-      <div class="lib-row ${isActive ? "active" : ""}" role="listitem">
-        <div class="lib-main">
-          <div class="lib-name">${esc(r.name)} <span class="lib-active-flag">● ACTIVE</span></div>
-          <div class="lib-meta">
-            <span class="person">${esc(person)}</span>
-            <span class="tag">${esc(tpl)}</span>
-            <span>${esc(when)}</span>
-          </div>
-        </div>
-        <div class="lib-actions">
-          <button class="lib-btn primary" data-action="libSwitch" data-id="${esc(r.id)}">OPEN</button>
-          <button class="lib-btn" data-action="libRename" data-id="${esc(r.id)}">RENAME</button>
-          <button class="lib-btn" data-action="libDuplicate" data-id="${esc(r.id)}">DUPLICATE</button>
-          <button class="lib-btn danger" data-action="libDelete" data-id="${esc(r.id)}">DELETE</button>
-        </div>
-      </div>
-    `;
-  }).join("");
 }
 
 function resetState() {
@@ -628,6 +748,7 @@ function renderProjects() {
             ${(p.bullets || []).map((b, bi) => `
               <div class="bullet-row">
                 <textarea data-proj-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
+                <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="projBullet:${i}:${bi}" aria-label="Dictate bullet" title="Dictate (voice)">🎤</button>
                 <button class="icon-btn" data-action="removeProjBullet" data-index="${i}" data-bullet-index="${bi}">×</button>
               </div>
             `).join("")}
@@ -662,6 +783,7 @@ function renderExperience() {
             ${(e.bullets || []).map((b, bi) => `
               <div class="bullet-row">
                 <textarea data-exp-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
+                <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="expBullet:${i}:${bi}" aria-label="Dictate bullet" title="Dictate (voice)">🎤</button>
                 <button class="icon-btn" data-action="removeExpBullet" data-index="${i}" data-bullet-index="${bi}">×</button>
               </div>
             `).join("")}
@@ -810,6 +932,7 @@ const ACTIONS = {
   closeModal: () => closeModal(),
   copyPayloadAndPrompt: () => copyPayloadAndPrompt(),
   downloadDoc: () => downloadDoc(),
+  downloadPdf: () => downloadPdf(),
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
   toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
@@ -822,11 +945,18 @@ const ACTIONS = {
   closeLibrary: () => closeLibrary(),
   closeLibraryBackdrop: (el, ev) => { if (ev.target === el) closeLibrary(); },
   libSwitch: (btn) => switchToResume(btn.dataset.id),
+  libSaveDraft: (btn) => saveDraft(btn.dataset.id),
   libRename: (btn) => renameResume(btn.dataset.id),
   libDuplicate: (btn) => duplicateResume(btn.dataset.id),
   libDelete: (btn) => deleteResume(btn.dataset.id),
   newResumeBlank: () => createNewResume({ fromSample: false }),
   newResumeSample: () => createNewResume({ fromSample: true }),
+  openShareModal: () => openShareModal(),
+  closeShareModal: () => closeShareModal(),
+  closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
+  sharePdf: () => sharePdf(),
+  micToggle: (btn) => micToggle(btn),
+  triggerCamera: () => triggerCamera(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1178,6 +1308,10 @@ $("#summary").addEventListener("input", (ev) => {
 // ─────────────────────────────────────────────────────────
 
 function render() {
+  // A full render() rebuilds the form DOM, which would orphan an active
+  // mic button mid-stream. Stop dictation first so the user isn't stuck
+  // with a phantom "listening" state and an unreachable target field.
+  if (_recordingTarget) stopDictation();
   renderHeader();
   renderSummary();
   renderEducation();
@@ -1191,6 +1325,7 @@ function render() {
   setCaseId();
   renderPreview();
   updateLibraryPill();
+  hideMicButtonsIfUnsupported();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1272,6 +1407,600 @@ function printPDF() {
   renderPreview();
   toast("PRINT DIALOG OPENING");
   setTimeout(() => window.print(), 100);
+}
+
+// ─────────────────────────────────────────────────────────
+// REAL PDF EXPORT (phase 4)
+// Walks `state` and emits a vector PDF via vendor/pdf-writer.js.
+// ─────────────────────────────────────────────────────────
+
+function buildResumePdfBytes() {
+  if (!global_RcPdf()) throw new Error("PDF writer not loaded");
+  const tpl = state.template;
+  const fontPt = state.font_pt || (tpl === "demo_4" ? 12 : 11);
+  const NAME_PT = tpl === "demo_4" ? 20 : 16;
+  const SECTION_PT = tpl === "demo_4" ? 12 : 11;
+  const CONTACT_PT = 9;
+  const BODY_PT = fontPt;
+
+  const doc = new (global_RcPdf()).Doc({ marginL: 54, marginR: 54, marginT: 40, marginB: 40 });
+  doc.lineH = 1.22;
+  const contentW = doc.contentWidth();
+  const xLeft = doc.marginL;
+  const xRight = doc.pageW - doc.marginR;
+
+  // ── Header (name + contact) ─────────────────────────────────────────────
+  doc.setFont("Times-Bold", NAME_PT);
+  doc.ensure(NAME_PT * 1.1);
+  doc.advance(NAME_PT * 0.85);
+  doc.textCentered(state.name || "—", doc._cur.y);
+  doc.advance(NAME_PT * 0.55);
+
+  doc.setFont("Times-Roman", CONTACT_PT);
+  if (tpl === "demo_4") {
+    const extraLinks = (state.links || []).filter(Boolean).join(" | ");
+    const parts = [state.location, state.phone, state.email, state.linkedin, extraLinks].filter(Boolean);
+    pdfWrapCentered(doc, parts.join("  |  "), contentW);
+    doc.advance(2);
+    doc.hline(xLeft, xRight, doc._cur.y, 0.5);
+    doc.advance(8);
+  } else {
+    pdfWrapCentered(doc, state.contact_line1, contentW);
+    pdfWrapCentered(doc, state.contact_line2, contentW);
+    doc.advance(2);
+    doc.hline(xLeft, xRight, doc._cur.y, 0.5);
+    doc.advance(8);
+  }
+
+  // ── Summary ─────────────────────────────────────────────────────────────
+  if (state.section_enabled.summary !== false && (state.summary || "").trim()) {
+    pdfSectionHeader(doc, "SUMMARY", SECTION_PT, tpl);
+    doc.setFont("Times-Roman", BODY_PT);
+    doc.wrap(state.summary, xLeft, doc._cur.y, contentW);
+    doc.advance(2);
+  }
+
+  // ── Sections in user-defined order ──────────────────────────────────────
+  const order = state.section_order[tpl] || [];
+  const renderers = {
+    education: () => pdfRenderEducation(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    skills:    () => pdfRenderSkills(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    certs:     () => pdfRenderCerts(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    projects:  () => state.section_enabled.projects !== false && pdfRenderProjects(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    experience:() => state.section_enabled.experience !== false && pdfRenderExperience(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+  };
+  for (const sec of order) {
+    const fn = renderers[sec];
+    if (fn) fn();
+  }
+
+  return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
+}
+
+function global_RcPdf() {
+  return (typeof window !== "undefined") ? window.RcPdf : null;
+}
+
+function pdfWrapCentered(doc, str, width) {
+  if (!str) return;
+  const words = String(str).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return;
+  const lineH = doc.size * doc.lineH;
+  let line = "";
+  const linesOut = [];
+  for (let i = 0; i < words.length; i++) {
+    const next = line ? line + " " + words[i] : words[i];
+    if (global_RcPdf().measure(doc.font, doc.size, next) > width && line) {
+      linesOut.push(line);
+      line = words[i];
+    } else {
+      line = next;
+    }
+  }
+  if (line) linesOut.push(line);
+  for (const l of linesOut) {
+    doc.ensure(lineH);
+    doc.textCentered(l, doc._cur.y);
+    doc.advance(lineH);
+  }
+}
+
+function pdfSectionHeader(doc, label, sizePt, tpl) {
+  const lineH = sizePt * 1.2;
+  doc.advance(8);
+  doc.ensure(lineH + 6);
+  doc.setFont("Times-Bold", sizePt);
+  // Demo 2: small caps approximation (uppercase the label) for visual parity.
+  const text = tpl === "demo_2" ? label.toUpperCase() : label;
+  doc.text(text, doc.marginL, doc._cur.y);
+  doc.advance(2);
+  doc.hline(doc.marginL, doc.pageW - doc.marginR, doc._cur.y, 0.5);
+  doc.advance(6);
+}
+
+function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.education || []).filter(e => (e.school || e.degree));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "EDUCATION", sectionPt, tpl);
+  doc.setFont("Times-Roman", bodyPt);
+  items.forEach((e, idx) => {
+    if (idx > 0) doc.advance(4);
+    if (tpl === "demo_4") {
+      // Row 1: school (bold) left, city right.
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.school || "", xLeft, doc._cur.y);
+      if (e.city) doc.textRight(e.city, xRight, doc._cur.y);
+      doc.advance(lineH);
+      // Row 2: degree (regular) left, date right.
+      doc.ensure(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      doc.text(e.degree || "", xLeft, doc._cur.y);
+      if (e.date) {
+        doc.setFont("Times-Bold", bodyPt);
+        doc.textRight(e.date, xRight, doc._cur.y);
+        doc.setFont("Times-Roman", bodyPt);
+      }
+      doc.advance(lineH);
+    } else {
+      // Demo 2: school+city on row 1 bold, degree-row, optional subline + coursework.
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.school || "", xLeft, doc._cur.y);
+      if (e.city) doc.textRight(e.city, xRight, doc._cur.y);
+      doc.advance(lineH);
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.degree || "", xLeft, doc._cur.y);
+      if (e.date) doc.textRight(e.date, xRight, doc._cur.y);
+      doc.advance(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      if (e.subline_bold || e.subline_rest) {
+        doc.ensure(lineH);
+        let x = xLeft;
+        if (e.subline_bold) {
+          doc.setFont("Times-Bold", bodyPt);
+          doc.text(e.subline_bold + (e.subline_rest ? " " : ""), x, doc._cur.y);
+          x += global_RcPdf().measure("Times-Bold", bodyPt, e.subline_bold + (e.subline_rest ? " " : ""));
+          doc.setFont("Times-Roman", bodyPt);
+        }
+        if (e.subline_rest) doc.text(e.subline_rest, x, doc._cur.y);
+        doc.advance(lineH);
+      }
+      if (e.coursework) {
+        doc.setFont("Times-Bold", bodyPt);
+        const labelW = global_RcPdf().measure("Times-Bold", bodyPt, "Relevant Coursework: ");
+        doc.ensure(lineH);
+        doc.text("Relevant Coursework: ", xLeft, doc._cur.y);
+        doc.setFont("Times-Roman", bodyPt);
+        // Wrap remainder beside the label, then continue on subsequent lines.
+        doc.wrap(e.coursework, xLeft + labelW, doc._cur.y, contentW - labelW);
+      }
+    }
+  });
+}
+
+function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  if (tpl === "demo_4") {
+    const cats = (state.skills_categories || []).filter(c => c.label || c.content);
+    if (cats.length === 0) return;
+    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    cats.forEach((c) => {
+      const lineH = bodyPt * 1.2;
+      const labelText = (c.label || "") + ": ";
+      doc.setFont("Times-Bold", bodyPt);
+      const labelW = global_RcPdf().measure("Times-Bold", bodyPt, labelText);
+      doc.ensure(lineH);
+      doc.text(labelText, xLeft, doc._cur.y);
+      doc.setFont("Times-Roman", bodyPt);
+      // Place the content starting after the label; wrap will hang under the label.
+      const yBefore = doc._cur.y;
+      doc.text(truncateToWidth(doc, c.content || "", contentW - labelW), xLeft + labelW, yBefore);
+      doc.advance(lineH);
+      // If content overflowed one line, wrap the remainder underneath.
+      const fits = global_RcPdf().measure("Times-Roman", bodyPt, c.content || "") <= contentW - labelW;
+      if (!fits) {
+        const remainder = remainderAfterFit(doc, c.content || "", contentW - labelW);
+        if (remainder) doc.wrap(remainder, xLeft, doc._cur.y, contentW);
+      }
+    });
+  } else {
+    const rows = (state.skills_two_column || []).filter(r => r.left || r.right);
+    if (rows.length === 0) return;
+    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    const colW = (contentW - 24) / 2;
+    const colLx = xLeft;
+    const colRx = xLeft + colW + 24;
+    rows.forEach((r) => {
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      if (r.left) doc.text("• " + r.left, colLx, doc._cur.y);
+      if (r.right) doc.text("• " + r.right, colRx, doc._cur.y);
+      doc.advance(lineH);
+    });
+  }
+}
+
+function truncateToWidth(doc, str, width) {
+  if (!str) return "";
+  if (global_RcPdf().measure(doc.font, doc.size, str) <= width) return str;
+  // Walk words until adding the next would overflow.
+  const words = str.split(/\s+/);
+  let line = "";
+  for (let i = 0; i < words.length; i++) {
+    const next = line ? line + " " + words[i] : words[i];
+    if (global_RcPdf().measure(doc.font, doc.size, next) > width) break;
+    line = next;
+  }
+  return line;
+}
+
+function remainderAfterFit(doc, str, width) {
+  const head = truncateToWidth(doc, str, width);
+  if (head === str) return "";
+  // Slice off the leading text + the joining whitespace.
+  let rest = str.slice(head.length);
+  while (rest.length && /\s/.test(rest[0])) rest = rest.slice(1);
+  return rest;
+}
+
+function pdfRenderCerts(doc, bodyPt, sectionPt, tpl, contentW, xLeft) {
+  const items = (state.certifications || []).filter(Boolean);
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "CERTIFICATIONS", sectionPt, tpl);
+  doc.setFont("Times-Roman", bodyPt);
+  items.forEach((c) => doc.bullet(c, xLeft, contentW));
+}
+
+function pdfRenderProjects(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.projects || []).filter(p => p.title || (p.bullets || []).some(Boolean));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "PROJECTS", sectionPt, tpl);
+  items.forEach((p, idx) => {
+    if (idx > 0) doc.advance(4);
+    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, p, tpl);
+  });
+}
+
+function pdfRenderExperience(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.experience || []).filter(e => e.title || (e.bullets || []).some(Boolean));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "WORK EXPERIENCE", sectionPt, tpl);
+  items.forEach((e, idx) => {
+    if (idx > 0) doc.advance(4);
+    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, e, tpl);
+  });
+}
+
+function pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, entry, tpl) {
+  const lineH = bodyPt * 1.2;
+  doc.setFont("Times-Bold", bodyPt);
+  doc.ensure(lineH);
+  doc.text(entry.title || "", xLeft, doc._cur.y);
+  if (entry.date) doc.textRight(entry.date, xRight, doc._cur.y);
+  doc.advance(lineH);
+  if (entry.location) {
+    doc.setFont(tpl === "demo_2" ? "Times-Roman" : "Times-Italic", bodyPt);
+    doc.ensure(lineH);
+    doc.text(entry.location, xLeft, doc._cur.y);
+    doc.advance(lineH);
+  }
+  doc.setFont("Times-Roman", bodyPt);
+  (entry.bullets || []).filter(Boolean).forEach((b) => doc.bullet(b, xLeft, contentW));
+}
+
+function downloadPdf() {
+  try {
+    const bytes = buildResumePdfBytes();
+    const filename = `${slugFileName(state.name)}-${state.template}.pdf`;
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.className = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    toast("PDF DOWNLOADED");
+  } catch (err) {
+    toast("PDF EXPORT FAILED — TRY PRINT");
+    // Keep diagnostic in console for debugging without leaking to the UI.
+    if (typeof console !== "undefined") console.error(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// SHARE + QR (phase 5)
+// ─────────────────────────────────────────────────────────
+
+function buildVCard() {
+  // Strip any leading "mailto:" or "tel:" the user might have pasted in.
+  const clean = (s) => String(s || "").trim().replace(/^(mailto:|tel:)/i, "");
+  const name = clean(state.name);
+  const email = clean(state.email) || pickContactPart(state.contact_line2, /[\w.+-]+@[\w.-]+/);
+  const phone = clean(state.phone) || pickContactPart(state.contact_line1, /[+\d][\d().\s-]{7,}/);
+  const location = clean(state.location) || pickContactPart(state.contact_line1, /^[^|()]+/);
+  const linkedin = clean(state.linkedin) || pickContactPart(state.contact_line2, /linkedin\.com\/\S+/i);
+  const url = linkedin && !/^https?:/i.test(linkedin) ? `https://${linkedin}` : linkedin;
+  // Naive N field — last name = last token, first = the rest.
+  const parts = name.split(/\s+/).filter(Boolean);
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  const first = parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || "");
+  const lines = ["BEGIN:VCARD", "VERSION:3.0"];
+  if (name) lines.push(`N:${vCardEscape(last)};${vCardEscape(first)};;;`);
+  if (name) lines.push(`FN:${vCardEscape(name)}`);
+  if (phone) lines.push(`TEL;TYPE=CELL:${vCardEscape(phone)}`);
+  if (email) lines.push(`EMAIL;TYPE=INTERNET:${vCardEscape(email)}`);
+  if (url) lines.push(`URL:${vCardEscape(url)}`);
+  if (location) lines.push(`ADR;TYPE=HOME:;;${vCardEscape(location)};;;;`);
+  lines.push("END:VCARD");
+  return lines.join("\n");
+}
+
+function pickContactPart(line, re) {
+  if (!line) return "";
+  const m = String(line).match(re);
+  return m ? m[0].trim().replace(/[|,]+$/, "").trim() : "";
+}
+
+function vCardEscape(s) {
+  return String(s || "").replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+}
+
+function openShareModal() {
+  const bg = $("#share-modal-bg");
+  if (!bg) return;
+  bg.classList.add("show");
+  renderShareModal();
+}
+
+function closeShareModal() {
+  const bg = $("#share-modal-bg");
+  if (bg) bg.classList.remove("show");
+}
+
+function renderShareModal() {
+  const frame = $("#qr-frame");
+  const preview = $("#vcard-preview");
+  const qrFallback = $("#share-qr-fallback");
+  const pdfFallback = $("#share-pdf-fallback");
+  const shareBtn = $("#share-pdf-btn");
+
+  // vCard preview text
+  const vcard = buildVCard();
+  if (preview) preview.textContent = vcard;
+
+  // QR render — depends on vendor/qr.js
+  if (frame) {
+    frame.innerHTML = "";
+    if (window.RcQr) {
+      try {
+        const r = window.RcQr.encode(vcard, "M");
+        frame.innerHTML = window.RcQr.toSvg(r.modules, { scale: 6, margin: 3 });
+        if (qrFallback) qrFallback.hidden = true;
+      } catch (err) {
+        frame.innerHTML = `<div class="qr-empty">CONTACT TOO LONG — clear extra fields</div>`;
+        if (typeof console !== "undefined") console.error(err);
+      }
+    } else {
+      frame.innerHTML = `<div class="qr-empty">QR not loaded</div>`;
+      if (qrFallback) qrFallback.hidden = false;
+    }
+  }
+
+  // Web Share API availability — checked at open time, not at load,
+  // because canShare needs a File instance to evaluate correctly.
+  if (shareBtn && pdfFallback) {
+    const supported = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    if (!supported) {
+      shareBtn.disabled = true;
+      pdfFallback.hidden = false;
+    } else {
+      shareBtn.disabled = false;
+      pdfFallback.hidden = true;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// VOICE DICTATION (phase 6)
+// Uses the Web Speech API to transcribe directly into bullet/summary fields.
+// Feature-detected at first use; hidden gracefully where unsupported.
+// ─────────────────────────────────────────────────────────
+
+let _recognition = null;
+let _recordingTarget = null;
+let _baseValue = "";
+
+function getSpeechCtor() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function isSpeechSupported() {
+  return !!getSpeechCtor();
+}
+
+function ensureRecognition() {
+  if (_recognition) return _recognition;
+  const Ctor = getSpeechCtor();
+  if (!Ctor) return null;
+  const r = new Ctor();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = (navigator.language || "en-US");
+  r.onresult = (ev) => {
+    if (!_recordingTarget) return;
+    let interim = "";
+    let final = "";
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const res = ev.results[i];
+      if (res.isFinal) final += res[0].transcript;
+      else interim += res[0].transcript;
+    }
+    if (final) {
+      _baseValue = appendDictation(_baseValue, final);
+    }
+    const display = interim ? appendDictation(_baseValue, interim) : _baseValue;
+    writeToMicTarget(_recordingTarget, display);
+  };
+  r.onerror = (ev) => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+      toast("MIC BLOCKED — CHECK PERMISSIONS");
+    } else if (ev.error === "no-speech") {
+      // Silent — recognition restarts on its own in continuous mode.
+      return;
+    } else {
+      toast(`MIC ERROR — ${String(ev.error || "").toUpperCase()}`);
+    }
+    stopDictation();
+  };
+  r.onend = () => {
+    // If we ended without an explicit stop, surface the change anyway.
+    if (_recordingTarget) finalizeDictation();
+  };
+  _recognition = r;
+  return r;
+}
+
+function appendDictation(base, addition) {
+  const b = (base || "").replace(/\s+$/, "");
+  const a = (addition || "").replace(/^\s+/, "");
+  if (!b) return a;
+  if (!a) return b;
+  return `${b} ${a}`;
+}
+
+function findMicButton(targetId) {
+  return document.querySelector(`.mic-btn[data-mic-target="${cssEscape(targetId)}"]`);
+}
+
+function findMicField(targetId) {
+  if (targetId === "summary") return $("#summary");
+  const parts = targetId.split(":");
+  if (parts[0] === "projBullet") return document.querySelector(`textarea[data-proj-bullet="${+parts[1]}"][data-bullet-i="${+parts[2]}"]`);
+  if (parts[0] === "expBullet")  return document.querySelector(`textarea[data-exp-bullet="${+parts[1]}"][data-bullet-i="${+parts[2]}"]`);
+  return null;
+}
+
+function cssEscape(s) {
+  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/["\\]/g, "\\$&");
+}
+
+function writeToMicTarget(targetId, value) {
+  const el = findMicField(targetId);
+  if (!el) return;
+  el.value = value;
+  // Mirror into state by reusing the existing input handlers' logic.
+  syncMicTargetIntoState(targetId, value);
+  renderPreview();
+}
+
+function syncMicTargetIntoState(targetId, value) {
+  if (targetId === "summary") { state.summary = value; return; }
+  const parts = targetId.split(":");
+  const i = +parts[1], bi = +parts[2];
+  if (parts[0] === "projBullet" && state.projects[i]) {
+    state.projects[i].bullets[bi] = value;
+  } else if (parts[0] === "expBullet" && state.experience[i]) {
+    state.experience[i].bullets[bi] = value;
+  }
+}
+
+function startDictation(targetId) {
+  if (!isSpeechSupported()) {
+    toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
+    return;
+  }
+  if (_recordingTarget) stopDictation();
+  const r = ensureRecognition();
+  if (!r) return;
+  const field = findMicField(targetId);
+  if (!field) return;
+  _recordingTarget = targetId;
+  _baseValue = field.value || "";
+  try {
+    r.start();
+  } catch (_err) {
+    // start() while already started throws InvalidStateError — best-effort restart.
+    try { r.stop(); setTimeout(() => r.start(), 50); } catch (_e) { /* give up */ }
+  }
+  const btn = findMicButton(targetId);
+  if (btn) { btn.classList.add("recording"); btn.setAttribute("aria-pressed", "true"); }
+  if (targetId === "summary") {
+    const hint = $("#mic-hint-summary");
+    if (hint) hint.classList.add("show");
+  }
+  toast("LISTENING… TAP MIC TO STOP");
+}
+
+function stopDictation() {
+  if (_recognition && _recordingTarget) {
+    try { _recognition.stop(); } catch (_err) { /* ignore */ }
+  }
+  finalizeDictation();
+}
+
+function finalizeDictation() {
+  const targetId = _recordingTarget;
+  _recordingTarget = null;
+  _baseValue = "";
+  if (targetId) {
+    const btn = findMicButton(targetId);
+    if (btn) { btn.classList.remove("recording"); btn.setAttribute("aria-pressed", "false"); }
+  }
+  const hint = $("#mic-hint-summary");
+  if (hint) hint.classList.remove("show");
+}
+
+function micToggle(btn) {
+  const targetId = btn.dataset.micTarget;
+  if (!targetId) return;
+  if (_recordingTarget === targetId) stopDictation();
+  else startDictation(targetId);
+}
+
+// Hide mic buttons up-front in browsers without Speech API support, so users
+// don't see an affordance they can't use.
+function hideMicButtonsIfUnsupported() {
+  if (isSpeechSupported()) return;
+  document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
+}
+
+async function sharePdf() {
+  if (!navigator || typeof navigator.share !== "function") {
+    toast("SHARING NOT SUPPORTED — USE DOWNLOAD");
+    return;
+  }
+  try {
+    const bytes = buildResumePdfBytes();
+    const filename = `${slugFileName(state.name)}-${state.template}.pdf`;
+    const file = new File([bytes], filename, { type: "application/pdf" });
+    const data = {
+      files: [file],
+      title: `${state.name || "Resume"} — Resume`,
+      text: `${state.name || ""}'s resume`,
+    };
+    // canShare with files is the right pre-flight; some browsers (older Android)
+    // implement navigator.share but not canShare — fall through and try anyway.
+    if (typeof navigator.canShare === "function" && !navigator.canShare(data)) {
+      toast("THIS BROWSER CAN'T SHARE FILES");
+      return;
+    }
+    await navigator.share(data);
+  } catch (err) {
+    // User cancellation throws AbortError — treat as a no-op, no toast spam.
+    if (err && err.name === "AbortError") return;
+    toast("SHARE FAILED — TRY DOWNLOAD");
+    if (typeof console !== "undefined") console.error(err);
+  }
 }
 
 function buildPayload() {
@@ -1727,6 +2456,83 @@ $("#import-file").addEventListener("change", async (ev) => {
   if (file) await handleImportFile(file);
   ev.target.value = "";
 });
+
+// ─────────────────────────────────────────────────────────
+// CAMERA SCAN (phase 7)
+// Captures a photo via the system camera. Tries the in-browser TextDetector
+// when available (Chrome on Android); otherwise leans on the OS's built-in
+// text-recognition (iOS Live Text / Google Lens) by showing the image
+// inline and telling the user to long-press → copy → paste.
+// ─────────────────────────────────────────────────────────
+
+const cameraInput = $("#camera-input");
+if (cameraInput) {
+  cameraInput.addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (file) await handleCameraCapture(file);
+    ev.target.value = "";
+  });
+}
+
+function triggerCamera() {
+  const input = $("#camera-input");
+  if (!input) return;
+  // Make the intake card visible if the user invoked from elsewhere.
+  $("#intake-card").classList.remove("collapsed");
+  input.click();
+}
+
+async function handleCameraCapture(file) {
+  const preview = $("#camera-preview");
+  const status = $("#cp-status");
+  const img = $("#cp-image");
+  const help = $("#cp-help");
+  if (!preview || !status || !img || !help) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  img.src = objectUrl;
+  preview.classList.remove("hidden");
+  status.className = "cp-status";
+  status.textContent = "Reading image…";
+  help.innerHTML = "";
+
+  // Path A: in-browser TextDetector (Chrome on Android, behind no flag).
+  if (typeof window.TextDetector === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const detector = new window.TextDetector();
+      const blocks = await detector.detect(bitmap);
+      const text = blocks.map((b) => b.rawValue || "").join("\n").trim();
+      if (text) {
+        status.className = "cp-status ok";
+        status.textContent = "TEXT DETECTED — REVIEW AND PARSE";
+        const paste = $("#import-paste");
+        if (paste) {
+          paste.value = text;
+          paste.focus();
+        }
+        help.innerHTML = `Edit the extracted text above if anything looks off, then tap <strong>▶ PARSE PASTED TEXT</strong>.`;
+        return;
+      }
+      // Fall through to manual path if nothing was extracted.
+    } catch (_err) {
+      // Detector unavailable on this device — fall through to manual flow.
+    }
+  }
+
+  // Path B: lean on the OS's built-in text recognition.
+  status.className = "cp-status";
+  status.textContent = "USE YOUR PHONE'S TEXT RECOGNITION";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  if (isIOS) {
+    help.innerHTML = `On iOS, <strong>tap and hold</strong> on text in the image above → <strong>Select All</strong> → <strong>Copy</strong>, then paste into the text box below.`;
+  } else if (isAndroid) {
+    help.innerHTML = `On Android, <strong>long-press</strong> the image → open in <strong>Google Lens</strong> or <strong>Photos</strong> → copy the text, then paste into the text box below.`;
+  } else {
+    help.innerHTML = `Open the image in your OS's photo viewer, copy the recognized text (most modern OSes do this automatically), and paste into the text box below.`;
+  }
+}
 
 (() => {
   const dz = $("#dropzone");

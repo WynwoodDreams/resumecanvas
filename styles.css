@@ -396,6 +396,67 @@
   .clipboard-fallback { position: fixed; left: -9999px; }
 
   /* ─────────────────────────────────────────────────────────
+     CAMERA SCAN (phase 7)
+     ───────────────────────────────────────────────────────── */
+  .camera-row { margin-top: 10px; }
+  .camera-btn { background: linear-gradient(180deg, rgba(140,120,81,0.10), rgba(140,120,81,0.04)); border-style: solid; border-color: var(--border-strong); color: var(--text); font-weight: 700; }
+  .camera-btn:hover { background: rgba(140,120,81,0.16); border-color: var(--amber); color: var(--amber-soft); }
+  .camera-preview { margin-top: 12px; padding: 12px; background: var(--surface-0); border: 1px solid var(--border-strong); }
+  .camera-preview .cp-status { font-size: 10.5px; letter-spacing: 0.18em; font-weight: 700; color: var(--amber-soft); margin-bottom: 8px; }
+  .camera-preview .cp-status.ok { color: var(--sage-ink); }
+  .camera-preview .cp-status.err { color: var(--red-ink); }
+  .camera-preview .cp-image { max-width: 100%; max-height: 320px; display: block; margin: 0 auto; border: 1px solid var(--border); background: #fff; }
+  .camera-preview .cp-help { margin-top: 10px; font-size: 10.5px; color: var(--text-dim); line-height: 1.6; }
+  .camera-preview .cp-help strong { color: var(--text); }
+  .camera-preview .cp-help kbd { display: inline-block; padding: 1px 6px; background: var(--surface-1); border: 1px solid var(--border-strong); font-family: inherit; font-size: 10px; color: var(--text); }
+
+  /* ─────────────────────────────────────────────────────────
+     VOICE-TO-BULLET (phase 6)
+     ───────────────────────────────────────────────────────── */
+  .mic-btn { background: var(--surface-0); border: 1px solid var(--border-strong); color: var(--text-dim); padding: 6px 9px; font-family: inherit; font-size: 14px; line-height: 1; cursor: pointer; transition: all 0.15s; position: relative; min-height: 36px; min-width: 36px; display: inline-flex; align-items: center; justify-content: center; }
+  .mic-btn:hover { border-color: var(--amber); color: var(--amber-soft); background: rgba(140,120,81,0.06); }
+  .mic-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .mic-btn.recording { background: var(--red); color: #fffffe; border-color: var(--red-ink); animation: micPulse 1.2s ease-in-out infinite; }
+  .mic-btn.recording:hover { background: var(--red-ink); color: #fffffe; }
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(242,80,66,0.55); }
+    50% { box-shadow: 0 0 0 8px rgba(242,80,66,0); }
+  }
+  .bullet-row { grid-template-columns: 1fr auto auto; }
+  .summary-with-mic { position: relative; }
+  .summary-with-mic .mic-btn { position: absolute; top: 8px; right: 8px; z-index: 2; }
+  .summary-with-mic textarea { padding-right: 52px; }
+  .mic-hint { display: none; font-size: 9.5px; color: var(--sage-ink); letter-spacing: 0.14em; margin-top: 4px; font-weight: 700; }
+  .mic-hint.show { display: block; }
+
+  @media (max-width: 640px) {
+    .mic-btn { min-height: 44px; min-width: 44px; font-size: 16px; padding: 8px 10px; }
+    .summary-with-mic .mic-btn { top: 6px; right: 6px; }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     SHARE / QR (phase 5)
+     ───────────────────────────────────────────────────────── */
+  .share-modal { max-width: 720px; }
+  .share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .share-col { display: flex; flex-direction: column; gap: 12px; padding: 18px; background: var(--surface-1); border: 1px solid var(--border); }
+  .share-h { font-size: 10.5px; letter-spacing: 0.22em; font-weight: 700; color: var(--text); }
+  .share-help { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+  .share-cta { width: 100%; min-height: 56px; font-size: 13px; letter-spacing: 0.18em; }
+  .share-fallback { font-size: 10.5px; color: var(--red-ink); background: rgba(242,80,66,0.08); border: 1px solid rgba(242,80,66,0.45); padding: 10px 12px; line-height: 1.5; }
+  .qr-frame { display: flex; align-items: center; justify-content: center; background: var(--paper); border: 1px solid var(--border-strong); padding: 12px; aspect-ratio: 1 / 1; }
+  .qr-frame svg { width: 100%; height: 100%; display: block; }
+  .qr-frame .qr-empty { color: var(--text-mute); font-size: 10.5px; letter-spacing: 0.14em; }
+  .vcard-preview { font-size: 10.5px; color: var(--text-dim); line-height: 1.6; background: var(--surface-0); border: 1px dashed var(--border-strong); padding: 10px 12px; max-height: 130px; overflow: auto; font-family: "JetBrains Mono", monospace; white-space: pre-wrap; word-break: break-word; }
+
+  @media (max-width: 640px) {
+    .share-grid { grid-template-columns: 1fr; gap: 16px; }
+    .share-col { padding: 14px; }
+    .share-cta { min-height: 52px; }
+    .qr-frame { max-width: 280px; margin: 0 auto; }
+  }
+
+  /* ─────────────────────────────────────────────────────────
      RESUME LIBRARY (phase 3)
      ───────────────────────────────────────────────────────── */
   .library-pill { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-0); border: 1px solid var(--border-strong); color: var(--text); padding: 6px 12px; font-family: inherit; font-size: 10px; letter-spacing: 0.16em; font-weight: 700; cursor: pointer; transition: all 0.12s; max-width: 240px; }
@@ -406,6 +467,13 @@
 
   .library-modal { max-width: 640px; }
   .lib-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 14px 0; }
+  .lib-bucket-h { display: flex; align-items: baseline; gap: 10px; padding: 14px 4px 8px 4px; border-bottom: 1px solid var(--border-strong); margin-top: 6px; flex-wrap: wrap; }
+  .lib-bucket-h:first-child { margin-top: 0; padding-top: 4px; }
+  .lib-bucket-title { font-size: 11px; letter-spacing: 0.24em; font-weight: 700; color: var(--text); }
+  .lib-bucket-count { background: rgba(140,120,81,0.14); color: var(--amber-soft); padding: 2px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.10em; }
+  .lib-bucket-h.full .lib-bucket-count { background: rgba(242,80,66,0.12); color: var(--red-ink); }
+  .lib-bucket-hint { font-size: 9.5px; letter-spacing: 0.14em; color: var(--text-mute); margin-left: auto; text-transform: uppercase; font-weight: 600; }
+  .lib-bucket-h.full .lib-bucket-hint { color: var(--red-ink); }
   .lib-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px 14px; background: var(--surface-1); border: 1px solid var(--border); align-items: center; transition: border-color 0.12s, background 0.12s; }
   .lib-row.active { background: linear-gradient(180deg, #f6ecdb 0%, #f1e3c8 100%); border-color: var(--amber); box-shadow: inset 0 0 0 1px rgba(140,120,81,0.30); }
   .lib-row .lib-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -423,6 +491,10 @@
   .lib-row .lib-btn.primary { background: var(--amber); color: #fffffe; border-color: var(--amber); }
   .lib-row .lib-btn.primary:hover { background: var(--amber-soft); border-color: var(--amber-soft); }
   .lib-row.active .lib-btn.primary { display: none; }
+  .lib-row .lib-btn.save { background: rgba(110,140,74,0.10); border-color: var(--sage); color: var(--sage-ink); }
+  .lib-row .lib-btn.save:hover { background: var(--sage); color: #fffffe; border-color: var(--sage-ink); }
+  .lib-row .lib-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .lib-row .lib-btn[disabled]:hover { background: inherit; color: inherit; border-color: inherit; }
   .lib-add-row { display: flex; gap: 8px; }
   .lib-add-row .add-btn { flex: 1; }
   .lib-empty { padding: 24px; text-align: center; color: var(--text-mute); font-size: 11px; letter-spacing: 0.14em; }
@@ -432,8 +504,10 @@
     .library-pill .lib-pill-name { max-width: none; flex: 1; text-align: left; }
     .lib-row { grid-template-columns: 1fr; padding: 14px; gap: 10px; }
     .lib-row .lib-actions { flex-wrap: wrap; }
-    .lib-row .lib-btn { flex: 1; min-height: 38px; padding: 9px 8px; }
+    .lib-row .lib-btn { flex: 1 1 calc(50% - 4px); min-height: 38px; padding: 9px 8px; }
     .lib-add-row { flex-direction: column; }
+    .lib-bucket-h { gap: 8px; padding: 14px 2px 6px 2px; }
+    .lib-bucket-hint { width: 100%; margin-left: 0; }
   }
 
   /* ─────────────────────────────────────────────────────────
