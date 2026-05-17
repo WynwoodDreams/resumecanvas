@@ -160,12 +160,15 @@ function toast(msg) {
 }
 
 // ─────────────────────────────────────────────────────────
-// AUTOSAVE (phase 1)
+// AUTOSAVE + LIBRARY (phases 1 & 3)
 // ─────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "resumecanvas:v1:state";
+const LEGACY_STATE_KEY = "resumecanvas:v1:state"; // phase 1, single-resume slot
+const LIBRARY_KEY = "resumecanvas:v2:library";    // phase 3, multi-resume library
+
 let _persistTimer = null;
 let _saveIndicatorTimer = null;
+let _library = { resumes: [], activeId: null };
 
 function showSaveIndicator(mode) {
   const el = $("#save-indicator");
@@ -183,14 +186,36 @@ function showSaveIndicator(mode) {
   }
 }
 
-function persistStateNow() {
+function newResumeId() {
+  return "r_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+}
+
+function activeResume() {
+  return _library.resumes.find((r) => r.id === _library.activeId) || null;
+}
+
+function defaultResumeName() {
+  return "Untitled Resume";
+}
+
+function writeLibrary() {
   try {
-    const snapshot = JSON.stringify(state);
-    localStorage.setItem(STORAGE_KEY, snapshot);
-    showSaveIndicator("saved");
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(_library));
   } catch (_err) {
-    // Quota exceeded or storage disabled — fail quiet, the app still works in-memory.
+    // Quota or disabled — fail quiet, in-memory state remains usable.
   }
+}
+
+function persistStateNow() {
+  const active = activeResume();
+  if (active) {
+    active.state = JSON.parse(JSON.stringify(state));
+    active.state.match = { on: false, jd: "" }; // never persist JD across sessions
+    active.updatedAt = Date.now();
+  }
+  writeLibrary();
+  showSaveIndicator("saved");
+  updateLibraryPill();
 }
 
 function schedulePersist() {
@@ -199,36 +224,248 @@ function schedulePersist() {
   _persistTimer = setTimeout(persistStateNow, 250);
 }
 
-function restoreState() {
-  let raw;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch (_err) {
-    return;
-  }
-  if (!raw) return;
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (_err) {
-    return;
-  }
-  if (!parsed || typeof parsed !== "object") return;
-  // Merge known top-level keys only — guards against partially-shaped older saves.
-  for (const key of Object.keys(state)) {
-    if (key in parsed) state[key] = parsed[key];
-  }
-  // Reset transient match state on reload — never persists across sessions.
+// Replace every top-level key in `state` with the values from a fresh snapshot.
+// Functions/handlers reference `state` by closure, so mutating in place keeps
+// them bound to the live object instead of a stale reference.
+function replaceStateWith(snapshot) {
+  for (const key of Object.keys(state)) delete state[key];
+  Object.assign(state, JSON.parse(JSON.stringify(snapshot)));
   state.match = { on: false, jd: "" };
 }
 
-function resetState() {
-  const ok = confirm("Reset everything to the sample resume? Your saved draft will be deleted.");
+function loadLibrary() {
+  let raw;
+  try { raw = localStorage.getItem(LIBRARY_KEY); } catch (_err) { return null; }
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.resumes)) return parsed;
+  } catch (_err) { /* fallthrough */ }
+  return null;
+}
+
+function migrateLegacyState() {
+  let raw;
+  try { raw = localStorage.getItem(LEGACY_STATE_KEY); } catch (_err) { return null; }
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const id = newResumeId();
+    const now = Date.now();
+    const resume = { id, name: parsed.name ? `${parsed.name}'s resume` : defaultResumeName(), createdAt: now, updatedAt: now, state: parsed };
+    return { resumes: [resume], activeId: id, _migratedFromLegacy: true };
+  } catch (_err) { return null; }
+}
+
+function seedLibrary() {
+  const id = newResumeId();
+  const now = Date.now();
+  const seed = JSON.parse(_DEFAULT_STATE_JSON);
+  return { resumes: [{ id, name: "MDC Sample Resume", createdAt: now, updatedAt: now, state: seed }], activeId: id };
+}
+
+function restoreState() {
+  const loaded = loadLibrary() || migrateLegacyState();
+  _library = loaded || seedLibrary();
+  const wasLegacy = !!_library._migratedFromLegacy;
+  delete _library._migratedFromLegacy;
+  if (!activeResume() && _library.resumes.length > 0) _library.activeId = _library.resumes[0].id;
+  const active = activeResume();
+  if (active && active.state) {
+    for (const key of Object.keys(state)) {
+      if (key in active.state) state[key] = active.state[key];
+    }
+    state.match = { on: false, jd: "" };
+  }
+  writeLibrary();
+  // Only remove the legacy slot after we've confirmed the new library wrote.
+  if (wasLegacy) {
+    try {
+      const check = localStorage.getItem(LIBRARY_KEY);
+      if (check) localStorage.removeItem(LEGACY_STATE_KEY);
+    } catch (_err) { /* keep legacy as fallback */ }
+  }
+}
+
+function updateLibraryPill() {
+  const nameEl = $("#library-pill-name");
+  const countEl = $("#library-pill-count");
+  const active = activeResume();
+  if (nameEl) nameEl.textContent = active ? active.name : defaultResumeName();
+  if (countEl) countEl.textContent = String(_library.resumes.length);
+}
+
+function switchToResume(id) {
+  if (id === _library.activeId) { closeLibrary(); return; }
+  // Snapshot the resume we're leaving so any unsaved edits survive the switch.
+  persistStateNow();
+  const target = _library.resumes.find((r) => r.id === id);
+  if (!target) return;
+  _library.activeId = id;
+  replaceStateWith(target.state);
+  writeLibrary();
+  closeLibrary();
+  render();
+  toast(`SWITCHED → ${target.name.toUpperCase()}`);
+}
+
+function createNewResume(opts) {
+  persistStateNow(); // save the current one before swapping out
+  const id = newResumeId();
+  const now = Date.now();
+  const seed = opts && opts.fromSample ? JSON.parse(_DEFAULT_STATE_JSON) : blankResumeState();
+  const name = (opts && opts.name) || (opts && opts.fromSample ? "New Sample Resume" : "New Blank Resume");
+  _library.resumes.push({ id, name, createdAt: now, updatedAt: now, state: seed });
+  _library.activeId = id;
+  replaceStateWith(seed);
+  writeLibrary();
+  closeLibrary();
+  render();
+  toast("RESUME CREATED");
+}
+
+function blankResumeState() {
+  const defaults = JSON.parse(_DEFAULT_STATE_JSON);
+  return {
+    ...defaults,
+    name: "",
+    location: "",
+    phone: "",
+    email: "",
+    linkedin: "",
+    links: [],
+    contact_line1: "",
+    contact_line2: "",
+    summary: "",
+    education: [{ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "" }],
+    skills_categories: [{ label: "Technical", content: "" }],
+    skills_two_column: [{ left: "", right: "" }],
+    certifications: [],
+    projects: [],
+    experience: [],
+    section_enabled: { summary: true, projects: true, experience: true },
+    match: { on: false, jd: "" },
+  };
+}
+
+function duplicateResume(id) {
+  const src = _library.resumes.find((r) => r.id === id);
+  if (!src) return;
+  persistStateNow();
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = newResumeId();
+  copy.name = `${src.name} (copy)`;
+  copy.createdAt = Date.now();
+  copy.updatedAt = Date.now();
+  _library.resumes.push(copy);
+  _library.activeId = copy.id;
+  replaceStateWith(copy.state);
+  writeLibrary();
+  renderLibraryList();
+  updateLibraryPill();
+  render();
+  toast("DUPLICATED");
+}
+
+function renameResume(id) {
+  const target = _library.resumes.find((r) => r.id === id);
+  if (!target) return;
+  const next = prompt("Rename this resume:", target.name);
+  if (next == null) return;
+  const trimmed = next.trim();
+  if (!trimmed) return;
+  target.name = trimmed.slice(0, 60);
+  target.updatedAt = Date.now();
+  writeLibrary();
+  renderLibraryList();
+  updateLibraryPill();
+}
+
+function deleteResume(id) {
+  const target = _library.resumes.find((r) => r.id === id);
+  if (!target) return;
+  const ok = confirm(`Delete "${target.name}"? This cannot be undone.`);
   if (!ok) return;
-  try { localStorage.removeItem(STORAGE_KEY); } catch (_err) { /* ignore */ }
+  _library.resumes = _library.resumes.filter((r) => r.id !== id);
+  if (_library.resumes.length === 0) {
+    const fresh = seedLibrary();
+    _library = fresh;
+  } else if (_library.activeId === id) {
+    _library.activeId = _library.resumes[0].id;
+  }
+  const active = activeResume();
+  if (active) replaceStateWith(active.state);
+  writeLibrary();
+  renderLibraryList();
+  updateLibraryPill();
+  render();
+  toast("DELETED");
+}
+
+function openLibrary() {
+  renderLibraryList();
+  const bg = $("#library-modal-bg");
+  if (bg) bg.classList.add("show");
+}
+
+function closeLibrary() {
+  const bg = $("#library-modal-bg");
+  if (bg) bg.classList.remove("show");
+}
+
+function renderLibraryList() {
+  const list = $("#library-list");
+  if (!list) return;
+  if (_library.resumes.length === 0) {
+    list.innerHTML = `<div class="lib-empty">No resumes yet.</div>`;
+    return;
+  }
+  const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  // Most-recently-updated first; active always pinned to top.
+  const sorted = _library.resumes.slice().sort((a, b) => {
+    if (a.id === _library.activeId) return -1;
+    if (b.id === _library.activeId) return 1;
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+  list.innerHTML = sorted.map((r) => {
+    const isActive = r.id === _library.activeId;
+    const person = (r.state && r.state.name) ? r.state.name : "(no name yet)";
+    const tpl = r.state && r.state.template ? r.state.template.replace("_", " ").toUpperCase() : "—";
+    const when = r.updatedAt ? fmt.format(new Date(r.updatedAt)) : "—";
+    return `
+      <div class="lib-row ${isActive ? "active" : ""}" role="listitem">
+        <div class="lib-main">
+          <div class="lib-name">${esc(r.name)} <span class="lib-active-flag">● ACTIVE</span></div>
+          <div class="lib-meta">
+            <span class="person">${esc(person)}</span>
+            <span class="tag">${esc(tpl)}</span>
+            <span>${esc(when)}</span>
+          </div>
+        </div>
+        <div class="lib-actions">
+          <button class="lib-btn primary" data-action="libSwitch" data-id="${esc(r.id)}">OPEN</button>
+          <button class="lib-btn" data-action="libRename" data-id="${esc(r.id)}">RENAME</button>
+          <button class="lib-btn" data-action="libDuplicate" data-id="${esc(r.id)}">DUPLICATE</button>
+          <button class="lib-btn danger" data-action="libDelete" data-id="${esc(r.id)}">DELETE</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function resetState() {
+  const active = activeResume();
+  const label = active ? active.name : "this resume";
+  const ok = confirm(`Reset "${label}" to the sample data? Other saved resumes are untouched.`);
+  if (!ok) return;
   const fresh = JSON.parse(_DEFAULT_STATE_JSON);
-  for (const key of Object.keys(state)) delete state[key];
-  Object.assign(state, fresh);
+  replaceStateWith(fresh);
+  if (active) {
+    active.state = JSON.parse(JSON.stringify(state));
+    active.updatedAt = Date.now();
+    writeLibrary();
+  }
   closeModal();
   render();
   toast("RESET COMPLETE");
@@ -581,6 +818,15 @@ const ACTIONS = {
   closeImportModal: () => closeImportModal(),
   closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
   resetState: () => resetState(),
+  openLibrary: () => openLibrary(),
+  closeLibrary: () => closeLibrary(),
+  closeLibraryBackdrop: (el, ev) => { if (ev.target === el) closeLibrary(); },
+  libSwitch: (btn) => switchToResume(btn.dataset.id),
+  libRename: (btn) => renameResume(btn.dataset.id),
+  libDuplicate: (btn) => duplicateResume(btn.dataset.id),
+  libDelete: (btn) => deleteResume(btn.dataset.id),
+  newResumeBlank: () => createNewResume({ fromSample: false }),
+  newResumeSample: () => createNewResume({ fromSample: true }),
 };
 
 document.addEventListener("click", (ev) => {
@@ -944,6 +1190,7 @@ function render() {
   recomputeSectionIndices();
   setCaseId();
   renderPreview();
+  updateLibraryPill();
 }
 
 // ─────────────────────────────────────────────────────────

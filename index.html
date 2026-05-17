@@ -29,6 +29,11 @@
   </div>
   <div class="meta">
     <span class="meta-engine"><span class="dot"></span> ENGINE ONLINE</span>
+    <button class="library-pill" id="library-pill" data-action="openLibrary" aria-haspopup="dialog" aria-controls="library-modal-bg">
+      <span class="lib-pill-icon" aria-hidden="true">▤</span>
+      <span class="lib-pill-name" id="library-pill-name">———</span>
+      <span class="lib-pill-count" id="library-pill-count">1</span>
+    </button>
     <span class="meta-saved" id="save-indicator" aria-live="polite"><span class="save-dot"></span> <span id="save-text">SAVED</span></span>
     <span class="id">CASE FILE / <span id="caseId">———</span></span>
   </div>
@@ -281,6 +286,29 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
     <div class="modal-f">
       <button class="copy-btn" data-action="closeImportModal">CANCEL</button>
       <button class="compile-btn modal-done" data-action="applyImport">APPLY IMPORT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Resume library modal -->
+<div class="modal-bg" id="library-modal-bg" data-action="closeLibraryBackdrop">
+  <div class="modal library-modal">
+    <div class="modal-h">
+      <h3><span class="amber">▶</span> RESUME LIBRARY</h3>
+      <button class="icon-btn" data-action="closeLibrary">CLOSE</button>
+    </div>
+    <div class="modal-b">
+      <div class="modal-instructions">
+        Every resume saves automatically to this device. Switch between drafts (e.g.&nbsp;<span class="amber">Software Intern</span>, <span class="amber">Barista</span>, <span class="amber">MDC Works</span>), duplicate one to spin off a variant, or start fresh.
+      </div>
+      <div class="lib-list" id="library-list" role="list"></div>
+      <div class="lib-add-row">
+        <button class="add-btn" data-action="newResumeBlank">+ NEW BLANK RESUME</button>
+        <button class="add-btn" data-action="newResumeSample">+ NEW FROM SAMPLE</button>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="compile-btn modal-done" data-action="closeLibrary">DONE</button>
     </div>
   </div>
 </div>
