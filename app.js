@@ -628,6 +628,7 @@ function renderProjects() {
             ${(p.bullets || []).map((b, bi) => `
               <div class="bullet-row">
                 <textarea data-proj-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
+                <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="projBullet:${i}:${bi}" aria-label="Dictate bullet" title="Dictate (voice)">🎤</button>
                 <button class="icon-btn" data-action="removeProjBullet" data-index="${i}" data-bullet-index="${bi}">×</button>
               </div>
             `).join("")}
@@ -662,6 +663,7 @@ function renderExperience() {
             ${(e.bullets || []).map((b, bi) => `
               <div class="bullet-row">
                 <textarea data-exp-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
+                <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="expBullet:${i}:${bi}" aria-label="Dictate bullet" title="Dictate (voice)">🎤</button>
                 <button class="icon-btn" data-action="removeExpBullet" data-index="${i}" data-bullet-index="${bi}">×</button>
               </div>
             `).join("")}
@@ -832,6 +834,7 @@ const ACTIONS = {
   closeShareModal: () => closeShareModal(),
   closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
   sharePdf: () => sharePdf(),
+  micToggle: (btn) => micToggle(btn),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1183,6 +1186,10 @@ $("#summary").addEventListener("input", (ev) => {
 // ─────────────────────────────────────────────────────────
 
 function render() {
+  // A full render() rebuilds the form DOM, which would orphan an active
+  // mic button mid-stream. Stop dictation first so the user isn't stuck
+  // with a phantom "listening" state and an unreachable target field.
+  if (_recordingTarget) stopDictation();
   renderHeader();
   renderSummary();
   renderEducation();
@@ -1196,6 +1203,7 @@ function render() {
   setCaseId();
   renderPreview();
   updateLibraryPill();
+  hideMicButtonsIfUnsupported();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1676,6 +1684,172 @@ function renderShareModal() {
       pdfFallback.hidden = true;
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────
+// VOICE DICTATION (phase 6)
+// Uses the Web Speech API to transcribe directly into bullet/summary fields.
+// Feature-detected at first use; hidden gracefully where unsupported.
+// ─────────────────────────────────────────────────────────
+
+let _recognition = null;
+let _recordingTarget = null;
+let _baseValue = "";
+
+function getSpeechCtor() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function isSpeechSupported() {
+  return !!getSpeechCtor();
+}
+
+function ensureRecognition() {
+  if (_recognition) return _recognition;
+  const Ctor = getSpeechCtor();
+  if (!Ctor) return null;
+  const r = new Ctor();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = (navigator.language || "en-US");
+  r.onresult = (ev) => {
+    if (!_recordingTarget) return;
+    let interim = "";
+    let final = "";
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const res = ev.results[i];
+      if (res.isFinal) final += res[0].transcript;
+      else interim += res[0].transcript;
+    }
+    if (final) {
+      _baseValue = appendDictation(_baseValue, final);
+    }
+    const display = interim ? appendDictation(_baseValue, interim) : _baseValue;
+    writeToMicTarget(_recordingTarget, display);
+  };
+  r.onerror = (ev) => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+      toast("MIC BLOCKED — CHECK PERMISSIONS");
+    } else if (ev.error === "no-speech") {
+      // Silent — recognition restarts on its own in continuous mode.
+      return;
+    } else {
+      toast(`MIC ERROR — ${String(ev.error || "").toUpperCase()}`);
+    }
+    stopDictation();
+  };
+  r.onend = () => {
+    // If we ended without an explicit stop, surface the change anyway.
+    if (_recordingTarget) finalizeDictation();
+  };
+  _recognition = r;
+  return r;
+}
+
+function appendDictation(base, addition) {
+  const b = (base || "").replace(/\s+$/, "");
+  const a = (addition || "").replace(/^\s+/, "");
+  if (!b) return a;
+  if (!a) return b;
+  return `${b} ${a}`;
+}
+
+function findMicButton(targetId) {
+  return document.querySelector(`.mic-btn[data-mic-target="${cssEscape(targetId)}"]`);
+}
+
+function findMicField(targetId) {
+  if (targetId === "summary") return $("#summary");
+  const parts = targetId.split(":");
+  if (parts[0] === "projBullet") return document.querySelector(`textarea[data-proj-bullet="${+parts[1]}"][data-bullet-i="${+parts[2]}"]`);
+  if (parts[0] === "expBullet")  return document.querySelector(`textarea[data-exp-bullet="${+parts[1]}"][data-bullet-i="${+parts[2]}"]`);
+  return null;
+}
+
+function cssEscape(s) {
+  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/["\\]/g, "\\$&");
+}
+
+function writeToMicTarget(targetId, value) {
+  const el = findMicField(targetId);
+  if (!el) return;
+  el.value = value;
+  // Mirror into state by reusing the existing input handlers' logic.
+  syncMicTargetIntoState(targetId, value);
+  renderPreview();
+}
+
+function syncMicTargetIntoState(targetId, value) {
+  if (targetId === "summary") { state.summary = value; return; }
+  const parts = targetId.split(":");
+  const i = +parts[1], bi = +parts[2];
+  if (parts[0] === "projBullet" && state.projects[i]) {
+    state.projects[i].bullets[bi] = value;
+  } else if (parts[0] === "expBullet" && state.experience[i]) {
+    state.experience[i].bullets[bi] = value;
+  }
+}
+
+function startDictation(targetId) {
+  if (!isSpeechSupported()) {
+    toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
+    return;
+  }
+  if (_recordingTarget) stopDictation();
+  const r = ensureRecognition();
+  if (!r) return;
+  const field = findMicField(targetId);
+  if (!field) return;
+  _recordingTarget = targetId;
+  _baseValue = field.value || "";
+  try {
+    r.start();
+  } catch (_err) {
+    // start() while already started throws InvalidStateError — best-effort restart.
+    try { r.stop(); setTimeout(() => r.start(), 50); } catch (_e) { /* give up */ }
+  }
+  const btn = findMicButton(targetId);
+  if (btn) { btn.classList.add("recording"); btn.setAttribute("aria-pressed", "true"); }
+  if (targetId === "summary") {
+    const hint = $("#mic-hint-summary");
+    if (hint) hint.classList.add("show");
+  }
+  toast("LISTENING… TAP MIC TO STOP");
+}
+
+function stopDictation() {
+  if (_recognition && _recordingTarget) {
+    try { _recognition.stop(); } catch (_err) { /* ignore */ }
+  }
+  finalizeDictation();
+}
+
+function finalizeDictation() {
+  const targetId = _recordingTarget;
+  _recordingTarget = null;
+  _baseValue = "";
+  if (targetId) {
+    const btn = findMicButton(targetId);
+    if (btn) { btn.classList.remove("recording"); btn.setAttribute("aria-pressed", "false"); }
+  }
+  const hint = $("#mic-hint-summary");
+  if (hint) hint.classList.remove("show");
+}
+
+function micToggle(btn) {
+  const targetId = btn.dataset.micTarget;
+  if (!targetId) return;
+  if (_recordingTarget === targetId) stopDictation();
+  else startDictation(targetId);
+}
+
+// Hide mic buttons up-front in browsers without Speech API support, so users
+// don't see an affordance they can't use.
+function hideMicButtonsIfUnsupported() {
+  if (isSpeechSupported()) return;
+  document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
 }
 
 async function sharePdf() {

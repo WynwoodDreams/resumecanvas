@@ -100,7 +100,11 @@
       </header>
       <div class="body">
         <div class="section-off-banner" data-section-banner="summary">Section hidden from resume — re-enable to include in export.</div>
-        <textarea id="summary" class="required" placeholder="3–4 sentences. Who they are, key skills, what they're seeking."></textarea>
+        <div class="summary-with-mic">
+          <textarea id="summary" class="required" placeholder="3–4 sentences. Who they are, key skills, what they're seeking."></textarea>
+          <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="summary" aria-label="Dictate summary" title="Dictate (voice)">🎤</button>
+        </div>
+        <div class="mic-hint" id="mic-hint-summary" aria-live="polite">LISTENING — TAP MIC TO STOP</div>
       </div>
     </div>
 

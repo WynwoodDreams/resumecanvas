@@ -83,6 +83,14 @@ assert(app.includes('function buildVCard') && app.includes('BEGIN:VCARD'), 'app.
 assert(app.includes('navigator.share'), 'app.js must use the Web Share API');
 assert(sw.includes('./vendor/qr.js'), 'service worker must precache the QR encoder');
 assert(css.includes('.share-modal') && css.includes('.qr-frame'), 'styles.css must style the share modal and QR frame');
+
+// Voice-to-bullet (phase 6)
+assert(app.includes('SpeechRecognition'), 'app.js must feature-detect SpeechRecognition');
+assert(app.includes('function micToggle') && app.includes('function startDictation'), 'app.js must implement micToggle + startDictation');
+assert(html.includes('data-mic-target="summary"'), 'index.html must wire a mic button on the summary textarea');
+assert(css.includes('.mic-btn') && css.includes('.mic-btn.recording'), 'styles.css must style mic buttons with a recording state');
+const permPolicy = vercel.headers[0].headers.find((h) => h.key === 'Permissions-Policy');
+assert(permPolicy && permPolicy.value.includes('microphone=(self)'), 'Permissions-Policy must allow microphone=(self) for voice dictation');
 const swCacheRule = vercel.headers?.find((rule) => rule.source === '/sw.js');
 assert(swCacheRule, 'vercel.json must include a /sw.js header rule');
 assert(swCacheRule.headers.some((h) => h.key === 'Cache-Control' && h.value.includes('max-age=0')), '/sw.js must be served with max-age=0 so updates land immediately');
