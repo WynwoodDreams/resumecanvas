@@ -62,6 +62,16 @@ assert(app.includes('function createNewResume'), 'app.js must implement createNe
 assert(app.includes('function duplicateResume'), 'app.js must implement duplicateResume');
 assert(app.includes('function deleteResume'), 'app.js must implement deleteResume');
 assert(css.includes('.lib-row'), 'styles.css must style library rows');
+
+// Real PDF export (phase 4)
+assert(fs.existsSync(path.join(root, 'vendor/pdf-writer.js')), 'vendor/pdf-writer.js must exist');
+const pdfWriter = read('vendor/pdf-writer.js');
+assert(pdfWriter.includes('RcPdf') && pdfWriter.includes('Times-Roman'), 'pdf-writer.js must expose RcPdf and embed Times font widths');
+assert(html.includes('data-action="downloadPdf"'), 'toolbar must include a real PDF download action');
+assert(app.includes('function downloadPdf') && app.includes('application/pdf'), 'app.js must implement downloadPdf with the application/pdf MIME');
+assert(app.includes('buildResumePdfBytes'), 'app.js must implement buildResumePdfBytes');
+const sw = read('sw.js');
+assert(sw.includes('./vendor/pdf-writer.js'), 'service worker must precache the PDF writer for offline export');
 const swCacheRule = vercel.headers?.find((rule) => rule.source === '/sw.js');
 assert(swCacheRule, 'vercel.json must include a /sw.js header rule');
 assert(swCacheRule.headers.some((h) => h.key === 'Cache-Control' && h.value.includes('max-age=0')), '/sw.js must be served with max-age=0 so updates land immediately');

@@ -810,6 +810,7 @@ const ACTIONS = {
   closeModal: () => closeModal(),
   copyPayloadAndPrompt: () => copyPayloadAndPrompt(),
   downloadDoc: () => downloadDoc(),
+  downloadPdf: () => downloadPdf(),
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
   toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
@@ -1272,6 +1273,312 @@ function printPDF() {
   renderPreview();
   toast("PRINT DIALOG OPENING");
   setTimeout(() => window.print(), 100);
+}
+
+// ─────────────────────────────────────────────────────────
+// REAL PDF EXPORT (phase 4)
+// Walks `state` and emits a vector PDF via vendor/pdf-writer.js.
+// ─────────────────────────────────────────────────────────
+
+function buildResumePdfBytes() {
+  if (!global_RcPdf()) throw new Error("PDF writer not loaded");
+  const tpl = state.template;
+  const fontPt = state.font_pt || (tpl === "demo_4" ? 12 : 11);
+  const NAME_PT = tpl === "demo_4" ? 20 : 16;
+  const SECTION_PT = tpl === "demo_4" ? 12 : 11;
+  const CONTACT_PT = 9;
+  const BODY_PT = fontPt;
+
+  const doc = new (global_RcPdf()).Doc({ marginL: 54, marginR: 54, marginT: 40, marginB: 40 });
+  doc.lineH = 1.22;
+  const contentW = doc.contentWidth();
+  const xLeft = doc.marginL;
+  const xRight = doc.pageW - doc.marginR;
+
+  // ── Header (name + contact) ─────────────────────────────────────────────
+  doc.setFont("Times-Bold", NAME_PT);
+  doc.ensure(NAME_PT * 1.1);
+  doc.advance(NAME_PT * 0.85);
+  doc.textCentered(state.name || "—", doc._cur.y);
+  doc.advance(NAME_PT * 0.55);
+
+  doc.setFont("Times-Roman", CONTACT_PT);
+  if (tpl === "demo_4") {
+    const extraLinks = (state.links || []).filter(Boolean).join(" | ");
+    const parts = [state.location, state.phone, state.email, state.linkedin, extraLinks].filter(Boolean);
+    pdfWrapCentered(doc, parts.join("  |  "), contentW);
+    doc.advance(2);
+    doc.hline(xLeft, xRight, doc._cur.y, 0.5);
+    doc.advance(8);
+  } else {
+    pdfWrapCentered(doc, state.contact_line1, contentW);
+    pdfWrapCentered(doc, state.contact_line2, contentW);
+    doc.advance(2);
+    doc.hline(xLeft, xRight, doc._cur.y, 0.5);
+    doc.advance(8);
+  }
+
+  // ── Summary ─────────────────────────────────────────────────────────────
+  if (state.section_enabled.summary !== false && (state.summary || "").trim()) {
+    pdfSectionHeader(doc, "SUMMARY", SECTION_PT, tpl);
+    doc.setFont("Times-Roman", BODY_PT);
+    doc.wrap(state.summary, xLeft, doc._cur.y, contentW);
+    doc.advance(2);
+  }
+
+  // ── Sections in user-defined order ──────────────────────────────────────
+  const order = state.section_order[tpl] || [];
+  const renderers = {
+    education: () => pdfRenderEducation(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    skills:    () => pdfRenderSkills(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    certs:     () => pdfRenderCerts(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    projects:  () => state.section_enabled.projects !== false && pdfRenderProjects(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+    experience:() => state.section_enabled.experience !== false && pdfRenderExperience(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft, xRight),
+  };
+  for (const sec of order) {
+    const fn = renderers[sec];
+    if (fn) fn();
+  }
+
+  return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
+}
+
+function global_RcPdf() {
+  return (typeof window !== "undefined") ? window.RcPdf : null;
+}
+
+function pdfWrapCentered(doc, str, width) {
+  if (!str) return;
+  const words = String(str).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return;
+  const lineH = doc.size * doc.lineH;
+  let line = "";
+  const linesOut = [];
+  for (let i = 0; i < words.length; i++) {
+    const next = line ? line + " " + words[i] : words[i];
+    if (global_RcPdf().measure(doc.font, doc.size, next) > width && line) {
+      linesOut.push(line);
+      line = words[i];
+    } else {
+      line = next;
+    }
+  }
+  if (line) linesOut.push(line);
+  for (const l of linesOut) {
+    doc.ensure(lineH);
+    doc.textCentered(l, doc._cur.y);
+    doc.advance(lineH);
+  }
+}
+
+function pdfSectionHeader(doc, label, sizePt, tpl) {
+  const lineH = sizePt * 1.2;
+  doc.advance(8);
+  doc.ensure(lineH + 6);
+  doc.setFont("Times-Bold", sizePt);
+  // Demo 2: small caps approximation (uppercase the label) for visual parity.
+  const text = tpl === "demo_2" ? label.toUpperCase() : label;
+  doc.text(text, doc.marginL, doc._cur.y);
+  doc.advance(2);
+  doc.hline(doc.marginL, doc.pageW - doc.marginR, doc._cur.y, 0.5);
+  doc.advance(6);
+}
+
+function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.education || []).filter(e => (e.school || e.degree));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "EDUCATION", sectionPt, tpl);
+  doc.setFont("Times-Roman", bodyPt);
+  items.forEach((e, idx) => {
+    if (idx > 0) doc.advance(4);
+    if (tpl === "demo_4") {
+      // Row 1: school (bold) left, city right.
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.school || "", xLeft, doc._cur.y);
+      if (e.city) doc.textRight(e.city, xRight, doc._cur.y);
+      doc.advance(lineH);
+      // Row 2: degree (regular) left, date right.
+      doc.ensure(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      doc.text(e.degree || "", xLeft, doc._cur.y);
+      if (e.date) {
+        doc.setFont("Times-Bold", bodyPt);
+        doc.textRight(e.date, xRight, doc._cur.y);
+        doc.setFont("Times-Roman", bodyPt);
+      }
+      doc.advance(lineH);
+    } else {
+      // Demo 2: school+city on row 1 bold, degree-row, optional subline + coursework.
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.school || "", xLeft, doc._cur.y);
+      if (e.city) doc.textRight(e.city, xRight, doc._cur.y);
+      doc.advance(lineH);
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.degree || "", xLeft, doc._cur.y);
+      if (e.date) doc.textRight(e.date, xRight, doc._cur.y);
+      doc.advance(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      if (e.subline_bold || e.subline_rest) {
+        doc.ensure(lineH);
+        let x = xLeft;
+        if (e.subline_bold) {
+          doc.setFont("Times-Bold", bodyPt);
+          doc.text(e.subline_bold + (e.subline_rest ? " " : ""), x, doc._cur.y);
+          x += global_RcPdf().measure("Times-Bold", bodyPt, e.subline_bold + (e.subline_rest ? " " : ""));
+          doc.setFont("Times-Roman", bodyPt);
+        }
+        if (e.subline_rest) doc.text(e.subline_rest, x, doc._cur.y);
+        doc.advance(lineH);
+      }
+      if (e.coursework) {
+        doc.setFont("Times-Bold", bodyPt);
+        const labelW = global_RcPdf().measure("Times-Bold", bodyPt, "Relevant Coursework: ");
+        doc.ensure(lineH);
+        doc.text("Relevant Coursework: ", xLeft, doc._cur.y);
+        doc.setFont("Times-Roman", bodyPt);
+        // Wrap remainder beside the label, then continue on subsequent lines.
+        doc.wrap(e.coursework, xLeft + labelW, doc._cur.y, contentW - labelW);
+      }
+    }
+  });
+}
+
+function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  if (tpl === "demo_4") {
+    const cats = (state.skills_categories || []).filter(c => c.label || c.content);
+    if (cats.length === 0) return;
+    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    cats.forEach((c) => {
+      const lineH = bodyPt * 1.2;
+      const labelText = (c.label || "") + ": ";
+      doc.setFont("Times-Bold", bodyPt);
+      const labelW = global_RcPdf().measure("Times-Bold", bodyPt, labelText);
+      doc.ensure(lineH);
+      doc.text(labelText, xLeft, doc._cur.y);
+      doc.setFont("Times-Roman", bodyPt);
+      // Place the content starting after the label; wrap will hang under the label.
+      const yBefore = doc._cur.y;
+      doc.text(truncateToWidth(doc, c.content || "", contentW - labelW), xLeft + labelW, yBefore);
+      doc.advance(lineH);
+      // If content overflowed one line, wrap the remainder underneath.
+      const fits = global_RcPdf().measure("Times-Roman", bodyPt, c.content || "") <= contentW - labelW;
+      if (!fits) {
+        const remainder = remainderAfterFit(doc, c.content || "", contentW - labelW);
+        if (remainder) doc.wrap(remainder, xLeft, doc._cur.y, contentW);
+      }
+    });
+  } else {
+    const rows = (state.skills_two_column || []).filter(r => r.left || r.right);
+    if (rows.length === 0) return;
+    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    const colW = (contentW - 24) / 2;
+    const colLx = xLeft;
+    const colRx = xLeft + colW + 24;
+    rows.forEach((r) => {
+      const lineH = bodyPt * 1.2;
+      doc.ensure(lineH);
+      if (r.left) doc.text("• " + r.left, colLx, doc._cur.y);
+      if (r.right) doc.text("• " + r.right, colRx, doc._cur.y);
+      doc.advance(lineH);
+    });
+  }
+}
+
+function truncateToWidth(doc, str, width) {
+  if (!str) return "";
+  if (global_RcPdf().measure(doc.font, doc.size, str) <= width) return str;
+  // Walk words until adding the next would overflow.
+  const words = str.split(/\s+/);
+  let line = "";
+  for (let i = 0; i < words.length; i++) {
+    const next = line ? line + " " + words[i] : words[i];
+    if (global_RcPdf().measure(doc.font, doc.size, next) > width) break;
+    line = next;
+  }
+  return line;
+}
+
+function remainderAfterFit(doc, str, width) {
+  const head = truncateToWidth(doc, str, width);
+  if (head === str) return "";
+  // Slice off the leading text + the joining whitespace.
+  let rest = str.slice(head.length);
+  while (rest.length && /\s/.test(rest[0])) rest = rest.slice(1);
+  return rest;
+}
+
+function pdfRenderCerts(doc, bodyPt, sectionPt, tpl, contentW, xLeft) {
+  const items = (state.certifications || []).filter(Boolean);
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "CERTIFICATIONS", sectionPt, tpl);
+  doc.setFont("Times-Roman", bodyPt);
+  items.forEach((c) => doc.bullet(c, xLeft, contentW));
+}
+
+function pdfRenderProjects(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.projects || []).filter(p => p.title || (p.bullets || []).some(Boolean));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "PROJECTS", sectionPt, tpl);
+  items.forEach((p, idx) => {
+    if (idx > 0) doc.advance(4);
+    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, p, tpl);
+  });
+}
+
+function pdfRenderExperience(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const items = (state.experience || []).filter(e => e.title || (e.bullets || []).some(Boolean));
+  if (items.length === 0) return;
+  pdfSectionHeader(doc, "WORK EXPERIENCE", sectionPt, tpl);
+  items.forEach((e, idx) => {
+    if (idx > 0) doc.advance(4);
+    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, e, tpl);
+  });
+}
+
+function pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, entry, tpl) {
+  const lineH = bodyPt * 1.2;
+  doc.setFont("Times-Bold", bodyPt);
+  doc.ensure(lineH);
+  doc.text(entry.title || "", xLeft, doc._cur.y);
+  if (entry.date) doc.textRight(entry.date, xRight, doc._cur.y);
+  doc.advance(lineH);
+  if (entry.location) {
+    doc.setFont(tpl === "demo_2" ? "Times-Roman" : "Times-Italic", bodyPt);
+    doc.ensure(lineH);
+    doc.text(entry.location, xLeft, doc._cur.y);
+    doc.advance(lineH);
+  }
+  doc.setFont("Times-Roman", bodyPt);
+  (entry.bullets || []).filter(Boolean).forEach((b) => doc.bullet(b, xLeft, contentW));
+}
+
+function downloadPdf() {
+  try {
+    const bytes = buildResumePdfBytes();
+    const filename = `${slugFileName(state.name)}-${state.template}.pdf`;
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.className = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    toast("PDF DOWNLOADED");
+  } catch (err) {
+    toast("PDF EXPORT FAILED — TRY PRINT");
+    // Keep diagnostic in console for debugging without leaking to the UI.
+    if (typeof console !== "undefined") console.error(err);
+  }
 }
 
 function buildPayload() {

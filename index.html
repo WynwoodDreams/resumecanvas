@@ -211,8 +211,9 @@
       </div>
       <div class="toolbar-group export-group hide-in-match">
         <span class="toolbar-label">EXPORT</span>
-        <button class="toolbar-chip primary" data-action="downloadDoc">DOWNLOAD .DOC</button>
-        <button class="toolbar-chip" data-action="printPDF">SAVE PDF</button>
+        <button class="toolbar-chip primary" data-action="downloadPdf">DOWNLOAD PDF</button>
+        <button class="toolbar-chip" data-action="downloadDoc">DOWNLOAD .DOC</button>
+        <button class="toolbar-chip" data-action="printPDF">PRINT</button>
         <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
       </div>
     </div>
@@ -313,6 +314,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
   </div>
 </div>
 
+<script src="./vendor/pdf-writer.js" defer></script>
 <script src="./app.js" defer></script>
 
 
