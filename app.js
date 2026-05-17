@@ -95,6 +95,10 @@ let state = {
   ],
 };
 
+// Snapshot of the default state so RESET can restore it byte-for-byte
+// even after the user has mutated `state` in place.
+const _DEFAULT_STATE_JSON = JSON.stringify(state);
+
 // ─────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────
@@ -153,6 +157,81 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 1500);
+}
+
+// ─────────────────────────────────────────────────────────
+// AUTOSAVE (phase 1)
+// ─────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "resumecanvas:v1:state";
+let _persistTimer = null;
+let _saveIndicatorTimer = null;
+
+function showSaveIndicator(mode) {
+  const el = $("#save-indicator");
+  const txt = $("#save-text");
+  if (!el || !txt) return;
+  clearTimeout(_saveIndicatorTimer);
+  el.classList.add("show");
+  if (mode === "saving") {
+    el.classList.add("saving");
+    txt.textContent = "SAVING…";
+  } else {
+    el.classList.remove("saving");
+    txt.textContent = "SAVED";
+    _saveIndicatorTimer = setTimeout(() => el.classList.remove("show"), 1400);
+  }
+}
+
+function persistStateNow() {
+  try {
+    const snapshot = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, snapshot);
+    showSaveIndicator("saved");
+  } catch (_err) {
+    // Quota exceeded or storage disabled — fail quiet, the app still works in-memory.
+  }
+}
+
+function schedulePersist() {
+  showSaveIndicator("saving");
+  clearTimeout(_persistTimer);
+  _persistTimer = setTimeout(persistStateNow, 250);
+}
+
+function restoreState() {
+  let raw;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch (_err) {
+    return;
+  }
+  if (!raw) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_err) {
+    return;
+  }
+  if (!parsed || typeof parsed !== "object") return;
+  // Merge known top-level keys only — guards against partially-shaped older saves.
+  for (const key of Object.keys(state)) {
+    if (key in parsed) state[key] = parsed[key];
+  }
+  // Reset transient match state on reload — never persists across sessions.
+  state.match = { on: false, jd: "" };
+}
+
+function resetState() {
+  const ok = confirm("Reset everything to the sample resume? Your saved draft will be deleted.");
+  if (!ok) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_err) { /* ignore */ }
+  const fresh = JSON.parse(_DEFAULT_STATE_JSON);
+  for (const key of Object.keys(state)) delete state[key];
+  Object.assign(state, fresh);
+  closeModal();
+  render();
+  toast("RESET COMPLETE");
 }
 
 // ─────────────────────────────────────────────────────────
@@ -501,6 +580,7 @@ const ACTIONS = {
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
   closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
+  resetState: () => resetState(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -772,6 +852,8 @@ function renderPreview() {
 
   $("#overflow-banner").className = "overflow-banner";
   $("#overflow-banner").innerHTML = "";
+
+  schedulePersist();
 }
 
 // Measures the first .preview-frame inside #preview and, if its content
@@ -1856,4 +1938,5 @@ $("#jd-input").addEventListener("input", (ev) => {
 // INIT
 // ─────────────────────────────────────────────────────────
 
+restoreState();
 render();

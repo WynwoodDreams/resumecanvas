@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f9f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#020826" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ResumeCanvas">
+<meta name="format-detection" content="telephone=no">
 <title>ResumeCanvas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +25,8 @@
     <span class="sub">v1.0 — MDC WORKFORCE</span>
   </div>
   <div class="meta">
-    <span><span class="dot"></span> ENGINE ONLINE</span>
+    <span class="meta-engine"><span class="dot"></span> ENGINE ONLINE</span>
+    <span class="meta-saved" id="save-indicator" aria-live="polite"><span class="save-dot"></span> <span id="save-text">SAVED</span></span>
     <span class="id">CASE FILE / <span id="caseId">———</span></span>
   </div>
 </div>
@@ -247,6 +255,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
       <pre id="json-out"></pre>
     </div>
     <div class="modal-f">
+      <button class="copy-btn danger-btn" data-action="resetState">⟲ RESET TO SAMPLE</button>
       <button class="copy-btn" data-action="copyPayloadAndPrompt">⧉ COPY PAYLOAD + PROMPT</button>
       <button class="compile-btn modal-done" data-action="closeModal">DONE</button>
     </div>
