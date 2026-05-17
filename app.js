@@ -160,15 +160,22 @@ function toast(msg) {
 }
 
 // ─────────────────────────────────────────────────────────
-// AUTOSAVE + LIBRARY (phases 1 & 3)
+// AUTOSAVE + LIBRARY (phases 1, 3, 8)
+// Two buckets: DRAFTS (work-in-progress, max 3) and SAVED (finished,
+// max 3). SAVE moves a draft into the saved bucket. Editing a saved
+// entry mutates it in place — no "make a new draft on edit" magic.
 // ─────────────────────────────────────────────────────────
 
-const LEGACY_STATE_KEY = "resumecanvas:v1:state"; // phase 1, single-resume slot
-const LIBRARY_KEY = "resumecanvas:v2:library";    // phase 3, multi-resume library
+const LEGACY_STATE_KEY   = "resumecanvas:v1:state";   // single-resume slot
+const LEGACY_LIBRARY_KEY = "resumecanvas:v2:library"; // flat list
+const LIBRARY_KEY        = "resumecanvas:v3:library"; // drafts + saved
+
+const DRAFT_LIMIT = 3;
+const SAVED_LIMIT = 3;
 
 let _persistTimer = null;
 let _saveIndicatorTimer = null;
-let _library = { resumes: [], activeId: null };
+let _library = { drafts: [], saved: [], activeId: null };
 
 function showSaveIndicator(mode) {
   const el = $("#save-indicator");
@@ -190,8 +197,29 @@ function newResumeId() {
   return "r_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
 }
 
+function bucketArr(bucket) {
+  return bucket === "saved" ? _library.saved : _library.drafts;
+}
+
+function findResume(id) {
+  for (const bucket of ["drafts", "saved"]) {
+    const arr = bucketArr(bucket);
+    const idx = arr.findIndex((r) => r.id === id);
+    if (idx !== -1) return { resume: arr[idx], bucket, index: idx };
+  }
+  return null;
+}
+
 function activeResume() {
-  return _library.resumes.find((r) => r.id === _library.activeId) || null;
+  if (!_library.activeId) return null;
+  const found = findResume(_library.activeId);
+  return found ? found.resume : null;
+}
+
+function activeBucket() {
+  if (!_library.activeId) return null;
+  const found = findResume(_library.activeId);
+  return found ? found.bucket : null;
 }
 
 function defaultResumeName() {
@@ -239,9 +267,27 @@ function loadLibrary() {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.resumes)) return parsed;
+    if (parsed && Array.isArray(parsed.drafts) && Array.isArray(parsed.saved)) return parsed;
   } catch (_err) { /* fallthrough */ }
   return null;
+}
+
+function migrateLegacyLibrary() {
+  let raw;
+  try { raw = localStorage.getItem(LEGACY_LIBRARY_KEY); } catch (_err) { return null; }
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.resumes)) return null;
+    // Everything from the flat v2 list moves into drafts. Soft over-cap is
+    // tolerated on migration — the per-bucket limit only blocks new additions.
+    return {
+      drafts: parsed.resumes,
+      saved: [],
+      activeId: parsed.activeId || (parsed.resumes[0] && parsed.resumes[0].id) || null,
+      _migratedFromV2: true,
+    };
+  } catch (_err) { return null; }
 }
 
 function migrateLegacyState() {
@@ -254,7 +300,7 @@ function migrateLegacyState() {
     const id = newResumeId();
     const now = Date.now();
     const resume = { id, name: parsed.name ? `${parsed.name}'s resume` : defaultResumeName(), createdAt: now, updatedAt: now, state: parsed };
-    return { resumes: [resume], activeId: id, _migratedFromLegacy: true };
+    return { drafts: [resume], saved: [], activeId: id, _migratedFromLegacy: true };
   } catch (_err) { return null; }
 }
 
@@ -262,15 +308,21 @@ function seedLibrary() {
   const id = newResumeId();
   const now = Date.now();
   const seed = JSON.parse(_DEFAULT_STATE_JSON);
-  return { resumes: [{ id, name: "MDC Sample Resume", createdAt: now, updatedAt: now, state: seed }], activeId: id };
+  return { drafts: [{ id, name: "MDC Sample Resume", createdAt: now, updatedAt: now, state: seed }], saved: [], activeId: id };
 }
 
 function restoreState() {
-  const loaded = loadLibrary() || migrateLegacyState();
+  const loaded = loadLibrary() || migrateLegacyLibrary() || migrateLegacyState();
   _library = loaded || seedLibrary();
+  const wasV2 = !!_library._migratedFromV2;
   const wasLegacy = !!_library._migratedFromLegacy;
+  delete _library._migratedFromV2;
   delete _library._migratedFromLegacy;
-  if (!activeResume() && _library.resumes.length > 0) _library.activeId = _library.resumes[0].id;
+  // Guarantee activeId points at something that still exists.
+  if (!activeResume()) {
+    const fallback = _library.drafts[0] || _library.saved[0];
+    _library.activeId = fallback ? fallback.id : null;
+  }
   const active = activeResume();
   if (active && active.state) {
     for (const key of Object.keys(state)) {
@@ -279,13 +331,14 @@ function restoreState() {
     state.match = { on: false, jd: "" };
   }
   writeLibrary();
-  // Only remove the legacy slot after we've confirmed the new library wrote.
-  if (wasLegacy) {
-    try {
-      const check = localStorage.getItem(LIBRARY_KEY);
-      if (check) localStorage.removeItem(LEGACY_STATE_KEY);
-    } catch (_err) { /* keep legacy as fallback */ }
-  }
+  // Only retire the legacy keys after we've confirmed the new library wrote.
+  try {
+    const check = localStorage.getItem(LIBRARY_KEY);
+    if (check) {
+      if (wasV2) localStorage.removeItem(LEGACY_LIBRARY_KEY);
+      if (wasLegacy) localStorage.removeItem(LEGACY_STATE_KEY);
+    }
+  } catch (_err) { /* keep legacy as fallback */ }
 }
 
 function updateLibraryPill() {
@@ -293,36 +346,40 @@ function updateLibraryPill() {
   const countEl = $("#library-pill-count");
   const active = activeResume();
   if (nameEl) nameEl.textContent = active ? active.name : defaultResumeName();
-  if (countEl) countEl.textContent = String(_library.resumes.length);
+  if (countEl) countEl.textContent = `${_library.drafts.length + _library.saved.length}`;
 }
 
 function switchToResume(id) {
   if (id === _library.activeId) { closeLibrary(); return; }
   // Snapshot the resume we're leaving so any unsaved edits survive the switch.
   persistStateNow();
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
+  const found = findResume(id);
+  if (!found) return;
   _library.activeId = id;
-  replaceStateWith(target.state);
+  replaceStateWith(found.resume.state);
   writeLibrary();
   closeLibrary();
   render();
-  toast(`SWITCHED → ${target.name.toUpperCase()}`);
+  toast(`SWITCHED → ${found.resume.name.toUpperCase()}`);
 }
 
 function createNewResume(opts) {
+  if (_library.drafts.length >= DRAFT_LIMIT) {
+    toast(`DRAFT LIMIT REACHED — DELETE ONE FIRST`);
+    return;
+  }
   persistStateNow(); // save the current one before swapping out
   const id = newResumeId();
   const now = Date.now();
   const seed = opts && opts.fromSample ? JSON.parse(_DEFAULT_STATE_JSON) : blankResumeState();
   const name = (opts && opts.name) || (opts && opts.fromSample ? "New Sample Resume" : "New Blank Resume");
-  _library.resumes.push({ id, name, createdAt: now, updatedAt: now, state: seed });
+  _library.drafts.push({ id, name, createdAt: now, updatedAt: now, state: seed });
   _library.activeId = id;
   replaceStateWith(seed);
   writeLibrary();
   closeLibrary();
   render();
-  toast("RESUME CREATED");
+  toast("DRAFT CREATED");
 }
 
 function blankResumeState() {
@@ -350,52 +407,83 @@ function blankResumeState() {
 }
 
 function duplicateResume(id) {
-  const src = _library.resumes.find((r) => r.id === id);
-  if (!src) return;
+  const found = findResume(id);
+  if (!found) return;
+  // Duplicates land in drafts (the working bucket). Saved cannot grow this way.
+  if (_library.drafts.length >= DRAFT_LIMIT) {
+    toast("DRAFT LIMIT REACHED — DELETE ONE FIRST");
+    return;
+  }
   persistStateNow();
-  const copy = JSON.parse(JSON.stringify(src));
+  const copy = JSON.parse(JSON.stringify(found.resume));
   copy.id = newResumeId();
-  copy.name = `${src.name} (copy)`;
+  copy.name = `${found.resume.name} (copy)`;
   copy.createdAt = Date.now();
   copy.updatedAt = Date.now();
-  _library.resumes.push(copy);
+  _library.drafts.push(copy);
   _library.activeId = copy.id;
   replaceStateWith(copy.state);
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
   render();
-  toast("DUPLICATED");
+  toast("DUPLICATED → DRAFTS");
+}
+
+function saveDraft(id) {
+  const found = findResume(id);
+  if (!found || found.bucket !== "drafts") return;
+  if (_library.saved.length >= SAVED_LIMIT) {
+    toast(`SAVED IS FULL (${SAVED_LIMIT}) — DELETE ONE FIRST`);
+    return;
+  }
+  // Persist current state into the draft before we move it, otherwise the
+  // act of saving a non-active draft would freeze an outdated snapshot.
+  if (id === _library.activeId) persistStateNow();
+  const [moved] = _library.drafts.splice(found.index, 1);
+  moved.updatedAt = Date.now();
+  _library.saved.push(moved);
+  writeLibrary();
+  renderLibraryList();
+  updateLibraryPill();
+  toast(`SAVED → "${moved.name.toUpperCase()}"`);
 }
 
 function renameResume(id) {
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
-  const next = prompt("Rename this resume:", target.name);
+  const found = findResume(id);
+  if (!found) return;
+  const next = prompt("Rename this resume:", found.resume.name);
   if (next == null) return;
   const trimmed = next.trim();
   if (!trimmed) return;
-  target.name = trimmed.slice(0, 60);
-  target.updatedAt = Date.now();
+  found.resume.name = trimmed.slice(0, 60);
+  found.resume.updatedAt = Date.now();
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
 }
 
 function deleteResume(id) {
-  const target = _library.resumes.find((r) => r.id === id);
-  if (!target) return;
-  const ok = confirm(`Delete "${target.name}"? This cannot be undone.`);
+  const found = findResume(id);
+  if (!found) return;
+  const bucketLabel = found.bucket === "saved" ? "saved" : "draft";
+  const ok = confirm(`Delete ${bucketLabel} "${found.resume.name}"? This cannot be undone.`);
   if (!ok) return;
-  _library.resumes = _library.resumes.filter((r) => r.id !== id);
-  if (_library.resumes.length === 0) {
-    const fresh = seedLibrary();
-    _library = fresh;
-  } else if (_library.activeId === id) {
-    _library.activeId = _library.resumes[0].id;
+  bucketArr(found.bucket).splice(found.index, 1);
+  // If we just deleted the active resume, fall back to the next available one.
+  if (_library.activeId === id) {
+    const fallback = _library.drafts[0] || _library.saved[0];
+    if (fallback) {
+      _library.activeId = fallback.id;
+      replaceStateWith(fallback.state);
+    } else {
+      // Both buckets empty — seed a fresh draft so the form never goes blank.
+      const fresh = seedLibrary();
+      _library = fresh;
+      const newActive = activeResume();
+      if (newActive) replaceStateWith(newActive.state);
+    }
   }
-  const active = activeResume();
-  if (active) replaceStateWith(active.state);
   writeLibrary();
   renderLibraryList();
   updateLibraryPill();
@@ -414,44 +502,76 @@ function closeLibrary() {
   if (bg) bg.classList.remove("show");
 }
 
+function libraryRowHtml(r, bucket, fmt) {
+  const isActive = r.id === _library.activeId;
+  const person = (r.state && r.state.name) ? r.state.name : "(no name yet)";
+  const tpl = r.state && r.state.template ? r.state.template.replace("_", " ").toUpperCase() : "—";
+  const when = r.updatedAt ? fmt.format(new Date(r.updatedAt)) : "—";
+  const saveBtn = bucket === "drafts"
+    ? `<button class="lib-btn save" data-action="libSaveDraft" data-id="${esc(r.id)}" ${_library.saved.length >= SAVED_LIMIT ? "disabled" : ""} title="${_library.saved.length >= SAVED_LIMIT ? "Saved bucket is full — delete one to save this draft" : "Move this draft into Saved"}">★ SAVE</button>`
+    : "";
+  return `
+    <div class="lib-row ${isActive ? "active" : ""}" role="listitem">
+      <div class="lib-main">
+        <div class="lib-name">${esc(r.name)} <span class="lib-active-flag">● ACTIVE</span></div>
+        <div class="lib-meta">
+          <span class="person">${esc(person)}</span>
+          <span class="tag">${esc(tpl)}</span>
+          <span>${esc(when)}</span>
+        </div>
+      </div>
+      <div class="lib-actions">
+        <button class="lib-btn primary" data-action="libSwitch" data-id="${esc(r.id)}">OPEN</button>
+        ${saveBtn}
+        <button class="lib-btn" data-action="libRename" data-id="${esc(r.id)}">RENAME</button>
+        <button class="lib-btn" data-action="libDuplicate" data-id="${esc(r.id)}" ${_library.drafts.length >= DRAFT_LIMIT ? "disabled" : ""}>DUPLICATE</button>
+        <button class="lib-btn danger" data-action="libDelete" data-id="${esc(r.id)}">DELETE</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderLibraryList() {
   const list = $("#library-list");
   if (!list) return;
-  if (_library.resumes.length === 0) {
-    list.innerHTML = `<div class="lib-empty">No resumes yet.</div>`;
-    return;
-  }
   const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  // Most-recently-updated first; active always pinned to top.
-  const sorted = _library.resumes.slice().sort((a, b) => {
+  const sortFn = (a, b) => {
     if (a.id === _library.activeId) return -1;
     if (b.id === _library.activeId) return 1;
     return (b.updatedAt || 0) - (a.updatedAt || 0);
+  };
+  const draftRows = _library.drafts.slice().sort(sortFn).map((r) => libraryRowHtml(r, "drafts", fmt)).join("");
+  const savedRows = _library.saved.slice().sort(sortFn).map((r) => libraryRowHtml(r, "saved", fmt)).join("");
+
+  const draftsOverCap = _library.drafts.length > DRAFT_LIMIT;
+  const savedOverCap = _library.saved.length > SAVED_LIMIT;
+  const draftsHeaderClass = _library.drafts.length >= DRAFT_LIMIT ? "lib-bucket-h full" : "lib-bucket-h";
+  const savedHeaderClass = _library.saved.length >= SAVED_LIMIT ? "lib-bucket-h full" : "lib-bucket-h";
+
+  list.innerHTML = `
+    <div class="${draftsHeaderClass}">
+      <span class="lib-bucket-title">DRAFTS</span>
+      <span class="lib-bucket-count">${_library.drafts.length}/${DRAFT_LIMIT}</span>
+      <span class="lib-bucket-hint">${_library.drafts.length === 0 ? "No drafts yet." : (draftsOverCap ? "OVER CAP — delete some to add new drafts" : "Work in progress · autosaves as you type")}</span>
+    </div>
+    ${draftRows || `<div class="lib-empty">No drafts. Use the buttons below to create one.</div>`}
+    <div class="${savedHeaderClass}">
+      <span class="lib-bucket-title">★ SAVED</span>
+      <span class="lib-bucket-count">${_library.saved.length}/${SAVED_LIMIT}</span>
+      <span class="lib-bucket-hint">${_library.saved.length === 0 ? "Tap ★ SAVE on a draft to file it here." : (savedOverCap ? "OVER CAP — delete some to file more" : "Finished versions · max " + SAVED_LIMIT)}</span>
+    </div>
+    ${savedRows || `<div class="lib-empty">Nothing saved yet.</div>`}
+  `;
+
+  // Toggle the "+ NEW" buttons in the modal footer based on draft headroom.
+  const blankBtn = list.parentElement && list.parentElement.querySelector('[data-action="newResumeBlank"]');
+  const sampleBtn = list.parentElement && list.parentElement.querySelector('[data-action="newResumeSample"]');
+  const draftsFull = _library.drafts.length >= DRAFT_LIMIT;
+  [blankBtn, sampleBtn].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = draftsFull;
+    btn.title = draftsFull ? "Drafts is full — delete one to add a new draft" : "";
   });
-  list.innerHTML = sorted.map((r) => {
-    const isActive = r.id === _library.activeId;
-    const person = (r.state && r.state.name) ? r.state.name : "(no name yet)";
-    const tpl = r.state && r.state.template ? r.state.template.replace("_", " ").toUpperCase() : "—";
-    const when = r.updatedAt ? fmt.format(new Date(r.updatedAt)) : "—";
-    return `
-      <div class="lib-row ${isActive ? "active" : ""}" role="listitem">
-        <div class="lib-main">
-          <div class="lib-name">${esc(r.name)} <span class="lib-active-flag">● ACTIVE</span></div>
-          <div class="lib-meta">
-            <span class="person">${esc(person)}</span>
-            <span class="tag">${esc(tpl)}</span>
-            <span>${esc(when)}</span>
-          </div>
-        </div>
-        <div class="lib-actions">
-          <button class="lib-btn primary" data-action="libSwitch" data-id="${esc(r.id)}">OPEN</button>
-          <button class="lib-btn" data-action="libRename" data-id="${esc(r.id)}">RENAME</button>
-          <button class="lib-btn" data-action="libDuplicate" data-id="${esc(r.id)}">DUPLICATE</button>
-          <button class="lib-btn danger" data-action="libDelete" data-id="${esc(r.id)}">DELETE</button>
-        </div>
-      </div>
-    `;
-  }).join("");
 }
 
 function resetState() {
@@ -825,6 +945,7 @@ const ACTIONS = {
   closeLibrary: () => closeLibrary(),
   closeLibraryBackdrop: (el, ev) => { if (ev.target === el) closeLibrary(); },
   libSwitch: (btn) => switchToResume(btn.dataset.id),
+  libSaveDraft: (btn) => saveDraft(btn.dataset.id),
   libRename: (btn) => renameResume(btn.dataset.id),
   libDuplicate: (btn) => duplicateResume(btn.dataset.id),
   libDelete: (btn) => deleteResume(btn.dataset.id),

@@ -56,12 +56,16 @@ assert(app.includes('serviceWorker') && app.includes('./sw.js'), 'app.js must re
 // Resume library (phase 3)
 assert(html.includes('id="library-modal-bg"'), 'index.html must include the library modal');
 assert(html.includes('id="library-pill"'), 'index.html must include the library pill in the topbar');
-assert(app.includes('LIBRARY_KEY') && app.includes('resumecanvas:v2:library'), 'app.js must persist the resume library under resumecanvas:v2:library');
+assert(app.includes('LIBRARY_KEY') && app.includes('resumecanvas:v3:library'), 'app.js must persist the resume library under resumecanvas:v3:library');
 assert(app.includes('function switchToResume'), 'app.js must implement switchToResume');
 assert(app.includes('function createNewResume'), 'app.js must implement createNewResume');
 assert(app.includes('function duplicateResume'), 'app.js must implement duplicateResume');
 assert(app.includes('function deleteResume'), 'app.js must implement deleteResume');
+assert(app.includes('function saveDraft'), 'app.js must implement saveDraft (move draft → saved)');
+assert(app.includes('DRAFT_LIMIT') && app.includes('SAVED_LIMIT'), 'app.js must enforce per-bucket caps');
+assert(app.includes('migrateLegacyLibrary'), 'app.js must migrate the v2 single-list library shape');
 assert(css.includes('.lib-row'), 'styles.css must style library rows');
+assert(css.includes('.lib-bucket-h'), 'styles.css must style the drafts/saved bucket headers');
 
 // Real PDF export (phase 4)
 assert(fs.existsSync(path.join(root, 'vendor/pdf-writer.js')), 'vendor/pdf-writer.js must exist');
