@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ResumeCanvas">
+  <!-- Maskable: full-bleed background, safe zone is the central 80% circle -->
+  <rect width="512" height="512" fill="#8c7851"/>
+  <circle cx="256" cy="256" r="180" fill="#f9f4ef"/>
+  <g fill="#020826" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="800">
+    <text x="256" y="280" text-anchor="middle" font-size="120" letter-spacing="6">RC</text>
+    <rect x="186" y="306" width="140" height="4" fill="#8c7851"/>
+    <text x="256" y="338" text-anchor="middle" font-size="18" fill="#716040" letter-spacing="8">RESUME</text>
+  </g>
+</svg>

@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f9f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#020826" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ResumeCanvas">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="apple-touch-icon" href="./apple-touch-icon.svg">
 <title>ResumeCanvas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +28,13 @@
     <span class="sub">v1.0 — MDC WORKFORCE</span>
   </div>
   <div class="meta">
-    <span><span class="dot"></span> ENGINE ONLINE</span>
+    <span class="meta-engine"><span class="dot"></span> ENGINE ONLINE</span>
+    <button class="library-pill" id="library-pill" data-action="openLibrary" aria-haspopup="dialog" aria-controls="library-modal-bg">
+      <span class="lib-pill-icon" aria-hidden="true">▤</span>
+      <span class="lib-pill-name" id="library-pill-name">———</span>
+      <span class="lib-pill-count" id="library-pill-count">1</span>
+    </button>
+    <span class="meta-saved" id="save-indicator" aria-live="polite"><span class="save-dot"></span> <span id="save-text">SAVED</span></span>
     <span class="id">CASE FILE / <span id="caseId">———</span></span>
   </div>
 </div>
@@ -247,6 +263,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
       <pre id="json-out"></pre>
     </div>
     <div class="modal-f">
+      <button class="copy-btn danger-btn" data-action="resetState">⟲ RESET TO SAMPLE</button>
       <button class="copy-btn" data-action="copyPayloadAndPrompt">⧉ COPY PAYLOAD + PROMPT</button>
       <button class="compile-btn modal-done" data-action="closeModal">DONE</button>
     </div>
@@ -269,6 +286,29 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
     <div class="modal-f">
       <button class="copy-btn" data-action="closeImportModal">CANCEL</button>
       <button class="compile-btn modal-done" data-action="applyImport">APPLY IMPORT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Resume library modal -->
+<div class="modal-bg" id="library-modal-bg" data-action="closeLibraryBackdrop">
+  <div class="modal library-modal">
+    <div class="modal-h">
+      <h3><span class="amber">▶</span> RESUME LIBRARY</h3>
+      <button class="icon-btn" data-action="closeLibrary">CLOSE</button>
+    </div>
+    <div class="modal-b">
+      <div class="modal-instructions">
+        Every resume saves automatically to this device. Switch between drafts (e.g.&nbsp;<span class="amber">Software Intern</span>, <span class="amber">Barista</span>, <span class="amber">MDC Works</span>), duplicate one to spin off a variant, or start fresh.
+      </div>
+      <div class="lib-list" id="library-list" role="list"></div>
+      <div class="lib-add-row">
+        <button class="add-btn" data-action="newResumeBlank">+ NEW BLANK RESUME</button>
+        <button class="add-btn" data-action="newResumeSample">+ NEW FROM SAMPLE</button>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="compile-btn modal-done" data-action="closeLibrary">DONE</button>
     </div>
   </div>
 </div>

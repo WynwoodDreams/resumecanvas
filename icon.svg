@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ResumeCanvas">
+  <rect width="512" height="512" fill="#f9f4ef"/>
+  <rect x="32" y="32" width="448" height="448" fill="none" stroke="#c8b89f" stroke-width="4"/>
+  <rect x="64" y="64" width="384" height="384" fill="#fffffe" stroke="#8c7851" stroke-width="2"/>
+  <g fill="#020826" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="800">
+    <text x="256" y="220" text-anchor="middle" font-size="120" letter-spacing="6">RC</text>
+    <rect x="120" y="260" width="272" height="6" fill="#8c7851"/>
+    <text x="256" y="312" text-anchor="middle" font-size="34" fill="#716040" letter-spacing="10">RESUME</text>
+    <text x="256" y="356" text-anchor="middle" font-size="34" fill="#716040" letter-spacing="10">CANVAS</text>
+    <circle cx="100" cy="412" r="6" fill="#f25042"/>
+    <text x="256" y="418" text-anchor="middle" font-size="20" fill="#a89678" letter-spacing="10">v1 — MDC</text>
+  </g>
+</svg>
