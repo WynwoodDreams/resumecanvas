@@ -3099,6 +3099,27 @@ $("#jd-input").addEventListener("input", (ev) => {
   window.__paneSwipe = { setActive, scrollToPane };
 })();
 
+// Scale the preview to fit the viewport on mobile. The frame keeps its
+// desktop nominal width (612px) so the layout — title/date alignment,
+// pagination, wrapping — matches the desktop view exactly; we just zoom
+// the visual size to fit the phone.
+const PREVIEW_NOMINAL_WIDTH = 612;
+function updatePreviewScale() {
+  const wrap = document.querySelector(".pane.right .preview-wrap");
+  if (!wrap) return;
+  const isMobile = window.matchMedia("(max-width: 1100px)").matches;
+  if (!isMobile) { wrap.style.zoom = ""; return; }
+  const pane = wrap.closest(".pane.right");
+  const cs = pane ? getComputedStyle(pane) : null;
+  const padL = cs ? parseFloat(cs.paddingLeft) : 0;
+  const padR = cs ? parseFloat(cs.paddingRight) : 0;
+  const available = (pane ? pane.clientWidth : window.innerWidth) - padL - padR;
+  const scale = Math.min(1, available / PREVIEW_NOMINAL_WIDTH);
+  wrap.style.zoom = String(scale);
+}
+window.addEventListener("resize", updatePreviewScale);
+window.addEventListener("load", updatePreviewScale);
+
 // ─────────────────────────────────────────────────────────
 // SERVICE WORKER REGISTRATION (phase 2)
 // ─────────────────────────────────────────────────────────
@@ -3120,3 +3141,4 @@ if ("serviceWorker" in navigator) {
 
 restoreState();
 render();
+updatePreviewScale();
