@@ -1257,22 +1257,44 @@ function paginatePreview(frameClass) {
     return { node, h: node.offsetHeight + mt + mb };
   });
 
+  // Classes that introduce an entry (title row, italic location, demo_2's
+  // proj/exp/edu sub-headers). Anything in this set should never be the LAST
+  // item on a page — it should travel forward with the content it's heading.
+  const KEEP_WITH_NEXT = new Set([
+    "resume-section-h",
+    "entry-title-row",
+    "entry-loc",
+    "edu-row",
+    "edu-degree-row",
+    "edu-subline",
+    "edu-coursework",
+    "proj-title",
+    "exp-company",
+  ]);
+  function isHeaderish(item) {
+    if (!item || !item.node || !item.node.classList) return false;
+    for (const cls of KEEP_WITH_NEXT) {
+      if (item.node.classList.contains(cls)) return true;
+    }
+    return false;
+  }
+
   const pages = [[]];
   let pageH = 0;
   for (const item of measured) {
     const nextH = pageH + item.h;
     if (nextH > pageContentH && pages[pages.length - 1].length > 0) {
       const last = pages[pages.length - 1];
-      // Don't strand a section header at the bottom of a page — push it forward.
-      const tail = last[last.length - 1];
-      if (tail && tail.node.classList.contains("resume-section-h")) {
-        last.pop();
-        pages.push([tail]);
-        pageH = tail.h;
-      } else {
-        pages.push([]);
-        pageH = 0;
+      // Walk the tail of the page and pull any "header-ish" rows forward so
+      // an entry's title/loc never sit alone with whitespace below them.
+      // Stop before emptying the page — if everything popped, the previous
+      // page is degenerate but at least keeps one item to avoid blank pages.
+      const orphans = [];
+      while (last.length > 1 && isHeaderish(last[last.length - 1])) {
+        orphans.unshift(last.pop());
       }
+      pages.push(orphans);
+      pageH = orphans.reduce((s, o) => s + o.h, 0);
     }
     pages[pages.length - 1].push(item);
     pageH += item.h;
