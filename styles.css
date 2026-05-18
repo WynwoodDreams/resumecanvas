@@ -82,6 +82,11 @@
     }
   }
 
+  /* Final-review pane is mobile-only — hidden in the desktop grid since
+     EDIT + PREVIEW already sit side-by-side there. Mobile flex layout
+     overrides this and shows all three swipe panes. */
+  .pane.final { display: none; }
+
   /* Main grid */
   .shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 0; align-items: stretch; min-height: calc(100vh - 50px); }
   @media (max-width: 1100px) {
@@ -110,16 +115,79 @@
       overflow-x: hidden;
       height: 100%;
     }
-    .pane.left { border-right: none; padding: 18px 16px 120px 16px; }
-    .pane.right { padding: 16px 12px 120px 12px; overflow-x: hidden; }
-    /* Render the preview at desktop width and scale it down to fit the phone,
-       so titles, dates, and pagination look identical to the desktop view. */
-    .pane.right .preview-wrap {
-      width: 612px;
-      max-width: 612px;
-      transform-origin: top left;
-      margin: 0 auto;
-    }
+    .pane.left { border-right: none; }
+    .pane.final { display: flex; flex-direction: column; padding: 0; background: var(--bg); overflow: hidden; }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     FINAL REVIEW PANE (phase 9)
+     ───────────────────────────────────────────────────────── */
+  .final-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 14px 6px 14px; border-bottom: 1px solid var(--border); background: rgba(249,244,239,0.94); position: sticky; top: 0; z-index: 5; backdrop-filter: blur(8px); }
+  .final-title { font-size: 11px; letter-spacing: 0.24em; font-weight: 700; color: var(--text); }
+  .final-meta { font-size: 9.5px; letter-spacing: 0.14em; color: var(--text-mute); text-transform: uppercase; }
+  .final-meta .bucket { color: var(--amber-soft); font-weight: 700; }
+  .final-meta .bucket.saved { color: var(--sage-ink); }
+  .final-hint { padding: 10px 14px; font-size: 10.5px; color: var(--text-dim); line-height: 1.5; background: var(--surface-1); border-bottom: 1px solid var(--border); }
+  .final-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 10px 12px 10px; background: linear-gradient(180deg, #f4ede4 0%, #efe5d4 100%); }
+  .final-stage .preview-pages { display: flex; flex-direction: column; gap: 16px; max-width: 560px; margin: 0 auto; }
+  .final-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(249,244,239,0.97); border-top: 1px solid var(--border-strong); position: sticky; bottom: 0; z-index: 5; backdrop-filter: blur(8px); }
+  .final-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 12px; font-family: inherit; font-size: 11px; letter-spacing: 0.18em; font-weight: 700; cursor: pointer; transition: all 0.15s; min-height: 52px; background: var(--surface-0); border: 1px solid var(--border-strong); color: var(--text); }
+  .final-btn:hover { border-color: var(--amber); color: var(--amber-soft); }
+  .final-btn .fbi { font-size: 14px; line-height: 1; }
+  .final-btn.final-save { background: var(--amber); color: #fffffe; border-color: var(--amber); grid-column: span 2; }
+  .final-btn.final-save:hover { background: var(--amber-soft); border-color: var(--amber-soft); color: #fffffe; }
+  .final-btn.final-save.is-saved { background: rgba(110,140,74,0.10); color: var(--sage-ink); border-color: var(--sage); cursor: default; }
+  .final-btn.final-save.is-saved:hover { background: rgba(110,140,74,0.10); color: var(--sage-ink); border-color: var(--sage); }
+  .final-btn.final-save.is-full { background: rgba(242,80,66,0.08); color: var(--red-ink); border-color: rgba(242,80,66,0.55); cursor: not-allowed; }
+  .final-btn.final-save.is-full:hover { background: rgba(242,80,66,0.10); color: var(--red-ink); border-color: var(--red); }
+  .final-btn.final-back { grid-column: span 2; background: transparent; border-style: dashed; color: var(--text-dim); }
+  .final-btn.final-back:hover { border-style: solid; border-color: var(--amber); color: var(--amber-soft); }
+
+  /* Hide the global floating .action-bar when the user is on the final pane;
+     the pane's own action footer takes over. */
+  body.viewing-final .action-bar { display: none !important; }
+  body.viewing-final .pane-tabs { background: rgba(110,140,74,0.06); }
+
+  @media (min-width: 1101px) {
+    /* Desktop discoverability: surface a FINAL VIEW chip in the preview toolbar */
+    .final-tab { display: none; }
+  }
+
+  /* Final-pane preview frames mirror the main preview's paper aesthetic */
+  .final-stage .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 30px 30px 30px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 10px 28px rgba(2,8,38,0.12), 0 0 0 1px var(--border-strong); line-height: 1.45; font-size: 11pt; aspect-ratio: 8.5 / 11; overflow: hidden; }
+  .final-stage .preview-frame.demo_4 { font-size: 11.5pt; }
+  .final-stage .preview-frame.demo_2 { font-size: 10.5pt; }
+  .final-stage .preview-frame .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-family: "Newsreader", serif; }
+  .final-stage .preview-frame.demo_4 .resume-name { font-size: 19pt; }
+  .final-stage .preview-frame.demo_2 .resume-name { font-size: 15pt; }
+  .final-stage .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
+  .final-stage .preview-frame.demo_2 .resume-contact { border-bottom: none; }
+  .final-stage .preview-frame.demo_2 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
+  .final-stage .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
+  .final-stage .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
+  .final-stage .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .final-stage .preview-frame .edu-row, .final-stage .preview-frame .entry-title-row, .final-stage .preview-frame .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .final-stage .preview-frame .entry-title-row { margin: 8px 0 2px 0; }
+  .final-stage .preview-frame .entry-title-row .title { font-weight: 700; }
+  .final-stage .preview-frame .entry-title-row .date { font-weight: 700; white-space: nowrap; }
+  .final-stage .preview-frame .entry-loc { font-style: italic; margin: 0 0 4px 0; font-size: 0.95em; }
+  .final-stage .preview-frame .bullets-list { margin: 2px 0 0 0; padding-left: 18px; }
+  .final-stage .preview-frame .bullets-list li { margin: 2px 0; }
+  .final-stage .preview-frame .skill-cat { margin: 4px 0; }
+  .final-stage .preview-frame .skill-cat .lbl { font-weight: 700; }
+  .final-stage .preview-frame .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
+  .final-stage .preview-frame .preview-link { color: #1a5599; text-decoration: underline; }
+  .final-stage .preview-frame .strong, .final-stage .preview-frame .bold { font-weight: 700; }
+  .final-stage .page-label { font-family: "JetBrains Mono", monospace; font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-mute); font-weight: 700; text-align: center; padding: 4px 0; border-top: 1px dashed var(--border-strong); position: relative; }
+  .final-stage .page-label span { position: relative; background: var(--bg); padding: 0 10px; }
+
+  @media (max-width: 640px) {
+    .final-top { padding: 12px 12px 5px 12px; }
+    .final-hint { padding: 8px 12px; font-size: 10px; }
+    .final-stage { padding: 12px 6px 8px 6px; }
+    .final-stage .preview-frame { padding: 18px 22px 24px 22px; box-shadow: 0 8px 22px rgba(2,8,38,0.10), 0 0 0 1px var(--border-strong); }
+    .final-actions { grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .final-btn { font-size: 10.5px; padding: 12px 8px; min-height: 48px; letter-spacing: 0.14em; }
   }
 
   .pane { padding: 28px 32px 120px 32px; }

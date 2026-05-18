@@ -67,6 +67,13 @@ assert(app.includes('migrateLegacyLibrary'), 'app.js must migrate the v2 single-
 assert(css.includes('.lib-row'), 'styles.css must style library rows');
 assert(css.includes('.lib-bucket-h'), 'styles.css must style the drafts/saved bucket headers');
 
+// Final review pane (phase 9)
+assert(html.includes('id="pane-final"') && html.includes('data-pane-target="final"'), 'index.html must include the FINAL swipe pane + tab');
+assert(html.includes('id="final-preview"'), 'index.html must include the mirrored final preview container');
+assert(html.includes('data-action="finalSaveToLibrary"'), 'index.html must wire finalSaveToLibrary');
+assert(app.includes('function mirrorPreviewToFinal') && app.includes('function updateFinalActionState'), 'app.js must implement final-pane preview mirroring + action state');
+assert(css.includes('.final-actions') && css.includes('.final-btn'), 'styles.css must style the final-pane action bar');
+
 // Real PDF export (phase 4)
 assert(fs.existsSync(path.join(root, 'vendor/pdf-writer.js')), 'vendor/pdf-writer.js must exist');
 const pdfWriter = read('vendor/pdf-writer.js');
