@@ -957,6 +957,8 @@ const ACTIONS = {
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
   triggerCamera: () => triggerCamera(),
+  finalSaveToLibrary: () => finalSaveToLibrary(),
+  finalBackToEdit: () => finalBackToEdit(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1229,7 +1231,84 @@ function renderPreview() {
   $("#overflow-banner").className = "overflow-banner";
   $("#overflow-banner").innerHTML = "";
 
+  mirrorPreviewToFinal();
+  updateFinalActionState();
   schedulePersist();
+}
+
+// ─────────────────────────────────────────────────────────
+// FINAL REVIEW PANE (phase 9)
+// Mirrors the inline preview into a clean full-screen review surface
+// with sticky "save / pdf / share / back" actions at the bottom.
+// ─────────────────────────────────────────────────────────
+
+function mirrorPreviewToFinal() {
+  const src = $("#preview");
+  const dst = $("#final-preview");
+  if (!src || !dst) return;
+  // The preview is already paginated into one-or-more .preview-frame nodes;
+  // a shallow innerHTML clone gives us identical page layout for free.
+  dst.innerHTML = src.innerHTML;
+
+  // Update the meta line with bucket + page count.
+  const meta = $("#final-meta");
+  if (meta) {
+    const pageCount = src.querySelectorAll(".preview-frame").length || 1;
+    const pageLabel = pageCount === 1 ? "1 page" : `${pageCount} pages`;
+    const bucket = activeBucket();
+    const bucketLabel = bucket === "saved"
+      ? `<span class="bucket saved">★ SAVED</span>`
+      : `<span class="bucket">DRAFT</span>`;
+    meta.innerHTML = `${bucketLabel} · ${pageLabel}`;
+  }
+}
+
+function updateFinalActionState() {
+  const btn = $("#final-save-btn");
+  const label = $("#final-save-label");
+  if (!btn || !label) return;
+  const bucket = activeBucket();
+  btn.classList.remove("is-saved", "is-full");
+  btn.disabled = false;
+  if (bucket === "saved") {
+    btn.classList.add("is-saved");
+    btn.disabled = true;
+    label.textContent = "ALREADY SAVED";
+    return;
+  }
+  if (_library.saved.length >= SAVED_LIMIT) {
+    btn.classList.add("is-full");
+    btn.disabled = true;
+    label.textContent = `SAVED FULL (${SAVED_LIMIT}) — DELETE ONE`;
+    return;
+  }
+  label.textContent = "SAVE TO LIBRARY";
+}
+
+function finalSaveToLibrary() {
+  const active = activeResume();
+  if (!active) return;
+  if (activeBucket() === "saved") {
+    toast("ALREADY IN SAVED");
+    return;
+  }
+  if (_library.saved.length >= SAVED_LIMIT) {
+    toast(`SAVED IS FULL — DELETE ONE FIRST`);
+    return;
+  }
+  saveDraft(active.id);
+  updateFinalActionState();
+  // After save, the resume now lives in the saved bucket — refresh the pill +
+  // meta so the FINAL pane immediately reflects the new state.
+  mirrorPreviewToFinal();
+}
+
+function finalBackToEdit() {
+  const swipe = window.__paneSwipe;
+  if (swipe) {
+    swipe.setActive("left");
+    swipe.scrollToPane("left");
+  }
 }
 
 // Measures the first .preview-frame inside #preview and, if its content
@@ -2970,7 +3049,9 @@ $("#jd-input").addEventListener("input", (ev) => {
   const panes = {
     left: shell.querySelector(".pane.left"),
     right: shell.querySelector(".pane.right"),
+    final: shell.querySelector(".pane.final"),
   };
+  const order = ["left", "right", "final"];
 
   function isMobile() {
     return window.matchMedia("(max-width: 1100px)").matches;
@@ -2988,6 +3069,11 @@ $("#jd-input").addEventListener("input", (ev) => {
       t.classList.toggle("active", on);
       t.setAttribute("aria-selected", on ? "true" : "false");
     });
+    document.body.classList.toggle("viewing-final", target === "final");
+    if (target === "final") {
+      mirrorPreviewToFinal();
+      updateFinalActionState();
+    }
   }
 
   tabs.forEach(t => {
@@ -3003,10 +3089,14 @@ $("#jd-input").addEventListener("input", (ev) => {
     if (!isMobile()) return;
     clearTimeout(_scrollTimer);
     _scrollTimer = setTimeout(() => {
-      const target = shell.scrollLeft > shell.clientWidth / 2 ? "right" : "left";
-      setActive(target);
+      const w = shell.clientWidth || 1;
+      const idx = Math.max(0, Math.min(order.length - 1, Math.round(shell.scrollLeft / w)));
+      setActive(order[idx]);
     }, 60);
   });
+
+  // Expose for action handlers (e.g. "KEEP EDITING" jumps back to EDIT).
+  window.__paneSwipe = { setActive, scrollToPane };
 })();
 
 // ─────────────────────────────────────────────────────────
