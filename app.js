@@ -161,7 +161,7 @@ const TEMPLATES = {
   },
 };
 
-const TEMPLATE_ORDER = ["demo_4", "demo_2", "demo_1", "demo_5", "demo_6", "demo_8"];
+const TEMPLATE_ORDER = ["demo_1", "demo_2", "demo_4", "demo_5", "demo_6", "demo_8"];
 
 function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
 function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
@@ -3559,6 +3559,16 @@ window.addEventListener("load", updatePreviewScale);
 // ─────────────────────────────────────────────────────────
 
 if ("serviceWorker" in navigator) {
+  // If a SW already controls this page, a later controllerchange means a new
+  // version activated — reload once so the fresh app.js/styles.css take effect
+  // (otherwise users keep running stale cached shell files after a deploy).
+  const hadController = !!navigator.serviceWorker.controller;
+  let _swReloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || _swReloaded) return;
+    _swReloaded = true;
+    window.location.reload();
+  });
   // Defer registration to idle so it never delays first paint.
   const register = () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
