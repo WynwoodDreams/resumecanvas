@@ -9,6 +9,8 @@ let state = {
   section_order: {
     demo_4: ["education", "skills", "projects", "experience"],
     demo_2: ["skills", "education", "certs", "projects", "experience"],
+    demo_1: ["skills", "education", "projects", "experience"],
+    demo_5: ["skills", "education", "projects", "experience"],
   },
   match: { on: false, jd: "" },
   // Demo 4 header
@@ -50,6 +52,8 @@ let state = {
     { left: "Social Media Management", right: "Event Coordination" },
     { left: "Bilingual: English & Haitian Creole", right: "Adaptable" },
   ],
+  // Demo 5 skills (single pipe-separated line)
+  skills_inline: "Customer Service │ Microsoft Office Suite │ Data Entry │ Social Media Management │ Time Management │ Team Collaboration │ Problem Solving │ Event Coordination │ Bilingual: English & Haitian Creole │ Adaptable",
   certifications: [
     "Google Digital Marketing & E-commerce Certificate (In Progress) — Coursera",
     "Microsoft Office Specialist: Excel Associate — Certiport (2024)",
@@ -98,6 +102,44 @@ let state = {
 // Snapshot of the default state so RESET can restore it byte-for-byte
 // even after the user has mutated `state` in place.
 const _DEFAULT_STATE_JSON = JSON.stringify(state);
+
+// ─────────────────────────────────────────────────────────
+// TEMPLATE CONFIG
+// Per-template rendering choices. demo_4 keeps its own structured header
+// path; demo_2/demo_1/demo_5 share the free-form contact-line header but
+// diverge in skills layout, education layout, project layout, section
+// header casing, and type sizing.
+// ─────────────────────────────────────────────────────────
+
+const TEMPLATES = {
+  demo_4: {
+    headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
+    projMode: "dated", expMode: "italic", certs: false,
+    namePt: 20, sectionPt: 12, bodyPt: 12,
+    labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
+  },
+  demo_2: {
+    headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
+    projMode: "bullets", expMode: "company", certs: true,
+    namePt: 16, sectionPt: 11, bodyPt: 11,
+    labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
+  },
+  demo_1: {
+    headerCase: "title", skillsMode: "two_column", eduMode: "demo1",
+    projMode: "paragraph", expMode: "company", certs: false,
+    namePt: 18, sectionPt: 12, bodyPt: 11,
+    labels: { summary: "Profile Summary", skills: "Highlighted Skills", education: "Education", projects: "Projects", experience: "Work Experience", certs: "Certifications" },
+  },
+  demo_5: {
+    headerCase: "smallcaps", skillsMode: "pipe", eduMode: "demo5",
+    projMode: "paragraph_inline", expMode: "company", certs: false,
+    namePt: 16, sectionPt: 11, bodyPt: 11,
+    labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
+  },
+};
+
+function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
+function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
 
 // ─────────────────────────────────────────────────────────
 // HELPERS
@@ -259,6 +301,20 @@ function replaceStateWith(snapshot) {
   for (const key of Object.keys(state)) delete state[key];
   Object.assign(state, JSON.parse(JSON.stringify(snapshot)));
   state.match = { on: false, jd: "" };
+  ensureStateDefaults();
+}
+
+// Backfill keys that may be absent in resumes persisted before newer templates
+// existed (e.g. section_order entries for demo_1/demo_5, skills_inline).
+function ensureStateDefaults() {
+  const defaults = JSON.parse(_DEFAULT_STATE_JSON);
+  state.section_order = state.section_order || {};
+  for (const tpl of Object.keys(defaults.section_order)) {
+    if (!Array.isArray(state.section_order[tpl])) {
+      state.section_order[tpl] = defaults.section_order[tpl].slice();
+    }
+  }
+  if (typeof state.skills_inline !== "string") state.skills_inline = defaults.skills_inline;
 }
 
 function loadLibrary() {
@@ -329,6 +385,7 @@ function restoreState() {
       if (key in active.state) state[key] = active.state[key];
     }
     state.match = { on: false, jd: "" };
+    ensureStateDefaults();
   }
   writeLibrary();
   // Only retire the legacy keys after we've confirmed the new library wrote.
@@ -647,12 +704,16 @@ function renderSummary() {
 function renderEducation() {
   const body = $("#body-education");
   const eduSchemaIsDemo2 = state.template === "demo_2";
+  const showCoursework = state.template !== "demo_4";
   body.innerHTML = state.education.map((e, i) => {
-    const extra = eduSchemaIsDemo2 ? `
+    const sublineFields = eduSchemaIsDemo2 ? `
       <div class="row"><label>SUB-LINE — BOLD PORTION (optional)</label><input type="text" data-edu="${i}" data-field="subline_bold" value="${esc(e.subline_bold || "")}" placeholder="e.g. Associate of Arts, Economics"><div class="help">Appears bold at start of a second line. Use for a secondary degree at the same school.</div></div>
       <div class="row"><label>SUB-LINE — REST (optional)</label><input type="text" data-edu="${i}" data-field="subline_rest" value="${esc(e.subline_rest || "")}" placeholder=" | Minor in Economy | Honors"><div class="help">Plain continuation. Include leading space and separator.</div></div>
+    ` : "";
+    const courseworkField = showCoursework ? `
       <div class="row"><label>RELEVANT COURSEWORK (optional)</label><input type="text" data-edu="${i}" data-field="coursework" value="${esc(e.coursework || "")}" placeholder="SQL, Tableau, Power BI, ..."></div>
     ` : "";
+    const extra = sublineFields + courseworkField;
     return `
       <div class="item">
         <div class="item-head">
@@ -676,7 +737,14 @@ function renderEducation() {
 
 function renderSkills() {
   const body = $("#body-skills");
-  if (state.template === "demo_4") {
+  const skillsMode = tcfg().skillsMode;
+  if (skillsMode === "pipe") {
+    body.innerHTML = `
+      <div class="help skill-help">Single line of skills separated by " │ ". Renders as one flowing paragraph.</div>
+      <div class="row"><label>SKILLS LINE</label><textarea data-bind="skills_inline" placeholder="Wireshark │ Nmap │ Splunk │ Python │ ...">${esc(state.skills_inline || "")}</textarea></div>
+    `;
+    bind(body);
+  } else if (skillsMode === "categories") {
     body.innerHTML = state.skills_categories.map((c, i) => `
       <div class="item">
         <div class="item-head">
@@ -728,6 +796,9 @@ function renderCerts() {
 
 function renderProjects() {
   const body = $("#projects-list");
+  const projMode = tcfg().projMode;
+  const isParagraph = projMode === "paragraph" || projMode === "paragraph_inline";
+  const bulletsLabel = isParagraph ? "DESCRIPTION" : "BULLETS";
   body.innerHTML = state.projects.map((p, i) => {
     const dateLocFields = state.template === "demo_4" ? `
       <div class="row two">
@@ -743,7 +814,7 @@ function renderProjects() {
         </div>
         <div class="row"><label>TITLE</label><input type="text" data-proj="${i}" data-field="title" value="${esc(p.title || "")}"></div>
         ${dateLocFields}
-        <div class="row"><label>BULLETS</label>
+        <div class="row"><label>${bulletsLabel}</label>
           <div class="bullets" id="proj-bullets-${i}">
             ${(p.bullets || []).map((b, bi) => `
               <div class="bullet-row">
@@ -1051,7 +1122,7 @@ $$(".tpl-chip").forEach(chip => {
     chip.classList.add("active");
     $$("[data-font]").forEach(c => c.classList.remove("active"));
     $("#font-chip-default").classList.add("active");
-    $("#panel-certs").classList.toggle("hidden", state.template !== "demo_2");
+    $("#panel-certs").classList.toggle("hidden", !tcfg().certs);
     reorderPanels();
     setCaseId();
     render();
@@ -1081,21 +1152,33 @@ $$("[data-font]").forEach(chip => {
 // ─────────────────────────────────────────────────────────
 
 function renderSummaryPreviewHtml() {
-  let html = `<div class="resume-section-h">PROFILE SUMMARY</div>`;
+  const c = tcfg();
+  let html = `<div class="resume-section-h">${esc(c.labels.summary)}</div>`;
   html += `<div>${linkify(state.summary)}</div>`;
   return html;
 }
 
 function renderEducationPreviewHtml(tpl) {
-  let html = `<div class="resume-section-h">EDUCATION</div>`;
+  const c = tcfg(tpl);
+  let html = `<div class="resume-section-h">${esc(c.labels.education)}</div>`;
   state.education.forEach((e, idx) => {
     const gapClass = idx > 0 ? " edu-gap" : "";
-    if (tpl === "demo_4") {
+    if (c.eduMode === "demo4") {
       html += `<div class="edu-row${gapClass}"><div class="strong">${esc(e.school)}</div><div class="strong">${esc(e.city)}</div></div>`;
       html += `<div class="edu-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
+    } else if (c.eduMode === "demo5") {
+      // Degree (bold) first, then "school │ city │ date" on a plain subline.
+      html += `<div class="edu-degree-bold${gapClass}">${esc(e.degree)}</div>`;
+      const sub = [e.school, e.city, e.date].filter(Boolean).join(" │ ");
+      if (sub) html += `<div class="edu-subline">${linkify(sub)}</div>`;
+      if (e.coursework) {
+        html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${linkify(e.coursework)}</div>`;
+      }
     } else {
+      // demo2 / demo1: school+city row, degree+date row, optional subline + coursework.
+      const degRowClass = c.eduMode === "demo1" ? "edu-row" : "edu-degree-row";
       html += `<div class="edu-row${gapClass}"><div class="strong">${esc(e.school)}</div><div>${esc(e.city)}</div></div>`;
-      html += `<div class="edu-degree-row"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
+      html += `<div class="${degRowClass}"><div>${esc(e.degree)}</div><div>${esc(e.date)}</div></div>`;
       if (e.subline_bold || e.subline_rest) {
         html += `<div class="edu-subline"><span class="bold">${esc(e.subline_bold)}</span>${linkify(e.subline_rest)}</div>`;
       }
@@ -1108,14 +1191,15 @@ function renderEducationPreviewHtml(tpl) {
 }
 
 function renderSkillsPreviewHtml(tpl) {
-  let html = "";
-  if (tpl === "demo_4") {
-    html += `<div class="resume-section-h">SKILLS</div>`;
-    state.skills_categories.forEach(c => {
-      html += `<div class="skill-cat"><span class="lbl">${esc(c.label)}:</span> ${esc(c.content)}</div>`;
+  const c = tcfg(tpl);
+  let html = `<div class="resume-section-h">${esc(c.labels.skills)}</div>`;
+  if (c.skillsMode === "categories") {
+    state.skills_categories.forEach(cat => {
+      html += `<div class="skill-cat"><span class="lbl">${esc(cat.label)}:</span> ${esc(cat.content)}</div>`;
     });
+  } else if (c.skillsMode === "pipe") {
+    html += `<div class="skills-line">${esc(state.skills_inline || "")}</div>`;
   } else {
-    html += `<div class="resume-section-h">HIGHLIGHTED SKILLS</div>`;
     html += `<ul class="skills-2col">`;
     state.skills_two_column.forEach(r => {
       const left = r.left ? `<li class="left">${esc(r.left)}</li>` : `<li></li>`;
@@ -1128,7 +1212,7 @@ function renderSkillsPreviewHtml(tpl) {
 }
 
 function renderCertsPreviewHtml() {
-  let html = `<div class="resume-section-h">CERTIFICATIONS</div>`;
+  let html = `<div class="resume-section-h">${esc(tcfg().labels.certs)}</div>`;
   html += `<ul class="bullets-list">`;
   state.certifications.forEach(c => { html += `<li>${linkify(c)}</li>`; });
   html += `</ul>`;
@@ -1136,25 +1220,41 @@ function renderCertsPreviewHtml() {
 }
 
 function renderProjectsPreviewHtml(tpl) {
-  let html = `<div class="resume-section-h">PROJECTS</div>`;
+  const c = tcfg(tpl);
+  let html = `<div class="resume-section-h">${esc(c.labels.projects)}</div>`;
   state.projects.forEach(p => {
-    if (tpl === "demo_4") {
+    const bullets = (p.bullets || []).filter(Boolean);
+    if (c.projMode === "dated") {
       html += `<div class="entry-title-row"><div class="title">${esc(p.title)}</div><div class="date">${esc(p.date)}</div></div>`;
       if (p.location) html += `<div class="entry-loc">${linkify(p.location)}</div>`;
+      if (bullets.length) {
+        html += `<ul class="bullets-list">`;
+        bullets.forEach(b => { html += `<li>${linkify(b)}</li>`; });
+        html += `</ul>`;
+      }
+    } else if (c.projMode === "paragraph_inline") {
+      // demo5: "Title: description" — bold title, colon, description inline.
+      const first = bullets.shift() || "";
+      html += `<div class="proj-desc"><span class="bold">${esc(p.title)}:</span> ${linkify(first)}</div>`;
+      bullets.forEach(b => { html += `<div class="proj-desc">${linkify(b)}</div>`; });
+    } else if (c.projMode === "paragraph") {
+      // demo1: bold title line, then description paragraph(s), no bullets.
+      html += `<div class="proj-title">${esc(p.title)}</div>`;
+      bullets.forEach(b => { html += `<div class="proj-desc">${linkify(b)}</div>`; });
     } else {
       html += `<div class="proj-title">${esc(p.title)}</div>`;
-    }
-    if (p.bullets && p.bullets.length) {
-      html += `<ul class="bullets-list">`;
-      p.bullets.forEach(b => { if (b) html += `<li>${linkify(b)}</li>`; });
-      html += `</ul>`;
+      if (bullets.length) {
+        html += `<ul class="bullets-list">`;
+        bullets.forEach(b => { html += `<li>${linkify(b)}</li>`; });
+        html += `</ul>`;
+      }
     }
   });
   return html;
 }
 
 function renderExperiencePreviewHtml(tpl) {
-  let html = `<div class="resume-section-h">WORK EXPERIENCE</div>`;
+  let html = `<div class="resume-section-h">${esc(tcfg(tpl).labels.experience)}</div>`;
   state.experience.forEach(en => {
     html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
     if (tpl === "demo_4") {
@@ -1174,7 +1274,7 @@ function renderExperiencePreviewHtml(tpl) {
 const PREVIEW_SECTION_RENDERERS = {
   education: (tpl) => renderEducationPreviewHtml(tpl),
   skills: (tpl) => renderSkillsPreviewHtml(tpl),
-  certs: (tpl) => tpl === "demo_2" ? renderCertsPreviewHtml() : "",
+  certs: (tpl) => tcfg(tpl).certs ? renderCertsPreviewHtml() : "",
   projects: (tpl) => (state.section_enabled.projects && state.projects.length > 0) ? renderProjectsPreviewHtml(tpl) : "",
   experience: (tpl) => (state.section_enabled.experience && state.experience.length > 0) ? renderExperiencePreviewHtml(tpl) : "",
 };
@@ -1188,7 +1288,8 @@ function renderPreview() {
     const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
     html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
   } else {
-    html += `<div class="resume-contact">${linkify(state.contact_line1)}<br>${linkify(state.contact_line2)}</div>`;
+    const line2 = (state.contact_line2 || "").trim();
+    html += `<div class="resume-contact">${linkify(state.contact_line1)}${line2 ? "<br>" + linkify(line2) : ""}</div>`;
     html += `<div class="resume-contact-divider"></div>`;
   }
 
@@ -1408,16 +1509,25 @@ $("#summary").addEventListener("input", (ev) => {
 // FULL RENDER
 // ─────────────────────────────────────────────────────────
 
+// Reflect state.template in the chip selection + certs panel visibility so a
+// restored resume (or one switched via the library) shows the right UI.
+function syncTemplateUI() {
+  $$(".tpl-chip").forEach(c => c.classList.toggle("active", c.dataset.tpl === state.template));
+  const certsPanel = $("#panel-certs");
+  if (certsPanel) certsPanel.classList.toggle("hidden", !tcfg().certs);
+}
+
 function render() {
   // A full render() rebuilds the form DOM, which would orphan an active
   // mic button mid-stream. Stop dictation first so the user isn't stuck
   // with a phantom "listening" state and an unreachable target field.
   if (_recordingTarget) stopDictation();
+  syncTemplateUI();
   renderHeader();
   renderSummary();
   renderEducation();
   renderSkills();
-  if (state.template === "demo_2") renderCerts();
+  if (tcfg().certs) renderCerts();
   renderProjects();
   renderExperience();
   applySectionToggleStates();
@@ -1446,7 +1556,7 @@ function slugFileName(name) {
 function buildExportDocument() {
   renderPreview();
   const title = esc(state.name || "Resume");
-  const fontPt = state._appliedFontPt || (state.template === "demo_4" ? 12 : 11);
+  const fontPt = state._appliedFontPt || tcfg().bodyPt;
   // Flatten the paginated frames back into one content flow — Word repaginates
   // at its own page size; preview pixel breaks don't translate.
   const frames = $("#preview").querySelectorAll(".preview-frame");
@@ -1460,12 +1570,12 @@ function buildExportDocument() {
   @page { size: Letter; margin: 0.5in; }
   body { margin: 0; background: #fff; color: #020826; }
   .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
-  .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${state.template === "demo_4" ? "20pt" : "16pt"}; }
+  .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${tcfg().namePt}pt; }
   .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8b89f; margin-bottom: 8px; line-height: 1.35; }
-  .demo_2 .resume-contact { border-bottom: none; }
+  .demo_2 .resume-contact, .demo_1 .resume-contact, .demo_5 .resume-contact { border-bottom: none; }
   .resume-contact-divider { border-bottom: 0.5pt solid #c8b89f; margin: 2px 0 8px 0; }
   .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8b89f; margin: 12px 0 6px 0; }
-  .demo_2 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
+  .demo_2 .resume-section-h, .demo_5 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
   .edu-row, .entry-title-row, .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .entry-title-row { margin: 8px 0 2px 0; }
   .title, .date, .strong, .bold, .lbl { font-weight: 700; }
@@ -1475,8 +1585,13 @@ function buildExportDocument() {
   .bullets-list li { margin: 2px 0; }
   .skill-cat { margin: 4px 0; }
   .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
+  .skills-line { margin: 4px 0; line-height: 1.5; }
+  .proj-desc { margin: 2px 0; }
   .edu-gap { margin-top: 8px; }
+  .edu-subline, .edu-coursework { margin: 2px 0; }
+  .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
   .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
+  .exp-company { margin: 0 0 2px 0; }
 </style>
 </head>
 <body>
@@ -1518,9 +1633,10 @@ function printPDF() {
 function buildResumePdfBytes() {
   if (!global_RcPdf()) throw new Error("PDF writer not loaded");
   const tpl = state.template;
-  const fontPt = state.font_pt || (tpl === "demo_4" ? 12 : 11);
-  const NAME_PT = tpl === "demo_4" ? 20 : 16;
-  const SECTION_PT = tpl === "demo_4" ? 12 : 11;
+  const cfg = tcfg(tpl);
+  const fontPt = state.font_pt || cfg.bodyPt;
+  const NAME_PT = cfg.namePt;
+  const SECTION_PT = cfg.sectionPt;
   const CONTACT_PT = 9;
   const BODY_PT = fontPt;
 
@@ -1555,7 +1671,7 @@ function buildResumePdfBytes() {
 
   // ── Summary ─────────────────────────────────────────────────────────────
   if (state.section_enabled.summary !== false && (state.summary || "").trim()) {
-    pdfSectionHeader(doc, "SUMMARY", SECTION_PT, tpl);
+    pdfSectionHeader(doc, cfg.labels.summary, SECTION_PT, tpl);
     doc.setFont("Times-Roman", BODY_PT);
     doc.wrap(state.summary, xLeft, doc._cur.y, contentW);
     doc.advance(2);
@@ -1611,24 +1727,36 @@ function pdfSectionHeader(doc, label, sizePt, tpl) {
   doc.advance(8);
   doc.ensure(lineH + 6);
   doc.setFont("Times-Bold", sizePt);
-  // Demo 2: small caps approximation (uppercase the label) for visual parity.
-  const text = tpl === "demo_2" ? label.toUpperCase() : label;
-  doc.text(text, doc.marginL, doc._cur.y);
+  // Labels carry their own casing from the template config.
+  doc.text(label, doc.marginL, doc._cur.y);
   doc.advance(2);
   doc.hline(doc.marginL, doc.pageW - doc.marginR, doc._cur.y, 0.5);
   doc.advance(6);
 }
 
+function pdfRenderCoursework(doc, e, bodyPt, contentW, xLeft) {
+  if (!e.coursework) return;
+  const lineH = bodyPt * 1.2;
+  doc.setFont("Times-Bold", bodyPt);
+  const labelW = global_RcPdf().measure("Times-Bold", bodyPt, "Relevant Coursework: ");
+  doc.ensure(lineH);
+  doc.text("Relevant Coursework: ", xLeft, doc._cur.y);
+  doc.setFont("Times-Roman", bodyPt);
+  doc.wrap(e.coursework, xLeft + labelW, doc._cur.y, contentW - labelW);
+}
+
 function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const cfg = tcfg(tpl);
+  const mode = cfg.eduMode;
   const items = (state.education || []).filter(e => (e.school || e.degree));
   if (items.length === 0) return;
-  pdfSectionHeader(doc, "EDUCATION", sectionPt, tpl);
+  pdfSectionHeader(doc, cfg.labels.education, sectionPt, tpl);
   doc.setFont("Times-Roman", bodyPt);
+  const lineH = bodyPt * 1.2;
   items.forEach((e, idx) => {
     if (idx > 0) doc.advance(4);
-    if (tpl === "demo_4") {
+    if (mode === "demo4") {
       // Row 1: school (bold) left, city right.
-      const lineH = bodyPt * 1.2;
       doc.ensure(lineH);
       doc.setFont("Times-Bold", bodyPt);
       doc.text(e.school || "", xLeft, doc._cur.y);
@@ -1644,18 +1772,34 @@ function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight
         doc.setFont("Times-Roman", bodyPt);
       }
       doc.advance(lineH);
+    } else if (mode === "demo5") {
+      // Degree (bold) on its own line, then "school │ city │ date" plain subline.
+      doc.ensure(lineH);
+      doc.setFont("Times-Bold", bodyPt);
+      doc.text(e.degree || "", xLeft, doc._cur.y);
+      doc.advance(lineH);
+      const sub = [e.school, e.city, e.date].filter(Boolean).join(" │ ");
+      if (sub) {
+        doc.setFont("Times-Roman", bodyPt);
+        doc.wrap(sub, xLeft, doc._cur.y, contentW);
+      }
+      doc.setFont("Times-Roman", bodyPt);
+      pdfRenderCoursework(doc, e, bodyPt, contentW, xLeft);
     } else {
-      // Demo 2: school+city on row 1 bold, degree-row, optional subline + coursework.
-      const lineH = bodyPt * 1.2;
+      // demo2 / demo1: school+city row 1, degree-row, optional subline + coursework.
       doc.ensure(lineH);
       doc.setFont("Times-Bold", bodyPt);
       doc.text(e.school || "", xLeft, doc._cur.y);
       if (e.city) doc.textRight(e.city, xRight, doc._cur.y);
       doc.advance(lineH);
       doc.ensure(lineH);
-      doc.setFont("Times-Bold", bodyPt);
+      // demo2 bolds the degree row; demo1 keeps it regular weight.
+      doc.setFont(mode === "demo1" ? "Times-Roman" : "Times-Bold", bodyPt);
       doc.text(e.degree || "", xLeft, doc._cur.y);
-      if (e.date) doc.textRight(e.date, xRight, doc._cur.y);
+      if (e.date) {
+        if (mode === "demo1") doc.setFont("Times-Bold", bodyPt);
+        doc.textRight(e.date, xRight, doc._cur.y);
+      }
       doc.advance(lineH);
       doc.setFont("Times-Roman", bodyPt);
       if (e.subline_bold || e.subline_rest) {
@@ -1670,24 +1814,17 @@ function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight
         if (e.subline_rest) doc.text(e.subline_rest, x, doc._cur.y);
         doc.advance(lineH);
       }
-      if (e.coursework) {
-        doc.setFont("Times-Bold", bodyPt);
-        const labelW = global_RcPdf().measure("Times-Bold", bodyPt, "Relevant Coursework: ");
-        doc.ensure(lineH);
-        doc.text("Relevant Coursework: ", xLeft, doc._cur.y);
-        doc.setFont("Times-Roman", bodyPt);
-        // Wrap remainder beside the label, then continue on subsequent lines.
-        doc.wrap(e.coursework, xLeft + labelW, doc._cur.y, contentW - labelW);
-      }
+      pdfRenderCoursework(doc, e, bodyPt, contentW, xLeft);
     }
   });
 }
 
 function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
-  if (tpl === "demo_4") {
+  const cfg = tcfg(tpl);
+  if (cfg.skillsMode === "categories") {
     const cats = (state.skills_categories || []).filter(c => c.label || c.content);
     if (cats.length === 0) return;
-    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    pdfSectionHeader(doc, cfg.labels.skills, sectionPt, tpl);
     doc.setFont("Times-Roman", bodyPt);
     cats.forEach((c) => {
       const lineH = bodyPt * 1.2;
@@ -1708,10 +1845,16 @@ function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
         if (remainder) doc.wrap(remainder, xLeft, doc._cur.y, contentW);
       }
     });
+  } else if (cfg.skillsMode === "pipe") {
+    const line = (state.skills_inline || "").trim();
+    if (!line) return;
+    pdfSectionHeader(doc, cfg.labels.skills, sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    doc.wrap(line, xLeft, doc._cur.y, contentW);
   } else {
     const rows = (state.skills_two_column || []).filter(r => r.left || r.right);
     if (rows.length === 0) return;
-    pdfSectionHeader(doc, "SKILLS", sectionPt, tpl);
+    pdfSectionHeader(doc, cfg.labels.skills, sectionPt, tpl);
     doc.setFont("Times-Roman", bodyPt);
     const colW = (contentW - 24) / 2;
     const colLx = xLeft;
@@ -1752,42 +1895,83 @@ function remainderAfterFit(doc, str, width) {
 function pdfRenderCerts(doc, bodyPt, sectionPt, tpl, contentW, xLeft) {
   const items = (state.certifications || []).filter(Boolean);
   if (items.length === 0) return;
-  pdfSectionHeader(doc, "CERTIFICATIONS", sectionPt, tpl);
+  pdfSectionHeader(doc, tcfg(tpl).labels.certs, sectionPt, tpl);
   doc.setFont("Times-Roman", bodyPt);
   items.forEach((c) => doc.bullet(c, xLeft, contentW));
 }
 
 function pdfRenderProjects(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const cfg = tcfg(tpl);
   const items = (state.projects || []).filter(p => p.title || (p.bullets || []).some(Boolean));
   if (items.length === 0) return;
-  pdfSectionHeader(doc, "PROJECTS", sectionPt, tpl);
+  pdfSectionHeader(doc, cfg.labels.projects, sectionPt, tpl);
+  const lineH = bodyPt * 1.2;
   items.forEach((p, idx) => {
     if (idx > 0) doc.advance(4);
-    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, p, tpl);
+    const bullets = (p.bullets || []).filter(Boolean);
+    if (cfg.projMode === "paragraph_inline") {
+      // demo5: "Title: description" — bold title + colon, then description paragraphs.
+      const first = bullets.shift() || "";
+      doc.setFont("Times-Bold", bodyPt);
+      const labelText = (p.title || "") + ": ";
+      const labelW = global_RcPdf().measure("Times-Bold", bodyPt, labelText);
+      doc.ensure(lineH);
+      doc.text(labelText, xLeft, doc._cur.y);
+      doc.setFont("Times-Roman", bodyPt);
+      doc.text(truncateToWidth(doc, first, contentW - labelW), xLeft + labelW, doc._cur.y);
+      doc.advance(lineH);
+      const fits = global_RcPdf().measure("Times-Roman", bodyPt, first) <= contentW - labelW;
+      if (!fits) {
+        const rem = remainderAfterFit(doc, first, contentW - labelW);
+        if (rem) doc.wrap(rem, xLeft, doc._cur.y, contentW);
+      }
+      bullets.forEach((b) => doc.wrap(b, xLeft, doc._cur.y, contentW));
+    } else if (cfg.projMode === "paragraph") {
+      // demo1: bold title line, then plain description paragraphs (no bullets).
+      doc.setFont("Times-Bold", bodyPt);
+      doc.ensure(lineH);
+      doc.text(p.title || "", xLeft, doc._cur.y);
+      doc.advance(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      bullets.forEach((b) => doc.wrap(b, xLeft, doc._cur.y, contentW));
+    } else if (cfg.projMode === "dated") {
+      pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, p, tpl, "italic");
+    } else {
+      // demo2: bold title line, then bullets (no date).
+      doc.setFont("Times-Bold", bodyPt);
+      doc.ensure(lineH);
+      doc.text(p.title || "", xLeft, doc._cur.y);
+      doc.advance(lineH);
+      doc.setFont("Times-Roman", bodyPt);
+      bullets.forEach((b) => doc.bullet(b, xLeft, contentW));
+    }
   });
 }
 
 function pdfRenderExperience(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
+  const cfg = tcfg(tpl);
   const items = (state.experience || []).filter(e => e.title || (e.bullets || []).some(Boolean));
   if (items.length === 0) return;
-  pdfSectionHeader(doc, "WORK EXPERIENCE", sectionPt, tpl);
+  pdfSectionHeader(doc, cfg.labels.experience, sectionPt, tpl);
   items.forEach((e, idx) => {
     if (idx > 0) doc.advance(4);
-    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, e, tpl);
+    pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, e, tpl, cfg.expMode);
   });
 }
 
-function pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, entry, tpl) {
+function pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, entry, tpl, mode) {
   const lineH = bodyPt * 1.2;
   doc.setFont("Times-Bold", bodyPt);
   doc.ensure(lineH);
   doc.text(entry.title || "", xLeft, doc._cur.y);
   if (entry.date) doc.textRight(entry.date, xRight, doc._cur.y);
   doc.advance(lineH);
-  if (entry.location) {
-    doc.setFont(tpl === "demo_2" ? "Times-Roman" : "Times-Italic", bodyPt);
+  // Subline: italic location (demo4) or plain company · city line (others).
+  const subline = mode === "italic" ? entry.location : (entry.company_city || entry.location);
+  if (subline) {
+    doc.setFont(mode === "italic" ? "Times-Italic" : "Times-Roman", bodyPt);
     doc.ensure(lineH);
-    doc.text(entry.location, xLeft, doc._cur.y);
+    doc.text(subline, xLeft, doc._cur.y);
     doc.advance(lineH);
   }
   doc.setFont("Times-Roman", bodyPt);
@@ -2147,10 +2331,14 @@ function buildPayload() {
         subline_rest: e.subline_rest || "",
         coursework: e.coursework || "",
       }));
-    out.skills_two_column = state.skills_two_column
-      .filter(r => r.left || r.right)
-      .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
-    out.certifications = state.certifications.filter(Boolean);
+    if (tcfg(tpl).skillsMode === "pipe") {
+      out.skills_inline = state.skills_inline || "";
+    } else {
+      out.skills_two_column = state.skills_two_column
+        .filter(r => r.left || r.right)
+        .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
+    }
+    if (tcfg(tpl).certs) out.certifications = state.certifications.filter(Boolean);
     out.projects = state.section_enabled.projects
       ? state.projects.filter(p => p.title).map(p => ({
           title: p.title,
@@ -2510,6 +2698,7 @@ function applyImport() {
 
   if (enabled.skills && p.skills.length) {
     state.skills_categories = [{ label: "Technical", content: p.skills.join(", ") }];
+    state.skills_inline = p.skills.join(" │ ");
     state.skills_two_column = [];
     for (let i = 0; i < p.skills.length; i += 2) {
       state.skills_two_column.push({ left: p.skills[i] || "", right: p.skills[i + 1] || "" });
@@ -2816,8 +3005,11 @@ function extractMatchTerms(text) {
 }
 
 function resumeSectionTexts() {
-  const skillsText = state.template === "demo_4"
+  const skillsMode = tcfg().skillsMode;
+  const skillsText = skillsMode === "categories"
     ? state.skills_categories.map(c => `${c.label} ${c.content}`).join(" ")
+    : skillsMode === "pipe"
+    ? (state.skills_inline || "")
     : state.skills_two_column.map(r => `${r.left} ${r.right}`).join(" ");
   const expText = state.section_enabled.experience
     ? state.experience.map(e => `${e.title} ${(e.bullets || []).join(" ")}`).join(" ")
