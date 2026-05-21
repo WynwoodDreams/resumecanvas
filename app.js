@@ -1145,14 +1145,15 @@ function updateReorderButtonStates() {
 // TEMPLATE SWITCH
 // ─────────────────────────────────────────────────────────
 
-// Populate the template dropdown once from the config + order.
-(function buildTemplateDropdown() {
+// The dropdown options ship in index.html (so the picker is never empty even
+// before/without JS). As a safety net, rebuild them from config if missing.
+(function ensureTemplateDropdown() {
   const dd = $("#tpl-dropdown");
-  if (!dd) return;
+  if (!dd || (dd.options && dd.options.length > 0)) return;
   dd.innerHTML = TEMPLATE_ORDER.map(tpl => {
     const c = TEMPLATES[tpl];
-    const code = tpl.replace("_", " ").toUpperCase();
-    return `<option value="${tpl}">${code} · ${esc(c.name)}</option>`;
+    const code = tpl.replace("_", " ").replace(/\b\w/g, m => m.toUpperCase());
+    return `<option value="${tpl}">${code} — ${esc(c.name)}</option>`;
   }).join("");
 })();
 
