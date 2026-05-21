@@ -157,15 +157,28 @@
   .final-stage .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 30px 30px 30px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 10px 28px rgba(2,8,38,0.12), 0 0 0 1px var(--border-strong); line-height: 1.45; font-size: 11pt; aspect-ratio: 8.5 / 11; overflow: hidden; }
   .final-stage .preview-frame.demo_4 { font-size: 11.5pt; }
   .final-stage .preview-frame.demo_2 { font-size: 10.5pt; }
+  .final-stage .preview-frame.demo_1 { font-size: 10.5pt; }
+  .final-stage .preview-frame.demo_5 { font-size: 10.5pt; }
   .final-stage .preview-frame .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-family: "Newsreader", serif; }
   .final-stage .preview-frame.demo_4 .resume-name { font-size: 19pt; }
   .final-stage .preview-frame.demo_2 .resume-name { font-size: 15pt; }
+  .final-stage .preview-frame.demo_1 .resume-name { font-size: 17pt; letter-spacing: 0.02em; }
+  .final-stage .preview-frame.demo_5 .resume-name { font-size: 15pt; }
   .final-stage .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
-  .final-stage .preview-frame.demo_2 .resume-contact { border-bottom: none; }
-  .final-stage .preview-frame.demo_2 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
+  .final-stage .preview-frame.demo_2 .resume-contact, .final-stage .preview-frame.demo_1 .resume-contact, .final-stage .preview-frame.demo_5 .resume-contact { border-bottom: none; }
+  .final-stage .preview-frame.demo_2 .resume-contact-divider, .final-stage .preview-frame.demo_1 .resume-contact-divider, .final-stage .preview-frame.demo_5 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
   .final-stage .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
   .final-stage .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
   .final-stage .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .final-stage .preview-frame.demo_5 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .final-stage .preview-frame.demo_1 .resume-section-h { font-size: 12pt; }
+  .final-stage .preview-frame .skills-line { margin: 4px 0; line-height: 1.5; }
+  .final-stage .preview-frame .proj-desc { margin: 2px 0; }
+  .final-stage .preview-frame .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
+  .final-stage .preview-frame .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
+  .final-stage .preview-frame .exp-company { margin: 0 0 2px 0; }
+  .final-stage .preview-frame .edu-subline, .final-stage .preview-frame .edu-coursework { margin: 2px 0; }
+  .final-stage .preview-frame .edu-subline .bold, .final-stage .preview-frame .edu-coursework .bold { font-weight: 700; }
   .final-stage .preview-frame .edu-row, .final-stage .preview-frame .entry-title-row, .final-stage .preview-frame .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .final-stage .preview-frame .entry-title-row { margin: 8px 0 2px 0; }
   .final-stage .preview-frame .entry-title-row .title { font-weight: 700; }
@@ -333,15 +346,24 @@
   /* Preview resume styles — mirrors the master templates */
   .preview-frame.demo_4 { font-size: 12pt; }
   .preview-frame.demo_2 { font-size: 11pt; }
+  .preview-frame.demo_1 { font-size: 11pt; }
+  .preview-frame.demo_5 { font-size: 11pt; }
   .preview-frame .resume-name { text-align: center; font-weight: 700; font-family: "Newsreader", serif; margin: 0 0 3px 0; line-height: 1.1; }
   .preview-frame.demo_4 .resume-name { font-size: 20pt; }
   .preview-frame.demo_2 .resume-name { font-size: 16pt; }
+  .preview-frame.demo_1 .resume-name { font-size: 18pt; letter-spacing: 0.02em; }
+  .preview-frame.demo_5 .resume-name { font-size: 16pt; }
   .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
-  .preview-frame.demo_2 .resume-contact { border-bottom: none; font-size: 9pt; }
-  .preview-frame.demo_2 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
+  .preview-frame.demo_2 .resume-contact, .preview-frame.demo_1 .resume-contact, .preview-frame.demo_5 .resume-contact { border-bottom: none; font-size: 9pt; }
+  .preview-frame.demo_2 .resume-contact-divider, .preview-frame.demo_1 .resume-contact-divider, .preview-frame.demo_5 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
   .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
   .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
   .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .preview-frame.demo_5 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .preview-frame.demo_1 .resume-section-h { font-size: 12pt; }
+  .preview-frame .skills-line { margin: 4px 0; line-height: 1.5; }
+  .preview-frame .proj-desc { margin: 2px 0; }
+  .preview-frame .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
   .preview-frame .edu-row, .preview-frame .entry-title-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
   .preview-frame .edu-row > *, .preview-frame .entry-title-row > * { min-width: 0; }
   .preview-frame .edu-row > *:first-child, .preview-frame .entry-title-row .title { flex: 1 1 60%; overflow-wrap: break-word; word-break: normal; hyphens: auto; }
@@ -362,11 +384,11 @@
   .preview-frame.demo_2 .edu-degree-row > * { min-width: 0; }
   .preview-frame.demo_2 .edu-degree-row > *:first-child { flex: 1 1 60%; overflow-wrap: break-word; word-break: normal; hyphens: auto; }
   .preview-frame.demo_2 .edu-degree-row > *:last-child { flex: 0 1 auto; white-space: nowrap; }
-  .preview-frame.demo_2 .edu-subline { margin: 2px 0; }
-  .preview-frame.demo_2 .edu-coursework { margin: 2px 0; }
-  .preview-frame.demo_2 .edu-subline .bold, .preview-frame.demo_2 .edu-coursework .bold { font-weight: 700; }
-  .preview-frame.demo_2 .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
-  .preview-frame.demo_2 .exp-company { margin: 0 0 2px 0; }
+  .preview-frame .edu-subline { margin: 2px 0; }
+  .preview-frame .edu-coursework { margin: 2px 0; }
+  .preview-frame .edu-subline .bold, .preview-frame .edu-coursework .bold { font-weight: 700; }
+  .preview-frame .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
+  .preview-frame .exp-company { margin: 0 0 2px 0; }
 
   /* Match mode (JD vs resume) */
   .match-panel { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding: 14px; background: linear-gradient(180deg, rgba(110,140,74,0.10), rgba(110,140,74,0.02)); border: 1px solid var(--sage); box-shadow: 0 6px 18px rgba(2,8,38,0.06), inset 0 1px 0 rgba(255,255,255,0.4); }
