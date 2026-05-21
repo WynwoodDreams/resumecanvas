@@ -517,6 +517,11 @@
   .preview-frame.font-10 { font-size: 10pt; }
   .preview-frame.font-11 { font-size: 11pt; }
   .preview-frame.font-12 { font-size: 12pt; }
+
+  /* Global typeface — applies to the whole resume (overrides per-element font-family) */
+  .preview-frame.family-times, .preview-frame.family-times .resume-name, .preview-frame.family-times .resume-title { font-family: "Times New Roman", Times, serif; }
+  .preview-frame.family-arial, .preview-frame.family-arial .resume-name, .preview-frame.family-arial .resume-title { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; }
+  .preview-frame.family-calibri, .preview-frame.family-calibri .resume-name, .preview-frame.family-calibri .resume-title { font-family: Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
   .clipboard-fallback { position: fixed; left: -9999px; }
 
   /* ─────────────────────────────────────────────────────────

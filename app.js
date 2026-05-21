@@ -5,6 +5,7 @@
 let state = {
   template: "demo_4",
   font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
+  font_family: "times", // global typeface: times | arial | calibri
   section_enabled: { summary: true, projects: true, experience: true },
   section_order: {
     demo_4: ["education", "skills", "projects", "experience"],
@@ -162,6 +163,16 @@ const TEMPLATES = {
 };
 
 const TEMPLATE_ORDER = ["demo_1", "demo_2", "demo_4", "demo_5", "demo_6", "demo_8"];
+
+// Global typeface choice. `css` is the font stack used in the preview + .doc
+// export; `pdf` is the base-14 family the PDF writer maps Times-* names onto
+// (Calibri isn't a base-14 font, so it renders as Helvetica in the PDF).
+const FONT_FAMILIES = {
+  times:   { label: "Times New Roman", css: '"Times New Roman", Times, serif', pdf: "Times" },
+  arial:   { label: "Arial", css: 'Arial, "Helvetica Neue", Helvetica, sans-serif', pdf: "Helvetica" },
+  calibri: { label: "Calibri", css: 'Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif', pdf: "Helvetica" },
+};
+function fontFamilyKey() { return FONT_FAMILIES[state.font_family] ? state.font_family : "times"; }
 
 function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
 function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
@@ -340,6 +351,7 @@ function ensureStateDefaults() {
     }
   }
   if (typeof state.skills_inline !== "string") state.skills_inline = defaults.skills_inline;
+  if (!FONT_FAMILIES[state.font_family]) state.font_family = defaults.font_family;
 }
 
 function loadLibrary() {
@@ -1176,13 +1188,23 @@ window.addEventListener("resize", () => {
   _resizeTimer = setTimeout(() => renderPreview(), 180);
 });
 
-// Font chip selector — manual override only
+// Font size chip selector — manual override only
 $$("[data-font]").forEach(chip => {
   chip.addEventListener("click", () => {
     $$("[data-font]").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
     const v = chip.dataset.font;
     state.font_pt = v === "default" ? null : parseInt(v, 10);
+    renderPreview();
+  });
+});
+
+// Typeface (font-family) chip selector — applies to the whole resume.
+$$("[data-family]").forEach(chip => {
+  chip.addEventListener("click", () => {
+    $$("[data-family]").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    state.font_family = chip.dataset.family;
     renderPreview();
   });
 });
@@ -1416,7 +1438,7 @@ function renderPreview() {
   state._appliedFontPt = fontPt;
 
   // Render content into a single frame, then paginate by measuring children.
-  const frameClass = `preview-frame ${tpl} font-${fontPt}`;
+  const frameClass = `preview-frame ${tpl} font-${fontPt} family-${fontFamilyKey()}`;
   f.innerHTML = `<div class="${frameClass}">${html}</div>`;
   const pageCount = paginatePreview(frameClass);
   runMatch();
@@ -1631,6 +1653,15 @@ function syncTemplateUI() {
   const order = state.section_order[state.template] || [];
   const projPanel = $(".panel[data-section='projects']");
   if (projPanel) projPanel.classList.toggle("hidden", !order.includes("projects"));
+  // Reflect the active typeface + size chips.
+  const fam = fontFamilyKey();
+  $$("[data-family]").forEach(c => c.classList.toggle("active", c.dataset.family === fam));
+  $$("[data-font]").forEach(c => {
+    const isActive = c.dataset.font === "default"
+      ? state.font_pt == null
+      : parseInt(c.dataset.font, 10) === state.font_pt;
+    c.classList.toggle("active", isActive);
+  });
 }
 
 function render() {
@@ -1685,7 +1716,7 @@ function buildExportDocument() {
 <style>
   @page { size: Letter; margin: 0.5in; }
   body { margin: 0; background: #fff; color: #020826; }
-  .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
+  .preview-frame { font-family: ${FONT_FAMILIES[fontFamilyKey()].css}; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
   .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${tcfg().namePt}pt; }
   .resume-title { text-align: center; font-size: 11pt; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px 0; color: #555; }
   .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8b89f; margin-bottom: 8px; line-height: 1.35; }
@@ -1768,6 +1799,7 @@ function buildResumePdfBytes() {
   const BODY_PT = fontPt;
 
   const doc = new (global_RcPdf()).Doc({ marginL: 54, marginR: 54, marginT: 40, marginB: 40 });
+  if (typeof doc.setFamily === "function") doc.setFamily(FONT_FAMILIES[fontFamilyKey()].pdf);
   doc.lineH = 1.22;
   const contentW = doc.contentWidth();
   const xLeft = doc.marginL;
@@ -2531,6 +2563,7 @@ function buildPayload() {
     name: state.name,
     summary: summaryOn ? state.summary : "",
     font_pt: state._appliedFontPt || cfg.bodyPt,
+    font_family: FONT_FAMILIES[fontFamilyKey()].label,
     section_order: order.slice(),
   };
 

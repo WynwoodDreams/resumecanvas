@@ -100,7 +100,7 @@
       <div class="body" id="body-header"></div>
     </div>
 
-    <div class="panel open" data-section="summary" data-optional="true">
+    <div class="panel" data-section="summary" data-optional="true">
       <header>
         <h2><span class="idx">02</span> PROFILE SUMMARY</h2>
         <div class="header-controls">
@@ -118,7 +118,7 @@
       </div>
     </div>
 
-    <div class="panel open" data-section="education" data-reorderable="true">
+    <div class="panel" data-section="education" data-reorderable="true">
       <header>
         <h2><span class="idx">03</span> EDUCATION</h2>
         <div class="header-controls">
@@ -132,7 +132,7 @@
       <div class="body" id="body-education"></div>
     </div>
 
-    <div class="panel open" data-section="skills" data-reorderable="true">
+    <div class="panel" data-section="skills" data-reorderable="true">
       <header>
         <h2><span class="idx">04</span> SKILLS</h2>
         <div class="header-controls">
@@ -217,9 +217,16 @@
           <span class="match-cta-text" id="match-chip-text">MATCH JOB DESCRIPTION</span>
         </button>
       </div>
+      <div class="toolbar-group hide-in-match" id="font-family-chips">
+        <span class="toolbar-label" title="Applies to the whole resume">TYPEFACE</span>
+        <button class="toolbar-chip active" data-family="times" id="family-chip-times">TIMES</button>
+        <button class="toolbar-chip" data-family="arial" id="family-chip-arial">ARIAL</button>
+        <button class="toolbar-chip" data-family="calibri" id="family-chip-calibri">CALIBRI</button>
+      </div>
       <div class="toolbar-group hide-in-match" id="font-chips">
-        <span class="toolbar-label" title="Manual override — floor 10pt">FONT</span>
+        <span class="toolbar-label" title="Manual override — floor 10pt">SIZE</span>
         <button class="toolbar-chip active" data-font="default" id="font-chip-default">DEFAULT</button>
+        <button class="toolbar-chip" data-font="12" id="font-chip-12">12pt</button>
         <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
         <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
       </div>
