@@ -159,19 +159,36 @@
   .final-stage .preview-frame.demo_2 { font-size: 10.5pt; }
   .final-stage .preview-frame.demo_1 { font-size: 10.5pt; }
   .final-stage .preview-frame.demo_5 { font-size: 10.5pt; }
+  .final-stage .preview-frame.demo_6 { font-size: 9.5pt; }
+  .final-stage .preview-frame.demo_8 { font-size: 10.5pt; }
   .final-stage .preview-frame .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-family: "Newsreader", serif; }
   .final-stage .preview-frame.demo_4 .resume-name { font-size: 19pt; }
   .final-stage .preview-frame.demo_2 .resume-name { font-size: 15pt; }
   .final-stage .preview-frame.demo_1 .resume-name { font-size: 17pt; letter-spacing: 0.02em; }
   .final-stage .preview-frame.demo_5 .resume-name { font-size: 15pt; }
+  .final-stage .preview-frame.demo_6 .resume-name { font-size: 21pt; letter-spacing: 0.06em; }
+  .final-stage .preview-frame.demo_8 .resume-name { font-size: 16pt; }
+  .final-stage .preview-frame .resume-title { text-align: center; font-size: 10pt; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px 0; }
   .final-stage .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
-  .final-stage .preview-frame.demo_2 .resume-contact, .final-stage .preview-frame.demo_1 .resume-contact, .final-stage .preview-frame.demo_5 .resume-contact { border-bottom: none; }
-  .final-stage .preview-frame.demo_2 .resume-contact-divider, .final-stage .preview-frame.demo_1 .resume-contact-divider, .final-stage .preview-frame.demo_5 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
+  .final-stage .preview-frame.demo_2 .resume-contact, .final-stage .preview-frame.demo_1 .resume-contact, .final-stage .preview-frame.demo_5 .resume-contact, .final-stage .preview-frame.demo_8 .resume-contact { border-bottom: none; }
+  .final-stage .preview-frame.demo_2 .resume-contact-divider, .final-stage .preview-frame.demo_1 .resume-contact-divider, .final-stage .preview-frame.demo_5 .resume-contact-divider, .final-stage .preview-frame.demo_8 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
   .final-stage .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
   .final-stage .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
   .final-stage .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
   .final-stage .preview-frame.demo_5 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .final-stage .preview-frame.demo_8 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .final-stage .preview-frame.demo_6 .resume-section-h { font-variant: small-caps; letter-spacing: 0.06em; }
   .final-stage .preview-frame.demo_1 .resume-section-h { font-size: 12pt; }
+  .final-stage .preview-frame .sidebar-grid { width: 100%; border-collapse: collapse; }
+  .final-stage .preview-frame .sidebar-grid .col-side { width: 34%; vertical-align: top; padding-right: 14px; border-right: 0.5pt solid var(--rule); }
+  .final-stage .preview-frame .sidebar-grid .col-main { width: 66%; vertical-align: top; padding-left: 16px; }
+  .final-stage .preview-frame .contact-line { margin: 2px 0; font-size: 0.95em; }
+  .final-stage .preview-frame .skills-list { margin: 4px 0; padding-left: 16px; }
+  .final-stage .preview-frame .skills-list li { margin: 3px 0; }
+  .final-stage .preview-frame .hl-company { font-weight: 700; margin: 8px 0 0 0; }
+  .final-stage .preview-frame .hl-title { font-style: italic; margin: 0 0 2px 0; }
+  .final-stage .preview-frame .edu-line { margin: 3px 0; }
+  .final-stage .preview-frame .title-plain { font-weight: 400; }
   .final-stage .preview-frame .skills-line { margin: 4px 0; line-height: 1.5; }
   .final-stage .preview-frame .proj-desc { margin: 2px 0; }
   .final-stage .preview-frame .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
@@ -259,13 +276,11 @@
   .add-btn:hover { border-color: var(--amber); color: var(--amber-soft); border-style: solid; }
 
   /* Template selector */
-  .tpl-select { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  .tpl-chip { border: 1px solid var(--border); background: var(--surface-0); padding: 14px 14px; cursor: pointer; transition: all 0.15s; }
-  .tpl-chip .code { font-size: 10px; letter-spacing: 0.22em; color: var(--text-dim); }
-  .tpl-chip .name { font-size: 14px; font-weight: 600; margin: 6px 0 4px 0; color: var(--text); }
-  .tpl-chip .desc { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; }
-  .tpl-chip.active { border-color: var(--amber); background: linear-gradient(180deg, #f6ecdb 0%, #f1e3c8 100%); }
-  .tpl-chip.active .code { color: var(--amber-soft); }
+  .tpl-select { margin-bottom: 14px; }
+  .tpl-select-label { display: block; font-size: 10px; letter-spacing: 0.22em; color: var(--text-dim); margin-bottom: 6px; }
+  .tpl-dropdown { width: 100%; border: 1px solid var(--border); background: var(--surface-0); color: var(--text); padding: 11px 12px; font-size: 13px; font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none; border-radius: 0; background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%), linear-gradient(135deg, var(--text-dim) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+  .tpl-dropdown:focus { outline: none; border-color: var(--amber); }
+  .tpl-desc { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; }
 
   /* Intake / import card */
   .intake-card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(140,120,81,0.06), rgba(140,120,81,0.02)); margin-bottom: 14px; }
@@ -348,19 +363,38 @@
   .preview-frame.demo_2 { font-size: 11pt; }
   .preview-frame.demo_1 { font-size: 11pt; }
   .preview-frame.demo_5 { font-size: 11pt; }
+  .preview-frame.demo_6 { font-size: 10pt; }
+  .preview-frame.demo_8 { font-size: 11pt; }
   .preview-frame .resume-name { text-align: center; font-weight: 700; font-family: "Newsreader", serif; margin: 0 0 3px 0; line-height: 1.1; }
   .preview-frame.demo_4 .resume-name { font-size: 20pt; }
   .preview-frame.demo_2 .resume-name { font-size: 16pt; }
   .preview-frame.demo_1 .resume-name { font-size: 18pt; letter-spacing: 0.02em; }
   .preview-frame.demo_5 .resume-name { font-size: 16pt; }
+  .preview-frame.demo_6 .resume-name { font-size: 22pt; letter-spacing: 0.06em; }
+  .preview-frame.demo_8 .resume-name { font-size: 17pt; }
+  .preview-frame .resume-title { text-align: center; font-size: 10pt; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px 0; }
   .preview-frame .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid var(--rule); margin-bottom: 8px; line-height: 1.35; }
-  .preview-frame.demo_2 .resume-contact, .preview-frame.demo_1 .resume-contact, .preview-frame.demo_5 .resume-contact { border-bottom: none; font-size: 9pt; }
-  .preview-frame.demo_2 .resume-contact-divider, .preview-frame.demo_1 .resume-contact-divider, .preview-frame.demo_5 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
+  .preview-frame.demo_2 .resume-contact, .preview-frame.demo_1 .resume-contact, .preview-frame.demo_5 .resume-contact, .preview-frame.demo_8 .resume-contact { border-bottom: none; font-size: 9pt; }
+  .preview-frame.demo_2 .resume-contact-divider, .preview-frame.demo_1 .resume-contact-divider, .preview-frame.demo_5 .resume-contact-divider, .preview-frame.demo_8 .resume-contact-divider { border-bottom: 0.5pt solid var(--rule); margin: 2px 0 8px 0; }
   .preview-frame .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid var(--rule); margin: 12px 0 6px 0; }
   .preview-frame.demo_4 .resume-section-h { font-size: 12pt; }
   .preview-frame.demo_2 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
   .preview-frame.demo_5 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .preview-frame.demo_8 .resume-section-h { font-size: 11pt; font-variant: small-caps; letter-spacing: 0.04em; }
+  .preview-frame.demo_6 .resume-section-h { font-size: 10.5pt; font-variant: small-caps; letter-spacing: 0.06em; }
   .preview-frame.demo_1 .resume-section-h { font-size: 12pt; }
+  /* Two-column sidebar (demo_6) */
+  .preview-frame .sidebar-grid { width: 100%; border-collapse: collapse; }
+  .preview-frame .sidebar-grid .col-side { width: 34%; vertical-align: top; padding-right: 14px; border-right: 0.5pt solid var(--rule); }
+  .preview-frame .sidebar-grid .col-main { width: 66%; vertical-align: top; padding-left: 16px; }
+  .preview-frame .sidebar-grid .col-side .resume-section-h:first-child, .preview-frame .sidebar-grid .col-main .resume-section-h:first-child { margin-top: 0; }
+  .preview-frame .contact-line { margin: 2px 0; font-size: 0.95em; }
+  .preview-frame .skills-list { margin: 4px 0; padding-left: 16px; }
+  .preview-frame .skills-list li { margin: 3px 0; }
+  .preview-frame .hl-company { font-weight: 700; margin: 8px 0 0 0; }
+  .preview-frame .hl-title { font-style: italic; margin: 0 0 2px 0; }
+  .preview-frame .edu-line { margin: 3px 0; }
+  .preview-frame .title-plain { font-weight: 400; }
   .preview-frame .skills-line { margin: 4px 0; line-height: 1.5; }
   .preview-frame .proj-desc { margin: 2px 0; }
   .preview-frame .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
@@ -628,10 +662,7 @@
     .pane { padding: 14px 14px 120px 14px; }
     .pane.right { padding: 14px 10px 140px 10px; }
 
-    .tpl-select { grid-template-columns: 1fr; gap: 6px; }
-    .tpl-chip { padding: 12px 12px; }
-    .tpl-chip .name { font-size: 13px; }
-    .tpl-chip .desc { font-size: 10px; }
+    .tpl-dropdown { padding: 12px 12px; }
 
     .panel header { padding: 14px 14px; }
     .panel header h2 { font-size: 11.5px; }
