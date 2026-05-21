@@ -52,26 +52,16 @@
 
     <!-- Template selector -->
     <div class="tpl-select">
-      <div class="tpl-chip active" data-tpl="demo_4" id="chip_demo_4">
-        <div class="code">TEMPLATE / DEMO_4</div>
-        <div class="name">Single column · Categorical</div>
-        <div class="desc">12pt body, skills as labeled categories (Technical, Administrative, etc). Best for students with broad skill profiles.</div>
-      </div>
-      <div class="tpl-chip" data-tpl="demo_2" id="chip_demo_2">
-        <div class="code">TEMPLATE / DEMO_2</div>
-        <div class="name">Single column · Two-col skills</div>
-        <div class="desc">11pt smallCaps headers, two-column skill grid, certifications section. Best for technical hires with more density.</div>
-      </div>
-      <div class="tpl-chip" data-tpl="demo_1" id="chip_demo_1">
-        <div class="code">TEMPLATE / DEMO_1</div>
-        <div class="name">Single column · Highlighted skills</div>
-        <div class="desc">Title-case headers, two-column bulleted skills, coursework lists, paragraph-style projects. Best for AI / data students.</div>
-      </div>
-      <div class="tpl-chip" data-tpl="demo_5" id="chip_demo_5">
-        <div class="code">TEMPLATE / DEMO_5</div>
-        <div class="name">Single column · Inline skills</div>
-        <div class="desc">smallCaps headers, single pipe-separated skills line, degree-first education, "Title: description" projects. Best for cybersecurity / IT.</div>
-      </div>
+      <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT</label>
+      <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
+        <option value="demo_4">Demo 4 — Single column · Categorical</option>
+        <option value="demo_2">Demo 2 — Single column · Two-col skills</option>
+        <option value="demo_1">Demo 1 — Single column · Highlighted skills</option>
+        <option value="demo_5">Demo 5 — Single column · Inline skills</option>
+        <option value="demo_6">Demo 6 — Two column · Sidebar</option>
+        <option value="demo_8">Demo 8 — Single column · Marketing</option>
+      </select>
+      <div class="tpl-desc" id="tpl-desc"></div>
     </div>
 
     <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->

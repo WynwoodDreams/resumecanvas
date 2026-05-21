@@ -11,10 +11,13 @@ let state = {
     demo_2: ["skills", "education", "certs", "projects", "experience"],
     demo_1: ["skills", "education", "projects", "experience"],
     demo_5: ["skills", "education", "projects", "experience"],
+    demo_6: ["skills", "education", "experience"],
+    demo_8: ["skills", "experience", "education"],
   },
   match: { on: false, jd: "" },
   // Demo 4 header
   name: "Jane Doe",
+  professional_title: "Business Administration Student",
   location: "North Miami, FL 33161",
   phone: "786-121-1112",
   email: "lurlene.carry001@mymdc.net",
@@ -35,6 +38,8 @@ let state = {
       subline_bold: "",
       subline_rest: "",
       coursework: "",
+      // Demo 8 extra
+      certifications: "",
     },
   ],
   // Demo 4 skills
@@ -113,30 +118,50 @@ const _DEFAULT_STATE_JSON = JSON.stringify(state);
 
 const TEMPLATES = {
   demo_4: {
-    headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
+    layout: "single", header: "structured", headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
     projMode: "dated", expMode: "italic", certs: false,
     namePt: 20, sectionPt: 12, bodyPt: 12,
+    name: "Single column · Categorical", desc: "12pt body, skills as labeled categories (Technical, Administrative, etc). Best for students with broad skill profiles.",
     labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_2: {
-    headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
+    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
     projMode: "bullets", expMode: "company", certs: true,
     namePt: 16, sectionPt: 11, bodyPt: 11,
+    name: "Single column · Two-col skills", desc: "11pt smallCaps headers, two-column skill grid, certifications section. Best for technical hires with more density.",
     labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_1: {
-    headerCase: "title", skillsMode: "two_column", eduMode: "demo1",
+    layout: "single", header: "lines", headerCase: "title", skillsMode: "two_column", eduMode: "demo1",
     projMode: "paragraph", expMode: "company", certs: false,
     namePt: 18, sectionPt: 12, bodyPt: 11,
+    name: "Single column · Highlighted skills", desc: "Title-case headers, two-column bulleted skills, coursework lists, paragraph-style projects. Best for AI / data students.",
     labels: { summary: "Profile Summary", skills: "Highlighted Skills", education: "Education", projects: "Projects", experience: "Work Experience", certs: "Certifications" },
   },
   demo_5: {
-    headerCase: "smallcaps", skillsMode: "pipe", eduMode: "demo5",
+    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "pipe", eduMode: "demo5",
     projMode: "paragraph_inline", expMode: "company", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
+    name: "Single column · Inline skills", desc: "smallCaps headers, single pipe-separated skills line, degree-first education, \"Title: description\" projects. Best for cybersecurity / IT.",
     labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
+  demo_6: {
+    layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
+    projMode: "none", expMode: "company_first", certs: false,
+    namePt: 22, sectionPt: 11, bodyPt: 10,
+    name: "Two column · Sidebar", desc: "Left sidebar (contact, education, key skills) beside a main column (about me, career highlights). Best for a modern, design-forward look.",
+    labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
+  },
+  demo_8: {
+    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo8",
+    projMode: "none", expMode: "company", certs: false,
+    namePt: 17, sectionPt: 11, bodyPt: 11,
+    name: "Single column · Marketing", desc: "Single contact line, PROFILE summary, categorized skills & tools, dated experience, education with coursework + certifications. Best for marketing / business.",
+    labels: { summary: "PROFILE", skills: "SKILLS & TOOLS", education: "EDUCATION", projects: "PROJECTS", experience: "EXPERIENCE", certs: "CERTIFICATIONS" },
+  },
 };
+
+const TEMPLATE_ORDER = ["demo_4", "demo_2", "demo_1", "demo_5", "demo_6", "demo_8"];
 
 function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
 function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
@@ -654,7 +679,10 @@ function resetState() {
 
 function renderHeader() {
   const body = $("#body-header");
-  if (state.template === "demo_4") {
+  if (tcfg().header === "structured") {
+    const titleRow = state.template === "demo_6"
+      ? `<div class="row"><label>PROFESSIONAL TITLE</label><input type="text" data-bind="professional_title" value="${esc(state.professional_title || "")}" placeholder="e.g. Marketing Student"><div class="help">Shown under the name in the sidebar header.</div></div>`
+      : "";
     const linkItems = state.links.map((url, i) => `
       <div class="item">
         <div class="item-head">
@@ -666,6 +694,7 @@ function renderHeader() {
     `).join("");
     body.innerHTML = `
       <div class="row"><label>FULL NAME</label><input type="text" class="required" data-bind="name" value="${esc(state.name)}" placeholder="Full name"></div>
+      ${titleRow}
       <div class="row two">
         <div><label>LOCATION</label><input type="text" class="required" data-bind="location" value="${esc(state.location)}" placeholder="City, State ZIP"></div>
         <div><label>PHONE</label><input type="text" class="required" data-bind="phone" value="${esc(state.phone)}" placeholder="305-555-1234"></div>
@@ -713,7 +742,10 @@ function renderEducation() {
     const courseworkField = showCoursework ? `
       <div class="row"><label>RELEVANT COURSEWORK (optional)</label><input type="text" data-edu="${i}" data-field="coursework" value="${esc(e.coursework || "")}" placeholder="SQL, Tableau, Power BI, ..."></div>
     ` : "";
-    const extra = sublineFields + courseworkField;
+    const certsField = state.template === "demo_8" ? `
+      <div class="row"><label>CERTIFICATIONS (optional)</label><input type="text" data-edu="${i}" data-field="certifications" value="${esc(e.certifications || "")}" placeholder="Google Analytics, HubSpot Inbound, ..."><div class="help">Comma-separated. Appears as a "Certifications:" line under this entry.</div></div>
+    ` : "";
+    const extra = sublineFields + courseworkField + certsField;
     return `
       <div class="item">
         <div class="item-head">
@@ -945,7 +977,7 @@ function addCert() { state.certifications.push(""); render(); }
 function removeCert(i) { state.certifications.splice(i, 1); render(); }
 function addLink() { state.links.push(""); render(); }
 function removeLink(i) { state.links.splice(i, 1); render(); }
-function addEdu() { state.education.push({ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "" }); render(); }
+function addEdu() { state.education.push({ school: "", city: "", degree: "", date: "", subline_bold: "", subline_rest: "", coursework: "", certifications: "" }); render(); }
 function removeEdu(i) { state.education.splice(i, 1); render(); }
 function addProject() { state.projects.push({ title: "", date: "", location: "", bullets: [""] }); render(); }
 function removeProject(i) { state.projects.splice(i, 1); render(); }
@@ -1113,20 +1145,28 @@ function updateReorderButtonStates() {
 // TEMPLATE SWITCH
 // ─────────────────────────────────────────────────────────
 
-$$(".tpl-chip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    if (chip.dataset.tpl === state.template) return;
-    state.template = chip.dataset.tpl;
-    state.font_pt = null; // reset font choice on template switch — each template has its own default
-    $$(".tpl-chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    $$("[data-font]").forEach(c => c.classList.remove("active"));
-    $("#font-chip-default").classList.add("active");
-    $("#panel-certs").classList.toggle("hidden", !tcfg().certs);
-    reorderPanels();
-    setCaseId();
-    render();
-  });
+// The dropdown options ship in index.html (so the picker is never empty even
+// before/without JS). As a safety net, rebuild them from config if missing.
+(function ensureTemplateDropdown() {
+  const dd = $("#tpl-dropdown");
+  if (!dd || (dd.options && dd.options.length > 0)) return;
+  dd.innerHTML = TEMPLATE_ORDER.map(tpl => {
+    const c = TEMPLATES[tpl];
+    const code = tpl.replace("_", " ").replace(/\b\w/g, m => m.toUpperCase());
+    return `<option value="${tpl}">${code} — ${esc(c.name)}</option>`;
+  }).join("");
+})();
+
+$("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
+  const tpl = ev.target.value;
+  if (!TEMPLATES[tpl] || tpl === state.template) return;
+  state.template = tpl;
+  state.font_pt = null; // reset font choice on template switch — each template has its own default
+  $$("[data-font]").forEach(c => c.classList.remove("active"));
+  $("#font-chip-default").classList.add("active");
+  reorderPanels();
+  setCaseId();
+  render();
 });
 
 // Window resize re-paginates the preview at the new width.
@@ -1174,6 +1214,21 @@ function renderEducationPreviewHtml(tpl) {
       if (e.coursework) {
         html += `<div class="edu-coursework"><span class="bold">Relevant Coursework: </span>${linkify(e.coursework)}</div>`;
       }
+    } else if (c.eduMode === "demo6") {
+      // Sidebar: compact "School (date) — Degree" line per entry.
+      const head = [esc(e.school), e.date ? `(${esc(e.date)})` : ""].filter(Boolean).join(" ");
+      html += `<div class="edu-line${gapClass}">${head}${e.degree ? ` — ${esc(e.degree)}` : ""}</div>`;
+    } else if (c.eduMode === "demo8") {
+      // "Degree (bold) School | City" left, date right; then coursework + certs lines.
+      const left = [`<span class="bold">${esc(e.degree)}</span>`, esc(e.school)].filter(Boolean).join(" ")
+        + (e.city ? ` | ${esc(e.city)}` : "");
+      html += `<div class="entry-title-row${gapClass}"><div class="title-plain">${left}</div><div class="date">${esc(e.date)}</div></div>`;
+      if (e.coursework) {
+        html += `<div class="edu-coursework"><span class="bold">Coursework: </span>${linkify(e.coursework)}</div>`;
+      }
+      if (e.certifications) {
+        html += `<div class="edu-coursework"><span class="bold">Certifications: </span>${linkify(e.certifications)}</div>`;
+      }
     } else {
       // demo2 / demo1: school+city row, degree+date row, optional subline + coursework.
       const degRowClass = c.eduMode === "demo1" ? "edu-row" : "edu-degree-row";
@@ -1199,6 +1254,14 @@ function renderSkillsPreviewHtml(tpl) {
     });
   } else if (c.skillsMode === "pipe") {
     html += `<div class="skills-line">${esc(state.skills_inline || "")}</div>`;
+  } else if (c.skillsMode === "list") {
+    // Sidebar: flat bullet list, flattening the two-column pairs in reading order.
+    html += `<ul class="skills-list">`;
+    state.skills_two_column.forEach(r => {
+      if (r.left) html += `<li>${esc(r.left)}</li>`;
+      if (r.right) html += `<li>${esc(r.right)}</li>`;
+    });
+    html += `</ul>`;
   } else {
     html += `<ul class="skills-2col">`;
     state.skills_two_column.forEach(r => {
@@ -1254,13 +1317,21 @@ function renderProjectsPreviewHtml(tpl) {
 }
 
 function renderExperiencePreviewHtml(tpl) {
-  let html = `<div class="resume-section-h">${esc(tcfg(tpl).labels.experience)}</div>`;
+  const c = tcfg(tpl);
+  let html = `<div class="resume-section-h">${esc(c.labels.experience)}</div>`;
   state.experience.forEach(en => {
-    html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
-    if (tpl === "demo_4") {
-      if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
+    if (c.expMode === "company_first") {
+      // demo6: "COMPANY | DATE" line, then job title, then bullets.
+      const head = [en.company_city, en.date].filter(Boolean).join(" | ");
+      html += `<div class="hl-company">${linkify(head)}</div>`;
+      if (en.title) html += `<div class="hl-title">${esc(en.title)}</div>`;
     } else {
-      if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
+      html += `<div class="entry-title-row"><div class="title">${esc(en.title)}</div><div class="date">${esc(en.date)}</div></div>`;
+      if (c.expMode === "italic") {
+        if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
+      } else {
+        if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
+      }
     }
     if (en.bullets && en.bullets.length) {
       html += `<ul class="bullets-list">`;
@@ -1279,31 +1350,68 @@ const PREVIEW_SECTION_RENDERERS = {
   experience: (tpl) => (state.section_enabled.experience && state.experience.length > 0) ? renderExperiencePreviewHtml(tpl) : "",
 };
 
+// Two-column sidebar layout (demo_6). Built as an HTML table so the columns
+// survive both the browser preview and the Word (.doc) export, which has poor
+// flex/grid support.
+function renderSidebarPreviewHtml() {
+  const tpl = state.template;
+  const c = tcfg(tpl);
+  let head = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
+  if (state.professional_title) head += `<div class="resume-title">${esc(state.professional_title)}</div>`;
+
+  let side = `<div class="resume-section-h">${esc(c.labels.contact)}</div>`;
+  const contactBits = [];
+  if (state.phone) contactBits.push(`📞 ${esc(state.phone)}`);
+  if (state.email) contactBits.push(`✉ ${linkify(state.email)}`);
+  if (state.location) contactBits.push(`📍 ${esc(state.location)}`);
+  if (state.linkedin) contactBits.push(`🔗 ${linkify(state.linkedin)}`);
+  side += contactBits.map(b => `<div class="contact-line">${b}</div>`).join("");
+  side += renderEducationPreviewHtml(tpl);
+  side += renderSkillsPreviewHtml(tpl);
+
+  let main = "";
+  if (state.section_enabled.summary !== false) main += renderSummaryPreviewHtml();
+  if (state.section_enabled.experience !== false && state.experience.length) {
+    main += renderExperiencePreviewHtml(tpl);
+  }
+
+  return head +
+    `<table class="sidebar-grid"><tbody><tr>` +
+    `<td class="col-side">${side}</td>` +
+    `<td class="col-main">${main}</td>` +
+    `</tr></tbody></table>`;
+}
+
 function renderPreview() {
   const tpl = state.template;
   const f = $("#preview");
-  let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-  if (tpl === "demo_4") {
-    const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
-    const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
-    html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
+  let html;
+  if (tcfg(tpl).layout === "sidebar") {
+    html = renderSidebarPreviewHtml();
   } else {
-    const line2 = (state.contact_line2 || "").trim();
-    html += `<div class="resume-contact">${linkify(state.contact_line1)}${line2 ? "<br>" + linkify(line2) : ""}</div>`;
-    html += `<div class="resume-contact-divider"></div>`;
+    html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
+    if (tpl === "demo_4") {
+      const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
+      const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
+      html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
+    } else {
+      const line2 = (state.contact_line2 || "").trim();
+      html += `<div class="resume-contact">${linkify(state.contact_line1)}${line2 ? "<br>" + linkify(line2) : ""}</div>`;
+      html += `<div class="resume-contact-divider"></div>`;
+    }
+
+    if (state.section_enabled.summary !== false) {
+      html += renderSummaryPreviewHtml();
+    }
+
+    const order = state.section_order[tpl] || [];
+    for (const sec of order) {
+      const fn = PREVIEW_SECTION_RENDERERS[sec];
+      if (fn) html += fn(tpl);
+    }
   }
 
-  if (state.section_enabled.summary !== false) {
-    html += renderSummaryPreviewHtml();
-  }
-
-  const order = state.section_order[tpl] || [];
-  for (const sec of order) {
-    const fn = PREVIEW_SECTION_RENDERERS[sec];
-    if (fn) html += fn(tpl);
-  }
-
-  const defaultFontPt = tpl === "demo_4" ? 12 : 11;
+  const defaultFontPt = tcfg(tpl).bodyPt;
   const fontPt = state.font_pt || defaultFontPt;
   state._appliedFontPt = fontPt;
 
@@ -1509,12 +1617,20 @@ $("#summary").addEventListener("input", (ev) => {
 // FULL RENDER
 // ─────────────────────────────────────────────────────────
 
-// Reflect state.template in the chip selection + certs panel visibility so a
+// Reflect state.template in the dropdown + section-panel visibility so a
 // restored resume (or one switched via the library) shows the right UI.
 function syncTemplateUI() {
-  $$(".tpl-chip").forEach(c => c.classList.toggle("active", c.dataset.tpl === state.template));
+  const cfg = tcfg();
+  const dd = $("#tpl-dropdown");
+  if (dd && dd.value !== state.template) dd.value = state.template;
+  const desc = $("#tpl-desc");
+  if (desc) desc.textContent = cfg.desc || "";
   const certsPanel = $("#panel-certs");
-  if (certsPanel) certsPanel.classList.toggle("hidden", !tcfg().certs);
+  if (certsPanel) certsPanel.classList.toggle("hidden", !cfg.certs);
+  // Hide the Projects panel for templates whose section order omits projects.
+  const order = state.section_order[state.template] || [];
+  const projPanel = $(".panel[data-section='projects']");
+  if (projPanel) projPanel.classList.toggle("hidden", !order.includes("projects"));
 }
 
 function render() {
@@ -1571,11 +1687,12 @@ function buildExportDocument() {
   body { margin: 0; background: #fff; color: #020826; }
   .preview-frame { font-family: Georgia, serif; line-height: 1.45; font-size: ${fontPt}pt; color: #020826; }
   .resume-name { text-align: center; font-weight: 700; margin: 0 0 3px 0; line-height: 1.1; font-size: ${tcfg().namePt}pt; }
+  .resume-title { text-align: center; font-size: 11pt; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px 0; color: #555; }
   .resume-contact { text-align: center; font-size: 9pt; padding-bottom: 4px; border-bottom: 0.5pt solid #c8b89f; margin-bottom: 8px; line-height: 1.35; }
   .demo_2 .resume-contact, .demo_1 .resume-contact, .demo_5 .resume-contact { border-bottom: none; }
   .resume-contact-divider { border-bottom: 0.5pt solid #c8b89f; margin: 2px 0 8px 0; }
   .resume-section-h { font-weight: 700; padding-bottom: 2px; border-bottom: 0.5pt solid #c8b89f; margin: 12px 0 6px 0; }
-  .demo_2 .resume-section-h, .demo_5 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
+  .demo_2 .resume-section-h, .demo_5 .resume-section-h, .demo_6 .resume-section-h, .demo_8 .resume-section-h { font-variant: small-caps; letter-spacing: 0.04em; }
   .edu-row, .entry-title-row, .edu-degree-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .entry-title-row { margin: 8px 0 2px 0; }
   .title, .date, .strong, .bold, .lbl { font-weight: 700; }
@@ -1585,13 +1702,23 @@ function buildExportDocument() {
   .bullets-list li { margin: 2px 0; }
   .skill-cat { margin: 4px 0; }
   .skills-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; padding-left: 18px; margin: 4px 0; }
+  .skills-list { margin: 4px 0; padding-left: 18px; }
+  .skills-list li { margin: 2px 0; }
   .skills-line { margin: 4px 0; line-height: 1.5; }
   .proj-desc { margin: 2px 0; }
   .edu-gap { margin-top: 8px; }
+  .edu-line { margin: 3px 0; }
   .edu-subline, .edu-coursework { margin: 2px 0; }
   .edu-degree-bold { font-weight: 700; margin: 4px 0 0 0; }
   .proj-title { font-weight: 700; margin: 6px 0 2px 0; }
   .exp-company { margin: 0 0 2px 0; }
+  .hl-company { font-weight: 700; margin: 8px 0 0 0; }
+  .hl-title { font-style: italic; margin: 0 0 2px 0; }
+  .contact-line { margin: 2px 0; font-size: 0.95em; }
+  .sidebar-grid { width: 100%; border-collapse: collapse; }
+  .sidebar-grid .col-side { width: 34%; vertical-align: top; padding-right: 16px; border-right: 0.5pt solid #c8b89f; }
+  .sidebar-grid .col-main { width: 66%; vertical-align: top; padding-left: 16px; }
+  .demo_6 .resume-section-h:first-child, .col-side .resume-section-h:first-child, .col-main .resume-section-h:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -1646,6 +1773,11 @@ function buildResumePdfBytes() {
   const xLeft = doc.marginL;
   const xRight = doc.pageW - doc.marginR;
 
+  if (cfg.layout === "sidebar") {
+    pdfBuildSidebar(doc, cfg, BODY_PT, SECTION_PT, contentW, xLeft, xRight);
+    return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
+  }
+
   // ── Header (name + contact) ─────────────────────────────────────────────
   doc.setFont("Times-Bold", NAME_PT);
   doc.ensure(NAME_PT * 1.1);
@@ -1692,6 +1824,108 @@ function buildResumePdfBytes() {
   }
 
   return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
+}
+
+// Column-local section header: bold label + an underline only as wide as the column.
+function pdfColHeader(doc, label, sizePt, x, w) {
+  doc.advance(6);
+  doc.ensure(sizePt * 1.2 + 6);
+  doc.setFont("Times-Bold", sizePt);
+  doc.text(label, x, doc._cur.y);
+  doc.advance(2);
+  doc.hline(x, x + w, doc._cur.y, 0.5);
+  doc.advance(6);
+}
+
+// Two-column sidebar layout (demo_6). Renders the side column, resets the
+// cursor to the top, then renders the main column beside it, with a divider.
+function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
+  const NAME_PT = cfg.namePt;
+  // ── Header: name + professional title, centered, full width ──
+  doc.setFont("Times-Bold", NAME_PT);
+  doc.ensure(NAME_PT * 1.1);
+  doc.advance(NAME_PT * 0.85);
+  doc.textCentered(state.name || "—", doc._cur.y);
+  doc.advance(NAME_PT * 0.5);
+  if (state.professional_title) {
+    doc.setFont("Times-Roman", 11);
+    doc.textCentered(String(state.professional_title).toUpperCase(), doc._cur.y);
+    doc.advance(11 * 1.5);
+  }
+  doc.hline(xLeft, xRight, doc._cur.y, 0.5);
+  doc.advance(10);
+
+  const colGap = 22;
+  const sideW = Math.round(contentW * 0.34);
+  const mainW = contentW - sideW - colGap;
+  const sideX = xLeft;
+  const mainX = xLeft + sideW + colGap;
+  const topY = doc._cur.y;
+
+  // ── Side column: contact, education, key skills ──
+  doc._cur.y = topY;
+  pdfColHeader(doc, cfg.labels.contact, sectionPt, sideX, sideW);
+  doc.setFont("Times-Roman", 9);
+  // Emoji icons can't be encoded by the Times/WinAnsi font set, so labels are plain text.
+  [state.phone, state.email, state.location, state.linkedin].filter(Boolean).forEach(line => {
+    doc.wrap(line, sideX, doc._cur.y, sideW);
+  });
+
+  const eduItems = (state.education || []).filter(e => e.school || e.degree);
+  if (eduItems.length) {
+    pdfColHeader(doc, cfg.labels.education, sectionPt, sideX, sideW);
+    doc.setFont("Times-Roman", bodyPt);
+    eduItems.forEach((e, i) => {
+      if (i > 0) doc.advance(3);
+      const head = [e.school, e.date ? `(${e.date})` : ""].filter(Boolean).join(" ");
+      const full = head + (e.degree ? ` — ${e.degree}` : "");
+      doc.wrap(full, sideX, doc._cur.y, sideW);
+    });
+  }
+
+  const skillItems = [];
+  (state.skills_two_column || []).forEach(r => { if (r.left) skillItems.push(r.left); if (r.right) skillItems.push(r.right); });
+  if (skillItems.length) {
+    pdfColHeader(doc, cfg.labels.skills, sectionPt, sideX, sideW);
+    doc.setFont("Times-Roman", bodyPt);
+    skillItems.forEach(s => doc.bullet(s, sideX, sideW));
+  }
+  const sideEndY = doc._cur.y;
+
+  // ── Main column: about me, career highlights ──
+  doc._cur.y = topY;
+  if (state.section_enabled.summary !== false && (state.summary || "").trim()) {
+    pdfColHeader(doc, cfg.labels.summary, sectionPt, mainX, mainW);
+    doc.setFont("Times-Roman", bodyPt);
+    doc.wrap(state.summary, mainX, doc._cur.y, mainW);
+  }
+  const expItems = (state.experience || []).filter(e => e.title || (e.bullets || []).some(Boolean));
+  if (state.section_enabled.experience !== false && expItems.length) {
+    pdfColHeader(doc, cfg.labels.experience, sectionPt, mainX, mainW);
+    const lineH = bodyPt * 1.2;
+    expItems.forEach((e, i) => {
+      if (i > 0) doc.advance(5);
+      const head = [e.company_city, e.date].filter(Boolean).join(" | ");
+      if (head) {
+        doc.setFont("Times-Bold", bodyPt);
+        doc.wrap(head, mainX, doc._cur.y, mainW);
+      }
+      if (e.title) {
+        doc.setFont("Times-Italic", bodyPt);
+        doc.ensure(lineH);
+        doc.text(e.title, mainX, doc._cur.y);
+        doc.advance(lineH);
+      }
+      doc.setFont("Times-Roman", bodyPt);
+      (e.bullets || []).filter(Boolean).forEach(b => doc.bullet(b, mainX, mainW));
+    });
+  }
+  const mainEndY = doc._cur.y;
+
+  // ── Vertical divider between the two columns ──
+  const divX = xLeft + sideW + colGap / 2;
+  const botY = Math.min(sideEndY, mainEndY);
+  if (botY < topY) doc._cur.ops.push(`q 0.5 w ${divX} ${topY} m ${divX} ${botY} l S Q`);
 }
 
 function global_RcPdf() {
@@ -2290,68 +2524,76 @@ async function sharePdf() {
 
 function buildPayload() {
   const tpl = state.template;
+  const cfg = tcfg(tpl);
+  const order = state.section_order[tpl] || [];
   const summaryOn = state.section_enabled.summary !== false;
   const out = {
     name: state.name,
     summary: summaryOn ? state.summary : "",
-    font_pt: state._appliedFontPt || (tpl === "demo_4" ? 12 : 11),
-    section_order: (state.section_order[tpl] || []).slice(),
+    font_pt: state._appliedFontPt || cfg.bodyPt,
+    section_order: order.slice(),
   };
-  if (tpl === "demo_4") {
+
+  // ── Header ──
+  if (cfg.header === "structured") {
     out.location = state.location;
     out.phone = state.phone;
     out.email = state.email;
     out.linkedin = state.linkedin;
     out.links = (state.links || []).filter(Boolean);
-    out.education = state.education
-      .filter(e => e.school || e.degree)
-      .map(e => ({ school: e.school, city: e.city, degree: e.degree, date: e.date }));
-    out.skills_categories = state.skills_categories.filter(c => c.label || c.content);
-    out.projects = state.section_enabled.projects
-      ? state.projects.filter(p => p.title).map(p => ({
-          title: p.title, date: p.date, location: p.location,
-          bullets: (p.bullets || []).filter(Boolean),
-        }))
-      : [];
-    out.experience = state.section_enabled.experience
-      ? state.experience.filter(e => e.title).map(e => ({
-          title: e.title, date: e.date, location: e.location,
-          bullets: (e.bullets || []).filter(Boolean),
-        }))
-      : [];
+    if (state.professional_title) out.professional_title = state.professional_title;
   } else {
     out.contact_line1 = state.contact_line1;
     out.contact_line2 = state.contact_line2;
-    out.education = state.education
-      .filter(e => e.school || e.degree)
-      .map(e => ({
-        school: e.school, city: e.city,
-        degree: e.degree, date: e.date,
-        subline_bold: e.subline_bold || "",
-        subline_rest: e.subline_rest || "",
-        coursework: e.coursework || "",
-      }));
-    if (tcfg(tpl).skillsMode === "pipe") {
-      out.skills_inline = state.skills_inline || "";
-    } else {
-      out.skills_two_column = state.skills_two_column
-        .filter(r => r.left || r.right)
-        .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
-    }
-    if (tcfg(tpl).certs) out.certifications = state.certifications.filter(Boolean);
+  }
+
+  // ── Education ──
+  out.education = state.education
+    .filter(e => e.school || e.degree)
+    .map(e => {
+      const ed = { school: e.school, city: e.city, degree: e.degree, date: e.date };
+      if (cfg.eduMode === "demo2") { ed.subline_bold = e.subline_bold || ""; ed.subline_rest = e.subline_rest || ""; }
+      if (e.coursework) ed.coursework = e.coursework;
+      if (cfg.eduMode === "demo8" && e.certifications) ed.certifications = e.certifications;
+      return ed;
+    });
+
+  // ── Skills ──
+  if (cfg.skillsMode === "categories") {
+    out.skills_categories = state.skills_categories.filter(c => c.label || c.content);
+  } else if (cfg.skillsMode === "pipe") {
+    out.skills_inline = state.skills_inline || "";
+  } else if (cfg.skillsMode === "list") {
+    out.skills = state.skills_two_column.flatMap(r => [r.left, r.right].filter(Boolean));
+  } else {
+    out.skills_two_column = state.skills_two_column
+      .filter(r => r.left || r.right)
+      .map(r => ({ left: r.left || "", right_with_bullet: r.right ? `• ${r.right}` : "" }));
+  }
+
+  if (cfg.certs) out.certifications = state.certifications.filter(Boolean);
+
+  // ── Projects (only when this template includes them) ──
+  if (order.includes("projects")) {
     out.projects = state.section_enabled.projects
-      ? state.projects.filter(p => p.title).map(p => ({
-          title: p.title,
-          bullets: (p.bullets || []).filter(Boolean),
-        }))
-      : [];
-    out.experience = state.section_enabled.experience
-      ? state.experience.filter(e => e.title).map(e => ({
-          title: e.title, date: e.date, company_city: e.company_city,
-          bullets: (e.bullets || []).filter(Boolean),
-        }))
+      ? state.projects.filter(p => p.title).map(p => {
+          const pr = { title: p.title, bullets: (p.bullets || []).filter(Boolean) };
+          if (cfg.projMode === "dated") { pr.date = p.date; pr.location = p.location; }
+          return pr;
+        })
       : [];
   }
+
+  // ── Experience ──
+  out.experience = state.section_enabled.experience
+    ? state.experience.filter(e => e.title || e.company_city).map(e => {
+        const ex = { title: e.title, date: e.date, bullets: (e.bullets || []).filter(Boolean) };
+        if (cfg.expMode === "italic") ex.location = e.location;
+        else ex.company_city = e.company_city;
+        return ex;
+      })
+    : [];
+
   return out;
 }
 
