@@ -44,6 +44,38 @@
       333,500,500,444,500,444,333,500,556,278,278,500,278,778,556,500,
       500,500,389,389,278,556,444,667,500,444,389,348,220,348,570,
     ],
+    "Helvetica": [
+      278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
+      556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,
+      1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,
+      667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,
+      333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,
+      556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,
+    ],
+    "Helvetica-Bold": [
+      278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,
+      556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,
+      975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,
+      667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,
+      333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,
+      611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,
+    ],
+    "Helvetica-Oblique": [
+      278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
+      556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,
+      1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,
+      667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,
+      333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,
+      556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,
+    ],
+    "Helvetica-BoldOblique": [
+      278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,
+      556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,
+      975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,
+      667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,
+      333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,
+      611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,
+    ],
   };
 
   // WinAnsi codepoints we add manually beyond ASCII 32–126.
@@ -53,7 +85,25 @@
     "Times-Bold":      { 0x95: 350, 0x96: 500, 0x97: 1000, 0x91: 333, 0x92: 333, 0x93: 500, 0x94: 500, 0x85: 1000, 0xA0: 250 },
     "Times-Italic":    { 0x95: 350, 0x96: 500, 0x97: 889,  0x91: 333, 0x92: 333, 0x93: 556, 0x94: 556, 0x85: 889,  0xA0: 250 },
     "Times-BoldItalic":{ 0x95: 350, 0x96: 500, 0x97: 1000, 0x91: 333, 0x92: 333, 0x93: 500, 0x94: 500, 0x85: 1000, 0xA0: 250 },
+    "Helvetica":              { 0x95: 350, 0x96: 556, 0x97: 1000, 0x91: 222, 0x92: 222, 0x93: 333, 0x94: 333, 0x85: 1000, 0xA0: 278 },
+    "Helvetica-Bold":         { 0x95: 350, 0x96: 556, 0x97: 1000, 0x91: 278, 0x92: 278, 0x93: 500, 0x94: 500, 0x85: 1000, 0xA0: 278 },
+    "Helvetica-Oblique":      { 0x95: 350, 0x96: 556, 0x97: 1000, 0x91: 222, 0x92: 222, 0x93: 333, 0x94: 333, 0x85: 1000, 0xA0: 278 },
+    "Helvetica-BoldOblique":  { 0x95: 350, 0x96: 556, 0x97: 1000, 0x91: 278, 0x92: 278, 0x93: 500, 0x94: 500, 0x85: 1000, 0xA0: 278 },
   };
+
+  // Active font family. The renderer always asks for Times-* logical names;
+  // when the family is Helvetica we transparently map those to the Helvetica
+  // equivalents (Roman→base, Italic→Oblique) so call sites need no changes.
+  let ACTIVE_FAMILY = "Times";
+  const HELV_MAP = {
+    "Times-Roman": "Helvetica",
+    "Times-Bold": "Helvetica-Bold",
+    "Times-Italic": "Helvetica-Oblique",
+    "Times-BoldItalic": "Helvetica-BoldOblique",
+  };
+  function resolveFont(name) {
+    return ACTIVE_FAMILY === "Helvetica" ? (HELV_MAP[name] || name) : name;
+  }
 
   // Unicode → WinAnsi mapping for the punctuation people actually paste in.
   const UNICODE_MAP = {
@@ -75,6 +125,7 @@
   }
 
   function measure(font, sizePt, str) {
+    font = resolveFont(font);
     let units = 0;
     for (let i = 0; i < str.length; i++) {
       units += widthOf(font, encodeChar(str.charCodeAt(i)));
@@ -110,6 +161,7 @@
     this.marginR = opts.marginR || 54;
     this.marginT = opts.marginT || 54;
     this.marginB = opts.marginB || 54;
+    ACTIVE_FAMILY = "Times"; // each document starts on the default family
     this.font = "Times-Roman";
     this.size = 11;
     this.lineH = 1.25;
@@ -125,8 +177,14 @@
   };
 
   PdfDoc.prototype.setFont = function (font, size) {
-    if (font) this.font = font;
+    if (font) this.font = resolveFont(font);
     if (size != null) this.size = size;
+  };
+
+  // Switch the whole document's typeface: "Times" (default) or "Helvetica".
+  PdfDoc.prototype.setFamily = function (family) {
+    ACTIVE_FAMILY = family === "Helvetica" ? "Helvetica" : "Times";
+    this.font = resolveFont(this.font);
   };
 
   PdfDoc.prototype.remaining = function () {
@@ -153,7 +211,10 @@
   };
 
   PdfDoc.prototype._fontResourceKey = function (name) {
-    return { "Times-Roman": "F1", "Times-Bold": "F2", "Times-Italic": "F3", "Times-BoldItalic": "F4" }[name] || "F1";
+    return {
+      "Times-Roman": "F1", "Times-Bold": "F2", "Times-Italic": "F3", "Times-BoldItalic": "F4",
+      "Helvetica": "F5", "Helvetica-Bold": "F6", "Helvetica-Oblique": "F7", "Helvetica-BoldOblique": "F8",
+    }[name] || "F1";
   };
 
   PdfDoc.prototype.text = function (str, x, y) {
@@ -252,7 +313,8 @@
     objects.push(null);
 
     const fontIds = {};
-    ["Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"].forEach((name) => {
+    ["Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+     "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"].forEach((name) => {
       const id = objects.length;
       fontIds[name] = id;
       objects.push(
