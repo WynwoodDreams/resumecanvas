@@ -1056,6 +1056,11 @@ const ACTIONS = {
   toggleVoice: () => $("#voice-card").classList.toggle("collapsed"),
   voiceToggle: () => voiceToggle(),
   clearVoice: () => clearVoice(),
+  voiceAnalyze: () => voiceAnalyze(),
+  voiceRegenSummary: () => voiceRegenSummary(),
+  voiceApplySummary: () => voiceApplySummary(),
+  voiceApplySkills: () => voiceApplySkills(),
+  voiceToggleChip: (btn) => voiceToggleChip(btn),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -2587,6 +2592,258 @@ function clearVoice() {
   const ta = $("#voice-transcript");
   if (ta) ta.value = "";
   updateVoiceStatus("");
+  const review = $("#voice-review");
+  if (review) review.classList.add("hidden");
+}
+
+// ── Voice analysis → suggested summary + skills (client-side, heuristic) ─────
+// Speech-to-text is noisy, so we only ever *suggest*: the user reviews/edits
+// the drafted summary and toggles skill chips before anything is applied.
+
+const VOICE_TRAITS = [
+  "Hard-working", "Dependable", "Reliable", "Detail-oriented", "Organized",
+  "Motivated", "Driven", "Creative", "Analytical", "Adaptable", "Collaborative",
+  "Proactive", "Dedicated", "Passionate", "Ambitious", "Resourceful", "Personable",
+  "Professional", "Punctual", "Efficient", "Friendly", "Outgoing", "Confident",
+  "Curious", "Persistent", "Charismatic", "Team-oriented", "Self-motivated",
+];
+// Aliases for words speech-to-text commonly returns or people say casually.
+const VOICE_TRAIT_ALIASES = {
+  "hardworking": "Hard-working", "hard working": "Hard-working",
+  "detail oriented": "Detail-oriented", "self motivated": "Self-motivated",
+  "team oriented": "Team-oriented", "dependable": "Dependable",
+};
+const VOICE_SKILLS = [
+  "Customer Service", "Project Management", "Data Entry", "Social Media Management",
+  "Social Media", "Data Analysis", "Graphic Design", "Public Speaking", "Time Management",
+  "Team Leadership", "Leadership", "Content Creation", "Content Writing", "Copywriting",
+  "Digital Marketing", "Email Marketing", "SEO", "Video Editing", "Photography",
+  "Problem Solving", "Critical Thinking", "Bookkeeping", "Sales", "Marketing", "Accounting",
+  "Research", "Communication", "Written Communication", "Interpersonal Skills", "Teamwork",
+  "Collaboration", "Organization", "Multitasking", "Attention to Detail", "Conflict Resolution",
+  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Google Workspace", "Google Sheets",
+  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "C++",
+  "SQL", "HTML", "CSS", "R", "Canva", "Photoshop", "Illustrator", "InDesign", "Figma",
+  "Adobe Express", "CapCut", "Premiere Pro", "Tableau", "Power BI", "QuickBooks", "Salesforce",
+  "HubSpot", "Mailchimp", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
+  "Google Analytics", "Meta Ads Manager", "Scheduling", "Event Coordination", "Event Planning",
+  "Inventory Management", "Cash Handling", "Point of Sale", "Filing", "Recordkeeping",
+  "Spanish", "Bilingual", "Tutoring", "Mentoring", "Phone Etiquette", "Front Desk Operations",
+];
+// How speech-to-text often transcribes a skill → its canonical resume form.
+const VOICE_SKILL_ALIASES = {
+  "power point": "PowerPoint", "powerpoint": "PowerPoint",
+  "java script": "JavaScript", "word press": "WordPress",
+  "quick books": "QuickBooks", "cap cut": "CapCut", "in design": "InDesign",
+  "power bi": "Power BI", "google analytics": "Google Analytics",
+  "people skills": "Interpersonal Skills", "people person": "Interpersonal Skills",
+  "soft skills": "Communication", "detail oriented": "Attention to Detail",
+  "attention to detail": "Attention to Detail", "ms office": "Microsoft Office",
+  "microsoft excel": "Microsoft Excel", "ms excel": "Microsoft Excel",
+  "spread sheets": "Excel", "spreadsheets": "Excel", "search engine optimization": "SEO",
+  "point of sale": "Point of Sale", "pos system": "Point of Sale",
+  "social media marketing": "Social Media Management", "team player": "Teamwork",
+  "public speaker": "Public Speaking", "problem solver": "Problem Solving",
+  "customer support": "Customer Service", "client service": "Customer Service",
+  "data analytics": "Data Analysis", "video editor": "Video Editing",
+  "graphic designer": "Graphic Design", "book keeping": "Bookkeeping",
+};
+const VOICE_FIELDS = [
+  "business", "marketing", "finance", "accounting", "information technology",
+  "computer science", "cybersecurity", "data science", "graphic design", "design",
+  "healthcare", "nursing", "education", "engineering", "communications", "psychology",
+  "hospitality", "management", "technology",
+];
+
+function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function voiceMatchTerms(lower, terms) {
+  const found = [];
+  for (const t of terms) {
+    const re = new RegExp(`\\b${escapeRegExp(t.toLowerCase())}\\b`, "i");
+    if (re.test(lower)) found.push(t);
+  }
+  // Drop shorter terms that are substrings of a longer matched term
+  // (e.g. keep "Social Media Management", drop "Social Media").
+  return found.filter(t =>
+    !found.some(o => o !== t && o.toLowerCase().includes(t.toLowerCase()))
+  );
+}
+
+function analyzeVoiceProfile(text) {
+  const lower = ` ${String(text || "").toLowerCase()} `;
+  const traits = voiceMatchTerms(lower, VOICE_TRAITS);
+  for (const [alias, canon] of Object.entries(VOICE_TRAIT_ALIASES)) {
+    if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !traits.includes(canon)) traits.push(canon);
+  }
+  const skills = voiceMatchTerms(lower, VOICE_SKILLS);
+  for (const [alias, canon] of Object.entries(VOICE_SKILL_ALIASES)) {
+    if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !skills.includes(canon)) skills.push(canon);
+  }
+  // Re-apply substring de-dupe now that aliases may have added longer canon forms.
+  const dedupedSkills = skills.filter(t =>
+    !skills.some(o => o !== t && o.toLowerCase().includes(t.toLowerCase()))
+  );
+  let field = voiceMatchTerms(lower, VOICE_FIELDS)[0] || "";
+  if (!field) field = fieldFromEducation();
+  const isStudent = /\bstudent\b/.test(lower) || educationLooksCurrent();
+  return { traits, skills: dedupedSkills, field, status: isStudent ? "student" : "professional" };
+}
+
+function fieldFromEducation() {
+  const deg = (state.education && state.education[0] && state.education[0].degree) || "";
+  // "Associate in Arts, Business | GPA: 3.5" → "Business"
+  const m = deg.split(/[,|]/).map(s => s.trim()).filter(Boolean);
+  const tail = m.length > 1 ? m[1] : "";
+  const cleaned = tail.replace(/gpa.*$/i, "").trim();
+  return /^[a-z &]+$/i.test(cleaned) && cleaned.length <= 30 ? cleaned : "";
+}
+
+function educationLooksCurrent() {
+  return (state.education || []).some(e => /expected|present|current/i.test(`${e.date || ""}`));
+}
+
+function joinList(arr, conj = "and") {
+  const a = arr.filter(Boolean);
+  if (a.length === 0) return "";
+  if (a.length === 1) return a[0];
+  if (a.length === 2) return `${a[0]} ${conj} ${a[1]}`;
+  return `${a.slice(0, -1).join(", ")}, ${conj} ${a[a.length - 1]}`;
+}
+
+function lc(s) { return (s || "").charAt(0).toLowerCase() + (s || "").slice(1); }
+function cap(s) { return (s || "").charAt(0).toUpperCase() + (s || "").slice(1); }
+function tidy(s) {
+  return s.replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").replace(/\.\.+/g, ".").trim();
+}
+
+// Build a standard-form summary that varies with `variant` so it never reads
+// identically twice. Clauses are omitted gracefully when signal is missing.
+function composeVoiceSummary(a, variant) {
+  const field = a.field ? a.field.toLowerCase() : "";
+  const traits = (a.traits || []).slice(0, 2).map(lc);
+  const traitStr = joinList(traits);
+  // Don't echo the field back as a skill (e.g. "marketing student … with Marketing").
+  const skills = (a.skills || []).filter(s => s.toLowerCase() !== field).slice(0, 4);
+  const skillStr = joinList(skills);
+  const status = a.status || "professional";
+  const subject = field ? `${field} ${status}` : status;
+
+  const opener = [
+    traitStr ? `${cap(traitStr.split(" and ")[0])}${traits[1] ? `, ${traits[1]}` : ""} ${subject}` : `Motivated ${subject}`,
+    `${cap(subject)}${traitStr ? ` known for being ${traitStr}` : ""}`,
+    `Dedicated ${subject}${traitStr ? ` who is ${traitStr}` : ""}`,
+  ];
+  const middle = [
+    skillStr ? `with hands-on strengths in ${skillStr}` : `with a genuine drive to learn and contribute`,
+    skillStr ? `bringing practical experience with ${skillStr}` : `eager to take on responsibility and grow`,
+    skillStr ? `comfortable applying ${skillStr}` : `ready to add value from day one`,
+  ];
+  const closer = [
+    `Seeking ${field ? `${field} ` : ""}opportunities to apply these strengths and grow professionally.`,
+    `Looking to contribute to a collaborative team and deliver dependable results.`,
+    `Eager to take on a ${field ? `${field} ` : ""}role where reliability and initiative make a difference.`,
+  ];
+  const v = Math.abs(variant | 0);
+  const s1 = `${opener[v % opener.length]}, ${middle[(v + 1) % middle.length]}.`;
+  const s2 = closer[(v + 2) % closer.length];
+  return tidy(`${cap(s1)} ${s2}`);
+}
+
+let _voiceAnalysis = null;
+let _voiceVariant = 0;
+
+function voiceAnalyze() {
+  const text = (state.voice_profile || "").trim();
+  if (!text) { toast("RECORD OR TYPE YOUR INTRO FIRST"); return; }
+  _voiceAnalysis = analyzeVoiceProfile(text);
+  _voiceVariant = 0;
+  renderVoiceReview();
+  const review = $("#voice-review");
+  if (review) review.classList.remove("hidden");
+  toast("ANALYZED — REVIEW & APPLY BELOW");
+}
+
+function renderVoiceReview() {
+  if (!_voiceAnalysis) return;
+  const draft = $("#voice-summary-draft");
+  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
+  // Show the current summary for comparison if one exists.
+  const cur = $("#voice-current-summary");
+  if (cur) {
+    const existing = (state.summary || "").trim();
+    if (existing) { cur.textContent = `Current: ${existing}`; cur.classList.remove("hidden"); }
+    else cur.classList.add("hidden");
+  }
+  // Skill chips = detected hard skills + trait words; all selected by default.
+  const chipBox = $("#voice-skill-chips");
+  if (chipBox) {
+    const items = [...(_voiceAnalysis.skills || []), ..._voiceAnalysis.traits || []];
+    chipBox.innerHTML = items.length
+      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip">${esc(s)}</button>`).join("")
+      : `<div class="vr-empty">No clear skills detected — add them in the Skills section, or reword and try again.</div>`;
+  }
+}
+
+function voiceRegenSummary() {
+  if (!_voiceAnalysis) return;
+  _voiceVariant += 1;
+  const draft = $("#voice-summary-draft");
+  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
+}
+
+function voiceToggleChip(btn) { btn.classList.toggle("selected"); }
+
+function voiceApplySummary() {
+  const draft = $("#voice-summary-draft");
+  const text = draft ? draft.value.trim() : "";
+  if (!text) { toast("NOTHING TO APPLY"); return; }
+  state.summary = text;
+  state.section_enabled.summary = true;
+  renderSummary();
+  applySectionToggleStates();
+  renderPreview();
+  schedulePersist();
+  toast("SUMMARY UPDATED");
+}
+
+function voiceApplySkills() {
+  const chips = $$("#voice-skill-chips .voice-chip.selected").map(c => c.textContent.trim()).filter(Boolean);
+  if (!chips.length) { toast("SELECT AT LEAST ONE SKILL"); return; }
+  const added = addSkillsToState(chips);
+  if (!added) { toast("THOSE SKILLS ARE ALREADY LISTED"); return; }
+  render();
+  toast(`ADDED ${added} SKILL${added === 1 ? "" : "S"}`);
+}
+
+// Merge new skills into whatever shape the current template uses, skipping dupes.
+function addSkillsToState(skills) {
+  const cfg = tcfg();
+  const existing = new Set();
+  const note = (s) => { const t = (s || "").trim().toLowerCase(); if (t) existing.add(t); };
+  if (cfg.skillsMode === "categories") {
+    state.skills_categories.forEach(c => (c.content || "").split(",").forEach(note));
+  } else if (cfg.skillsMode === "pipe") {
+    (state.skills_inline || "").split(/[│|]/).forEach(note);
+  } else {
+    state.skills_two_column.forEach(r => { note(r.left); note(r.right); });
+  }
+  const add = skills.filter(s => !existing.has(s.trim().toLowerCase()));
+  if (!add.length) return 0;
+  if (cfg.skillsMode === "categories") {
+    let cat = state.skills_categories.find(c => /core|strength|highlight|key/i.test(c.label || ""));
+    if (!cat) { cat = { label: "Core Strengths", content: "" }; state.skills_categories.push(cat); }
+    const cur = (cat.content || "").split(",").map(s => s.trim()).filter(Boolean);
+    cat.content = cur.concat(add).join(", ");
+  } else if (cfg.skillsMode === "pipe") {
+    const cur = (state.skills_inline || "").trim();
+    state.skills_inline = cur ? `${cur} │ ${add.join(" │ ")}` : add.join(" │ ");
+  } else {
+    for (let i = 0; i < add.length; i += 2) {
+      state.skills_two_column.push({ left: add[i] || "", right: add[i + 1] || "" });
+    }
+  }
+  return add.length;
 }
 
 function micToggle(btn) {

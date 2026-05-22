@@ -109,6 +109,24 @@
         <textarea id="voice-transcript" class="voice-transcript" placeholder="Your spoken intro appears here — or just type a few sentences about yourself. Edit freely; this shapes tone only, not the facts."></textarea>
         <div class="voice-actions">
           <button class="icon-btn" type="button" data-action="clearVoice">CLEAR</button>
+          <button class="add-btn voice-analyze-btn" type="button" data-action="voiceAnalyze">✓ ANALYZE &amp; SUGGEST</button>
+        </div>
+
+        <div class="voice-review hidden" id="voice-review">
+          <div class="vr-block">
+            <div class="vr-label">SUGGESTED SUMMARY <span>· standard form, in your voice · editable</span></div>
+            <div class="vr-current hidden" id="voice-current-summary"></div>
+            <textarea id="voice-summary-draft" class="voice-summary-draft" placeholder="A drafted summary will appear here."></textarea>
+            <div class="vr-row">
+              <button class="icon-btn" type="button" data-action="voiceRegenSummary">↻ REWORD</button>
+              <button class="add-btn vr-apply" type="button" data-action="voiceApplySummary">USE THIS SUMMARY</button>
+            </div>
+          </div>
+          <div class="vr-block">
+            <div class="vr-label">DETECTED SKILLS <span>· tap to keep or drop</span></div>
+            <div class="voice-skill-chips" id="voice-skill-chips"></div>
+            <button class="add-btn vr-apply" type="button" data-action="voiceApplySkills">ADD SELECTED SKILLS</button>
+          </div>
         </div>
       </div>
     </div>
