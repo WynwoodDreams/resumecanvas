@@ -6,6 +6,7 @@ let state = {
   template: "demo_4",
   font_pt: null, // null = use template default (12pt for D4, 11pt for D2). Manual override via font chips.
   font_family: "times", // global typeface: times | arial | calibri
+  voice_profile: "", // session-only spoken intro used to flavor the resume's tone; never persisted
   section_enabled: { summary: true, projects: true, experience: true },
   section_order: {
     demo_4: ["education", "skills", "projects", "experience"],
@@ -317,6 +318,7 @@ function persistStateNow() {
   if (active) {
     active.state = JSON.parse(JSON.stringify(state));
     active.state.match = { on: false, jd: "" }; // never persist JD across sessions
+    active.state.voice_profile = ""; // spoken intro stays in-session only — never saved
     active.updatedAt = Date.now();
   }
   writeLibrary();
@@ -1051,6 +1053,9 @@ const ACTIONS = {
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
   toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
+  toggleVoice: () => $("#voice-card").classList.toggle("collapsed"),
+  voiceToggle: () => voiceToggle(),
+  clearVoice: () => clearVoice(),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -1208,6 +1213,12 @@ $$("[data-family]").forEach(chip => {
     renderPreview();
   });
 });
+
+// Voice-profile transcript: editable; mirrors into (session-only) state.
+const _voiceTaEl = $("#voice-transcript");
+if (_voiceTaEl) {
+  _voiceTaEl.addEventListener("input", (ev) => { state.voice_profile = ev.target.value; });
+}
 
 // ─────────────────────────────────────────────────────────
 // LIVE PREVIEW
@@ -2433,6 +2444,7 @@ function findMicButton(targetId) {
 }
 
 function findMicField(targetId) {
+  if (targetId === "voiceProfile") return $("#voice-transcript");
   if (targetId === "summary") return $("#summary");
   const parts = targetId.split(":");
   if (parts[0] === "projBullet") return document.querySelector(`textarea[data-proj-bullet="${+parts[1]}"][data-bullet-i="${+parts[2]}"]`);
@@ -2451,10 +2463,13 @@ function writeToMicTarget(targetId, value) {
   el.value = value;
   // Mirror into state by reusing the existing input handlers' logic.
   syncMicTargetIntoState(targetId, value);
-  renderPreview();
+  // The voice profile only flavors generation — it isn't shown in the preview,
+  // so skip the (otherwise per-word) re-render for it.
+  if (targetId !== "voiceProfile") renderPreview();
 }
 
 function syncMicTargetIntoState(targetId, value) {
+  if (targetId === "voiceProfile") { state.voice_profile = value; return; }
   if (targetId === "summary") { state.summary = value; return; }
   const parts = targetId.split(":");
   const i = +parts[1], bi = +parts[2];
@@ -2503,12 +2518,75 @@ function finalizeDictation() {
   const targetId = _recordingTarget;
   _recordingTarget = null;
   _baseValue = "";
+  if (targetId === "voiceProfile") {
+    clearVoiceTimers();
+    setVoiceButtonState(false);
+    const words = (state.voice_profile || "").trim().split(/\s+/).filter(Boolean).length;
+    updateVoiceStatus(words ? `Captured ${words} word${words === 1 ? "" : "s"} — edit freely below.` : "");
+    return;
+  }
   if (targetId) {
     const btn = findMicButton(targetId);
     if (btn) { btn.classList.remove("recording"); btn.setAttribute("aria-pressed", "false"); }
   }
   const hint = $("#mic-hint-summary");
   if (hint) hint.classList.remove("show");
+}
+
+// ── Voice personality recorder ──────────────────────────────────────────────
+// Reuses the SpeechRecognition engine (target "voiceProfile") with a ~30s
+// auto-stop. Only the transcribed text is kept; raw audio is never stored.
+let _voiceStopTimer = null;
+let _voiceTick = null;
+const VOICE_SECONDS = 30;
+
+function voiceToggle() {
+  if (_recordingTarget === "voiceProfile") { stopVoiceRecording(); return; }
+  if (!isSpeechSupported()) {
+    toast("VOICE INPUT NOT SUPPORTED — TYPE YOUR INTRO BELOW");
+    return;
+  }
+  startDictation("voiceProfile");
+  if (_recordingTarget !== "voiceProfile") return; // start failed (e.g. mic blocked)
+  setVoiceButtonState(true);
+  let remaining = VOICE_SECONDS;
+  updateVoiceStatus(`● Recording… ${remaining}s left`);
+  _voiceTick = setInterval(() => {
+    remaining -= 1;
+    updateVoiceStatus(remaining > 0 ? `● Recording… ${remaining}s left` : "● Recording…");
+  }, 1000);
+  _voiceStopTimer = setTimeout(stopVoiceRecording, VOICE_SECONDS * 1000);
+}
+
+function stopVoiceRecording() {
+  clearVoiceTimers();
+  stopDictation(); // → finalizeDictation resets the button + status
+}
+
+function clearVoiceTimers() {
+  if (_voiceStopTimer) { clearTimeout(_voiceStopTimer); _voiceStopTimer = null; }
+  if (_voiceTick) { clearInterval(_voiceTick); _voiceTick = null; }
+}
+
+function setVoiceButtonState(recording) {
+  const btn = $("#voice-rec-btn");
+  if (!btn) return;
+  btn.classList.toggle("recording", recording);
+  btn.setAttribute("aria-pressed", recording ? "true" : "false");
+  btn.textContent = recording ? "■ STOP RECORDING" : "🎤 START RECORDING";
+}
+
+function updateVoiceStatus(msg) {
+  const el = $("#voice-status");
+  if (el) el.textContent = msg || "";
+}
+
+function clearVoice() {
+  if (_recordingTarget === "voiceProfile") stopVoiceRecording();
+  state.voice_profile = "";
+  const ta = $("#voice-transcript");
+  if (ta) ta.value = "";
+  updateVoiceStatus("");
 }
 
 function micToggle(btn) {
@@ -2523,6 +2601,10 @@ function micToggle(btn) {
 function hideMicButtonsIfUnsupported() {
   if (isSpeechSupported()) return;
   document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
+  // The voice recorder falls back to typing — hide its record button and say so.
+  const vbtn = $("#voice-rec-btn");
+  if (vbtn) vbtn.classList.add("hidden");
+  updateVoiceStatus("Voice capture isn't supported here — type your intro below.");
 }
 
 async function sharePdf() {
@@ -2566,6 +2648,8 @@ function buildPayload() {
     font_family: FONT_FAMILIES[fontFamilyKey()].label,
     section_order: order.slice(),
   };
+  const voice = (state.voice_profile || "").trim();
+  if (voice) out.voice_profile = voice;
 
   // ── Header ──
   if (cfg.header === "structured") {
@@ -2679,7 +2763,11 @@ function closeModal() {
 async function copyPayloadAndPrompt() {
   const payload = JSON.stringify(buildPayload(), null, 2);
   const tpl = state.template;
-  const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\``;
+  const voice = (state.voice_profile || "").trim();
+  const voiceCue = voice
+    ? `\n\nThe candidate described themselves out loud (transcript below). Use it ONLY to match their natural voice and tone — especially in the summary — not as factual content. Keep everything professional and ATS-friendly; do not copy phrasing verbatim.\n"""\n${voice}\n"""`
+    : "";
+  const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\`${voiceCue}`;
   const copied = await copyText(text, "PAYLOAD + PROMPT COPIED");
   if (copied) setTimeout(() => closeModal(), 600);
 }

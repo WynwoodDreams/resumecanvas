@@ -94,6 +94,25 @@
       </div>
     </div>
 
+    <!-- Add your voice (optional) — transcribes ~30s of speech to flavor the resume's tone. Audio is never saved. -->
+    <div class="intake-card collapsed" id="voice-card">
+      <div class="intake-header" data-action="toggleVoice">
+        <div class="intake-title"><span class="amber">▶</span> ADD YOUR VOICE (OPTIONAL)</div>
+        <span class="intake-caret">▼</span>
+      </div>
+      <div class="intake-body">
+        <div class="intake-help">Talk for about 30 seconds about yourself — your background, strengths, and the kind of role you want. We transcribe it right in your browser so the generated resume sounds like <em>you</em>, not a robot. <strong>Your audio is never saved or uploaded</strong> — only the editable text below, and only for this session.</div>
+        <div class="voice-controls">
+          <button class="add-btn voice-rec-btn" type="button" data-action="voiceToggle" id="voice-rec-btn" aria-pressed="false">🎤 START RECORDING</button>
+          <span class="voice-status" id="voice-status"></span>
+        </div>
+        <textarea id="voice-transcript" class="voice-transcript" placeholder="Your spoken intro appears here — or just type a few sentences about yourself. Edit freely; this shapes tone only, not the facts."></textarea>
+        <div class="voice-actions">
+          <button class="icon-btn" type="button" data-action="clearVoice">CLEAR</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Sections -->
     <div class="panel open" data-section="header">
       <header><h2><span class="idx">01</span> SUBJECT</h2><span class="caret">▶</span></header>
