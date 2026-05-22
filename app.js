@@ -2616,14 +2616,38 @@ const VOICE_TRAIT_ALIASES = {
 const VOICE_SKILLS = [
   "Customer Service", "Project Management", "Data Entry", "Social Media Management",
   "Social Media", "Data Analysis", "Graphic Design", "Public Speaking", "Time Management",
-  "Team Leadership", "Leadership", "Content Creation", "Digital Marketing", "Email Marketing",
-  "Video Editing", "Problem Solving", "Bookkeeping", "Sales", "Marketing", "Accounting",
-  "Research", "Communication", "Teamwork", "Microsoft Excel", "Microsoft Office",
-  "Google Workspace", "Google Sheets", "Excel", "PowerPoint", "Python", "Java",
-  "JavaScript", "SQL", "HTML", "CSS", "Canva", "Photoshop", "Illustrator", "Figma",
-  "Tableau", "QuickBooks", "Salesforce", "HubSpot", "WordPress", "Scheduling",
-  "Event Coordination", "Inventory Management", "Cash Handling",
+  "Team Leadership", "Leadership", "Content Creation", "Content Writing", "Copywriting",
+  "Digital Marketing", "Email Marketing", "SEO", "Video Editing", "Photography",
+  "Problem Solving", "Critical Thinking", "Bookkeeping", "Sales", "Marketing", "Accounting",
+  "Research", "Communication", "Written Communication", "Interpersonal Skills", "Teamwork",
+  "Collaboration", "Organization", "Multitasking", "Attention to Detail", "Conflict Resolution",
+  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Google Workspace", "Google Sheets",
+  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "C++",
+  "SQL", "HTML", "CSS", "R", "Canva", "Photoshop", "Illustrator", "InDesign", "Figma",
+  "Adobe Express", "CapCut", "Premiere Pro", "Tableau", "Power BI", "QuickBooks", "Salesforce",
+  "HubSpot", "Mailchimp", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
+  "Google Analytics", "Meta Ads Manager", "Scheduling", "Event Coordination", "Event Planning",
+  "Inventory Management", "Cash Handling", "Point of Sale", "Filing", "Recordkeeping",
+  "Spanish", "Bilingual", "Tutoring", "Mentoring", "Phone Etiquette", "Front Desk Operations",
 ];
+// How speech-to-text often transcribes a skill → its canonical resume form.
+const VOICE_SKILL_ALIASES = {
+  "power point": "PowerPoint", "powerpoint": "PowerPoint",
+  "java script": "JavaScript", "word press": "WordPress",
+  "quick books": "QuickBooks", "cap cut": "CapCut", "in design": "InDesign",
+  "power bi": "Power BI", "google analytics": "Google Analytics",
+  "people skills": "Interpersonal Skills", "people person": "Interpersonal Skills",
+  "soft skills": "Communication", "detail oriented": "Attention to Detail",
+  "attention to detail": "Attention to Detail", "ms office": "Microsoft Office",
+  "microsoft excel": "Microsoft Excel", "ms excel": "Microsoft Excel",
+  "spread sheets": "Excel", "spreadsheets": "Excel", "search engine optimization": "SEO",
+  "point of sale": "Point of Sale", "pos system": "Point of Sale",
+  "social media marketing": "Social Media Management", "team player": "Teamwork",
+  "public speaker": "Public Speaking", "problem solver": "Problem Solving",
+  "customer support": "Customer Service", "client service": "Customer Service",
+  "data analytics": "Data Analysis", "video editor": "Video Editing",
+  "graphic designer": "Graphic Design", "book keeping": "Bookkeeping",
+};
 const VOICE_FIELDS = [
   "business", "marketing", "finance", "accounting", "information technology",
   "computer science", "cybersecurity", "data science", "graphic design", "design",
@@ -2653,10 +2677,17 @@ function analyzeVoiceProfile(text) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !traits.includes(canon)) traits.push(canon);
   }
   const skills = voiceMatchTerms(lower, VOICE_SKILLS);
+  for (const [alias, canon] of Object.entries(VOICE_SKILL_ALIASES)) {
+    if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !skills.includes(canon)) skills.push(canon);
+  }
+  // Re-apply substring de-dupe now that aliases may have added longer canon forms.
+  const dedupedSkills = skills.filter(t =>
+    !skills.some(o => o !== t && o.toLowerCase().includes(t.toLowerCase()))
+  );
   let field = voiceMatchTerms(lower, VOICE_FIELDS)[0] || "";
   if (!field) field = fieldFromEducation();
   const isStudent = /\bstudent\b/.test(lower) || educationLooksCurrent();
-  return { traits, skills, field, status: isStudent ? "student" : "professional" };
+  return { traits, skills: dedupedSkills, field, status: isStudent ? "student" : "professional" };
 }
 
 function fieldFromEducation() {
