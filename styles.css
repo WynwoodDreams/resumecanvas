@@ -300,6 +300,14 @@
   .dropzone .dz-sub { font-size: 10px; letter-spacing: 0.14em; color: var(--text-dim); }
   .paste-block { margin-top: 14px; }
   .paste-block textarea { min-height: 100px; }
+  /* Voice personality card */
+  .voice-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .voice-rec-btn { width: auto; margin-top: 0; }
+  .voice-rec-btn.recording { border-style: solid; border-color: var(--red); color: var(--red-ink); background: rgba(242,80,66,0.08); animation: voicePulse 1.3s ease-in-out infinite; }
+  @keyframes voicePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,80,66,0.0); } 50% { box-shadow: 0 0 0 4px rgba(242,80,66,0.12); } }
+  .voice-status { font-size: 10.5px; letter-spacing: 0.04em; color: var(--text-dim); }
+  .voice-transcript { min-height: 90px; margin-top: 12px; }
+  .voice-actions { margin-top: 8px; display: flex; justify-content: flex-end; }
   .import-source { font-size: 10px; letter-spacing: 0.18em; color: var(--text-dim); margin-bottom: 12px; }
   .import-source .amber { color: var(--amber-soft); }
   .import-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
