@@ -2717,12 +2717,16 @@ function tidy(s) {
   return s.replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").replace(/\.\.+/g, ".").trim();
 }
 
-// Build a standard-form summary that varies with `variant` so it never reads
-// identically twice. Clauses are omitted gracefully when signal is missing.
+// Expand whatever signal we have (often just a sentence or two) into a full,
+// standard-form professional summary of ~3 sentences: identity → work-style /
+// strengths → goal. Varies with `variant` so it never reads identically twice.
+// We add legitimate professional framing (work ethic, collaboration, eagerness
+// to learn) but never invent hard facts — employers, titles, dates, or skills.
 function composeVoiceSummary(a, variant) {
   const field = a.field ? a.field.toLowerCase() : "";
   const traits = (a.traits || []).slice(0, 2).map(lc);
   const traitStr = joinList(traits);
+  const firstTrait = traits[0] || "";
   // Don't echo the field back as a skill (e.g. "marketing student … with Marketing").
   const skills = (a.skills || []).filter(s => s.toLowerCase() !== field).slice(0, 4);
   const skillStr = joinList(skills);
@@ -2739,15 +2743,23 @@ function composeVoiceSummary(a, variant) {
     skillStr ? `bringing practical experience with ${skillStr}` : `eager to take on responsibility and grow`,
     skillStr ? `comfortable applying ${skillStr}` : `ready to add value from day one`,
   ];
+  // Work-style / soft-strength sentence — expands the intro into a fuller picture.
+  const strength = [
+    `Known for ${traitStr ? `being ${traitStr} — and for ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
+    `Brings ${firstTrait ? `a ${firstTrait}, ` : "a positive, "}team-oriented approach and picks up new tools and processes quickly.`,
+    `Communicates clearly, takes initiative, and stays composed under pressure and tight deadlines.`,
+    `Balances independent work with strong collaboration, and approaches every task with ${traitStr ? `${firstTrait} energy` : "reliability and care"}.`,
+  ];
   const closer = [
-    `Seeking ${field ? `${field} ` : ""}opportunities to apply these strengths and grow professionally.`,
-    `Looking to contribute to a collaborative team and deliver dependable results.`,
-    `Eager to take on a ${field ? `${field} ` : ""}role where reliability and initiative make a difference.`,
+    `Seeking ${field ? `${field} ` : ""}opportunities to apply these strengths and continue growing professionally.`,
+    `Looking to contribute to a collaborative team and deliver dependable, high-quality results.`,
+    `Eager to step into a ${field ? `${field} ` : ""}role where reliability and initiative make a real difference.`,
   ];
   const v = Math.abs(variant | 0);
   const s1 = `${opener[v % opener.length]}, ${middle[(v + 1) % middle.length]}.`;
-  const s2 = closer[(v + 2) % closer.length];
-  return tidy(`${cap(s1)} ${s2}`);
+  const s2 = strength[v % strength.length];
+  const s3 = closer[(v + 2) % closer.length];
+  return tidy(`${cap(s1)} ${cap(s2)} ${s3}`);
 }
 
 let _voiceAnalysis = null;
