@@ -2765,7 +2765,10 @@ async function copyPayloadAndPrompt() {
   const tpl = state.template;
   const voice = (state.voice_profile || "").trim();
   const voiceCue = voice
-    ? `\n\nThe candidate described themselves out loud (transcript below). Use it ONLY to match their natural voice and tone — especially in the summary — not as factual content. Keep everything professional and ATS-friendly; do not copy phrasing verbatim.\n"""\n${voice}\n"""`
+    ? `\n\nThe candidate described themselves out loud (transcript below). Use it to:\n` +
+      `1. Match their natural voice and tone, especially in the summary, so it reads like a real person rather than generic AI.\n` +
+      `2. Surface any genuine skills, tools, technologies, or competencies they mention into the skills section — only if clearly stated or strongly implied; never invent skills.\n` +
+      `Treat it as voice/skill signal, not verbatim content: keep everything professional and ATS-friendly, don't copy phrasing word-for-word, and don't add facts (employers, dates, titles) that aren't already in the JSON.\n"""\n${voice}\n"""`
     : "";
   const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\`${voiceCue}`;
   const copied = await copyText(text, "PAYLOAD + PROMPT COPIED");
