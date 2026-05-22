@@ -2717,6 +2717,31 @@ function tidy(s) {
   return s.replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").replace(/\.\.+/g, ".").trim();
 }
 
+// Em dashes are banned everywhere on the canvas. Replace em/en dashes (and the
+// horizontal-bar variant) with a plain hyphen, then tidy any " - " spacing.
+const EM_DASH_RE = /[—–―]/;
+function stripEmDashes(s) {
+  return typeof s === "string" ? s.replace(/[—–―]/g, "-") : s;
+}
+function deepStripEmDashes(obj) {
+  if (typeof obj === "string") return stripEmDashes(obj);
+  if (Array.isArray(obj)) return obj.map(deepStripEmDashes);
+  if (obj && typeof obj === "object") {
+    for (const k of Object.keys(obj)) obj[k] = deepStripEmDashes(obj[k]);
+  }
+  return obj;
+}
+// Catch every field before its own input handler reads the value. Capture phase
+// runs first, and the 1:1 replacement keeps the caret position valid.
+document.addEventListener("input", (ev) => {
+  const el = ev.target;
+  if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+  if (typeof el.value !== "string" || !EM_DASH_RE.test(el.value)) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  el.value = stripEmDashes(el.value);
+  try { el.setSelectionRange(start, end); } catch (_err) { /* ignore */ }
+}, true);
+
 // Expand whatever signal we have (often just a sentence or two) into a full,
 // standard-form professional summary of ~3 sentences: identity → work-style /
 // strengths → goal. Varies with `variant` so it never reads identically twice.
@@ -2745,7 +2770,7 @@ function composeVoiceSummary(a, variant) {
   ];
   // Work-style / soft-strength sentence — expands the intro into a fuller picture.
   const strength = [
-    `Known for ${traitStr ? `being ${traitStr} — and for ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
+    `Known for ${traitStr ? `being ${traitStr} and consistently ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
     `Brings ${firstTrait ? `a ${firstTrait}, ` : "a positive, "}team-oriented approach and picks up new tools and processes quickly.`,
     `Communicates clearly, takes initiative, and stays composed under pressure and tight deadlines.`,
     `Balances independent work with strong collaboration, and approaches every task with ${traitStr ? `${firstTrait} energy` : "reliability and care"}.`,
@@ -2759,7 +2784,7 @@ function composeVoiceSummary(a, variant) {
   const s1 = `${opener[v % opener.length]}, ${middle[(v + 1) % middle.length]}.`;
   const s2 = strength[v % strength.length];
   const s3 = closer[(v + 2) % closer.length];
-  return tidy(`${cap(s1)} ${cap(s2)} ${s3}`);
+  return stripEmDashes(tidy(`${cap(s1)} ${cap(s2)} ${s3}`));
 }
 
 let _voiceAnalysis = null;
@@ -2808,7 +2833,7 @@ function voiceToggleChip(btn) { btn.classList.toggle("selected"); }
 
 function voiceApplySummary() {
   const draft = $("#voice-summary-draft");
-  const text = draft ? draft.value.trim() : "";
+  const text = draft ? stripEmDashes(draft.value.trim()) : "";
   if (!text) { toast("NOTHING TO APPLY"); return; }
   state.summary = text;
   state.section_enabled.summary = true;
@@ -3039,7 +3064,8 @@ async function copyPayloadAndPrompt() {
       `2. Surface any genuine skills, tools, technologies, or competencies they mention into the skills section — only if clearly stated or strongly implied; never invent skills.\n` +
       `Treat it as voice/skill signal, not verbatim content: keep everything professional and ATS-friendly, don't copy phrasing word-for-word, and don't add facts (employers, dates, titles) that aren't already in the JSON.\n"""\n${voice}\n"""`
     : "";
-  const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\`${voiceCue}`;
+  const styleRule = `\n\nNever use em dashes (—) or en dashes (–) anywhere in the output; use commas, periods, or hyphens instead.`;
+  const text = `Generate this resume using template ${tpl}:\n\n\`\`\`json\n${payload}\n\`\`\`${voiceCue}${styleRule}`;
   const copied = await copyText(text, "PAYLOAD + PROMPT COPIED");
   if (copied) setTimeout(() => closeModal(), 600);
 }
@@ -3368,6 +3394,7 @@ function applyImport() {
   }
 
   _pendingImport = null;
+  deepStripEmDashes(state);
   closeImportModal();
   $("#intake-card").classList.add("collapsed");
   $("#import-paste").value = "";
