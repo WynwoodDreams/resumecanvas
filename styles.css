@@ -323,7 +323,39 @@
   .voice-chip.selected { border-color: var(--amber); background: linear-gradient(180deg, #f6ecdb 0%, #f1e3c8 100%); color: var(--ink); font-weight: 600; }
   .voice-chip::before { content: "+ "; opacity: 0.6; }
   .voice-chip.selected::before { content: "✓ "; opacity: 1; }
+  .voice-chip:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   .vr-empty { font-size: 10.5px; color: var(--text-mute); line-height: 1.5; }
+
+  /* Skip link sits to the right of the record button as a low-emphasis escape. */
+  .voice-skip { font-size: 10px; letter-spacing: 0.16em; opacity: 0.75; }
+  .voice-skip:hover { opacity: 1; }
+  /* First-visit nudge: a subtle amber rule on the left edge of the voice card. */
+  #voice-card.voice-fresh:not(.collapsed) { border-left: 3px solid var(--amber); }
+
+  /* ─────────────────────────────────────────────────────────
+     3-BAR INPUT-LEVEL METER
+     Rendered next to the record button and inside the FAB. Hidden
+     until body.voice-recording is set.
+     ───────────────────────────────────────────────────────── */
+  .voice-meter { display: none; align-items: flex-end; gap: 2px; height: 16px; vertical-align: middle; }
+  .voice-meter .vm-bar { width: 3px; height: 3px; background: var(--text-dim); transition: height 90ms ease-out, background 90ms ease-out; }
+  .voice-meter .vm-bar[data-level="0"] { height: 3px; opacity: 0.4; }
+  .voice-meter .vm-bar[data-level="1"] { height: 5px; }
+  .voice-meter .vm-bar[data-level="2"] { height: 8px; }
+  .voice-meter .vm-bar[data-level="3"] { height: 11px; background: var(--amber-soft); }
+  .voice-meter .vm-bar[data-level="4"] { height: 14px; background: var(--amber); }
+  .voice-meter .vm-bar[data-level="5"] { height: 16px; background: var(--red); }
+  body.voice-recording .voice-meter { display: inline-flex; }
+  .voice-fab .voice-meter { height: 14px; }
+  .voice-fab.recording .voice-meter .vm-bar[data-level="0"] { background: rgba(255,255,255,0.5); opacity: 0.6; }
+  .voice-fab.recording .voice-meter .vm-bar[data-level="1"],
+  .voice-fab.recording .voice-meter .vm-bar[data-level="2"] { background: rgba(255,255,255,0.85); }
+  .voice-fab.recording .voice-meter .vm-bar[data-level="3"],
+  .voice-fab.recording .voice-meter .vm-bar[data-level="4"],
+  .voice-fab.recording .voice-meter .vm-bar[data-level="5"] { background: #fffffe; }
+  @media (prefers-reduced-motion: reduce) {
+    .voice-meter .vm-bar { transition: none; }
+  }
   .import-source { font-size: 10px; letter-spacing: 0.18em; color: var(--text-dim); margin-bottom: 12px; }
   .import-source .amber { color: var(--amber-soft); }
   .import-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }

@@ -1053,7 +1053,7 @@ const ACTIONS = {
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
   toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
-  toggleVoice: () => $("#voice-card").classList.toggle("collapsed"),
+  toggleVoice: () => { $("#voice-card").classList.toggle("collapsed"); markVoiceIntroSeen(); },
   voiceToggle: () => voiceToggle(),
   clearVoice: () => clearVoice(),
   voiceAnalyze: () => voiceAnalyze(),
@@ -1082,6 +1082,7 @@ const ACTIONS = {
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
   voiceFabToggle: () => voiceFabToggle(),
+  skipVoice: () => skipVoiceIntro(),
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
   finalBackToEdit: () => finalBackToEdit(),
@@ -2562,6 +2563,7 @@ function voiceToggle() {
     toast("VOICE INPUT NOT SUPPORTED — TYPE YOUR INTRO BELOW");
     return;
   }
+  markVoiceIntroSeen();
   startDictation("voiceProfile");
   if (_recordingTarget !== "voiceProfile") return; // start failed (e.g. mic blocked)
   setVoiceButtonState(true);
@@ -2813,6 +2815,7 @@ let _voiceVariant = 0;
 function voiceAnalyze() {
   const text = (state.voice_profile || "").trim();
   if (!text) { toast("RECORD OR TYPE YOUR INTRO FIRST"); return; }
+  markVoiceIntroSeen();
   _voiceAnalysis = analyzeVoiceProfile(text);
   _voiceVariant = 0;
   renderVoiceReview();
@@ -2837,7 +2840,7 @@ function renderVoiceReview() {
   if (chipBox) {
     const items = [...(_voiceAnalysis.skills || []), ..._voiceAnalysis.traits || []];
     chipBox.innerHTML = items.length
-      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip">${esc(s)}</button>`).join("")
+      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip" role="checkbox" aria-checked="true">${esc(s)}</button>`).join("")
       : `<div class="vr-empty">No clear skills detected — add them in the Skills section, or reword and try again.</div>`;
   }
 }
@@ -2849,7 +2852,10 @@ function voiceRegenSummary() {
   if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
 }
 
-function voiceToggleChip(btn) { btn.classList.toggle("selected"); }
+function voiceToggleChip(btn) {
+  btn.classList.toggle("selected");
+  btn.setAttribute("aria-checked", btn.classList.contains("selected") ? "true" : "false");
+}
 
 function voiceApplySummary() {
   const draft = $("#voice-summary-draft");
@@ -2947,9 +2953,11 @@ function getTargetForElement(el) {
 
 function setVoiceFabState(recording, targetId) {
   const fab = $("#voice-fab");
-  if (!fab) return;
-  fab.classList.toggle("recording", !!recording);
-  fab.setAttribute("aria-pressed", recording ? "true" : "false");
+  if (fab) {
+    fab.classList.toggle("recording", !!recording);
+    fab.setAttribute("aria-pressed", recording ? "true" : "false");
+  }
+  document.body.classList.toggle("voice-recording", !!recording);
   const labelEl = $("#voice-fab-label");
   if (labelEl) labelEl.textContent = recording ? "STOP" : "DICTATE";
   const live = $("#voice-fab-live");
@@ -2965,6 +2973,147 @@ function setVoiceFabState(recording, targetId) {
       live.textContent = "Dictation stopped.";
     }
   }
+  if (recording) startLevelMeter();
+  else stopLevelMeter();
+}
+
+// ── First-visit handling for the voice card ────────────────────────────────
+// On a brand-new install we expand the voice card so users actually see the
+// fastest path through the form. After any engagement (record, skip, toggle,
+// analyze) we remember the choice and never auto-expand again.
+const VOICE_INTRO_SEEN_KEY = "resumecanvas:v1:voice-intro-seen";
+
+function hasSeenVoiceIntro() {
+  try { return localStorage.getItem(VOICE_INTRO_SEEN_KEY) === "1"; }
+  catch (_e) { return true; }
+}
+
+function markVoiceIntroSeen() {
+  try { localStorage.setItem(VOICE_INTRO_SEEN_KEY, "1"); } catch (_e) { /* ignore */ }
+  const card = $("#voice-card");
+  if (card) card.classList.remove("voice-fresh");
+}
+
+function applyVoiceIntroDefaultState() {
+  if (hasSeenVoiceIntro()) return;
+  if (!isSpeechSupported()) return; // no point promoting a feature they can't use
+  const card = $("#voice-card");
+  if (!card) return;
+  card.classList.remove("collapsed");
+  card.classList.add("voice-fresh");
+}
+
+function skipVoiceIntro() {
+  const card = $("#voice-card");
+  if (card) card.classList.add("collapsed");
+  markVoiceIntroSeen();
+  const nameInput = document.querySelector('[data-bind="name"]');
+  if (nameInput && typeof nameInput.focus === "function") nameInput.focus();
+}
+
+// ── Input-level meter ──────────────────────────────────────────────────────
+// Three small bars driven by the user's mic via getUserMedia + AnalyserNode.
+// Strictly cosmetic: if the browser declines or the API isn't there, the
+// bars just stay flat. We only attempt this when mic permission is already
+// "granted" to avoid double-prompting the user alongside SpeechRecognition.
+let _meterStream = null;
+let _meterAudioCtx = null;
+let _meterAnalyser = null;
+let _meterRaf = null;
+let _meterBars = null;
+
+function collectMeterBars() {
+  const nodes = document.querySelectorAll(".voice-meter .vm-bar");
+  const cardBars = [], fabBars = [];
+  nodes.forEach((n) => {
+    const parent = n.parentElement;
+    if (!parent) return;
+    if (parent.id === "voice-meter-card") cardBars.push(n);
+    else if (parent.id === "voice-meter-fab") fabBars.push(n);
+  });
+  return { cardBars, fabBars };
+}
+
+async function startLevelMeter() {
+  if (_meterStream) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  // Don't trigger an extra permission prompt — only run if mic is already granted.
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const p = await navigator.permissions.query({ name: "microphone" });
+      if (p && p.state !== "granted") return;
+    }
+  } catch (_e) { /* permissions API may not support "microphone" — fall through */ }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _meterStream = stream;
+    _meterAudioCtx = new Ctx();
+    const src = _meterAudioCtx.createMediaStreamSource(stream);
+    _meterAnalyser = _meterAudioCtx.createAnalyser();
+    _meterAnalyser.fftSize = 64;
+    _meterAnalyser.smoothingTimeConstant = 0.6;
+    src.connect(_meterAnalyser);
+    _meterBars = collectMeterBars();
+    tickLevelMeter();
+  } catch (_err) {
+    // Optional feature — fail silently and leave recording running.
+    stopLevelMeter();
+  }
+}
+
+function tickLevelMeter() {
+  if (!_meterAnalyser) return;
+  const buf = new Uint8Array(_meterAnalyser.frequencyBinCount);
+  _meterAnalyser.getByteFrequencyData(buf);
+  const n = buf.length;
+  const third = Math.max(1, Math.floor(n / 3));
+  const lo = meterBandAvg(buf, 0, third);
+  const mid = meterBandAvg(buf, third, third * 2);
+  const hi = meterBandAvg(buf, third * 2, n);
+  const levels = [bandToLevel(lo), bandToLevel(mid), bandToLevel(hi)];
+  paintMeter(_meterBars && _meterBars.cardBars, levels);
+  paintMeter(_meterBars && _meterBars.fabBars, levels);
+  _meterRaf = requestAnimationFrame(tickLevelMeter);
+}
+
+function meterBandAvg(buf, lo, hi) {
+  let s = 0, n = 0;
+  for (let i = lo; i < hi; i++) { s += buf[i]; n++; }
+  return n ? s / n : 0;
+}
+
+function bandToLevel(v) {
+  // 0..255 → 0..5 with a slight bias so quiet rooms don't flicker at level 1.
+  if (v < 18) return 0;
+  if (v < 40) return 1;
+  if (v < 70) return 2;
+  if (v < 105) return 3;
+  if (v < 150) return 4;
+  return 5;
+}
+
+function paintMeter(bars, levels) {
+  if (!bars) return;
+  for (let i = 0; i < bars.length && i < levels.length; i++) {
+    bars[i].setAttribute("data-level", String(levels[i]));
+  }
+}
+
+function stopLevelMeter() {
+  if (_meterRaf) { cancelAnimationFrame(_meterRaf); _meterRaf = null; }
+  if (_meterStream) {
+    try { _meterStream.getTracks().forEach((t) => t.stop()); } catch (_e) { /* ignore */ }
+    _meterStream = null;
+  }
+  if (_meterAudioCtx) {
+    try { _meterAudioCtx.close(); } catch (_e) { /* ignore */ }
+    _meterAudioCtx = null;
+  }
+  _meterAnalyser = null;
+  // Reset all bars to 0 so the meter doesn't freeze on its last frame.
+  document.querySelectorAll(".voice-meter .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
 }
 
 function voiceFabToggle() {
@@ -2985,6 +3134,7 @@ function voiceFabToggle() {
   // Nothing useful focused — open the voice-intro card and start there.
   const card = $("#voice-card");
   if (card) card.classList.remove("collapsed");
+  markVoiceIntroSeen();
   voiceToggle();
 }
 
@@ -3019,6 +3169,7 @@ function initVoiceFabOnce() {
   _voiceFabInitialized = true;
   setupVoiceFocusTracking();
   setupVoiceHotkey();
+  applyVoiceIntroDefaultState();
   maybeAutoStartVoiceFromUrl();
 }
 
@@ -3029,6 +3180,7 @@ function maybeAutoStartVoiceFromUrl() {
     if (!isSpeechSupported()) return;
     const card = $("#voice-card");
     if (card) card.classList.remove("collapsed");
+    markVoiceIntroSeen();
     // Defer so the rest of the UI has a beat to settle before the mic prompt.
     setTimeout(() => { voiceToggle(); }, 350);
   } catch (_err) { /* URL not available — ignore */ }
