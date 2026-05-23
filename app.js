@@ -1061,6 +1061,7 @@ const ACTIONS = {
   voiceApplySummary: () => voiceApplySummary(),
   voiceApplySkills: () => voiceApplySkills(),
   voiceToggleChip: (btn) => voiceToggleChip(btn),
+  voiceSetTone: (btn) => voiceSetTone(btn),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -2964,52 +2965,152 @@ document.addEventListener("input", (ev) => {
 }, true);
 
 // Expand whatever signal we have (often just a sentence or two) into a full,
-// standard-form professional summary of ~3 sentences: identity → work-style /
-// strengths → goal. Varies with `variant` so it never reads identically twice.
-// We add legitimate professional framing (work ethic, collaboration, eagerness
-// to learn) but never invent hard facts — employers, titles, dates, or skills.
-function composeVoiceSummary(a, variant) {
+// standard-form professional summary: identity → work-style / strengths →
+// goal. Varies with `variant` so it never reads identically twice, and the
+// `tone` picker swaps the phrase bank so the same facts can land formal,
+// direct, warm, or concise. We add legitimate professional framing (work
+// ethic, collaboration, eagerness to learn) but never invent hard facts —
+// employers, titles, dates, or skills.
+function buildVoiceCtx(a) {
   const field = a.field ? a.field.toLowerCase() : "";
   const traits = (a.traits || []).slice(0, 2).map(lc);
   const traitStr = joinList(traits);
   const firstTrait = traits[0] || "";
-  // Don't echo the field back as a skill (e.g. "marketing student … with Marketing").
   const skills = (a.skills || []).filter(s => s.toLowerCase() !== field).slice(0, 4);
   const skillStr = joinList(skills);
   const status = a.status || "professional";
   const subject = field ? `${field} ${status}` : status;
+  return { field, traits, traitStr, firstTrait, skills, skillStr, status, subject };
+}
 
-  const opener = [
-    traitStr ? `${cap(traitStr.split(" and ")[0])}${traits[1] ? `, ${traits[1]}` : ""} ${subject}` : `Motivated ${subject}`,
-    `${cap(subject)}${traitStr ? ` known for being ${traitStr}` : ""}`,
-    `Dedicated ${subject}${traitStr ? ` who is ${traitStr}` : ""}`,
-  ];
-  const middle = [
-    skillStr ? `with hands-on strengths in ${skillStr}` : `with a genuine drive to learn and contribute`,
-    skillStr ? `bringing practical experience with ${skillStr}` : `eager to take on responsibility and grow`,
-    skillStr ? `comfortable applying ${skillStr}` : `ready to add value from day one`,
-  ];
-  // Work-style / soft-strength sentence — expands the intro into a fuller picture.
-  const strength = [
-    `Known for ${traitStr ? `being ${traitStr} and consistently ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
-    `Brings ${firstTrait ? `a ${firstTrait}, ` : "a positive, "}team-oriented approach and picks up new tools and processes quickly.`,
-    `Communicates clearly, takes initiative, and stays composed under pressure and tight deadlines.`,
-    `Balances independent work with strong collaboration, and approaches every task with ${traitStr ? `${firstTrait} energy` : "reliability and care"}.`,
-  ];
-  const closer = [
-    `Seeking ${field ? `${field} ` : ""}opportunities to apply these strengths and continue growing professionally.`,
-    `Looking to contribute to a collaborative team and deliver dependable, high-quality results.`,
-    `Eager to step into a ${field ? `${field} ` : ""}role where reliability and initiative make a real difference.`,
-  ];
+const VOICE_TONE_PRESETS = {
+  standard: {
+    format: "full",
+    opener: [
+      (c) => c.traitStr ? `${cap(c.traitStr.split(" and ")[0])}${c.traits[1] ? `, ${c.traits[1]}` : ""} ${c.subject}` : `Motivated ${c.subject}`,
+      (c) => `${cap(c.subject)}${c.traitStr ? ` known for being ${c.traitStr}` : ""}`,
+      (c) => `Dedicated ${c.subject}${c.traitStr ? ` who is ${c.traitStr}` : ""}`,
+    ],
+    middle: [
+      (c) => c.skillStr ? `with hands-on strengths in ${c.skillStr}` : `with a genuine drive to learn and contribute`,
+      (c) => c.skillStr ? `bringing practical experience with ${c.skillStr}` : `eager to take on responsibility and grow`,
+      (c) => c.skillStr ? `comfortable applying ${c.skillStr}` : `ready to add value from day one`,
+    ],
+    strength: [
+      (c) => `Known for ${c.traitStr ? `being ${c.traitStr} and consistently ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
+      (c) => `Brings ${c.firstTrait ? `a ${c.firstTrait}, ` : "a positive, "}team-oriented approach and picks up new tools and processes quickly.`,
+      (_c) => `Communicates clearly, takes initiative, and stays composed under pressure and tight deadlines.`,
+      (c) => `Balances independent work with strong collaboration, and approaches every task with ${c.traitStr ? `${c.firstTrait} energy` : "reliability and care"}.`,
+    ],
+    closer: [
+      (c) => `Seeking ${c.field ? `${c.field} ` : ""}opportunities to apply these strengths and continue growing professionally.`,
+      (_c) => `Looking to contribute to a collaborative team and deliver dependable, high-quality results.`,
+      (c) => `Eager to step into a ${c.field ? `${c.field} ` : ""}role where reliability and initiative make a real difference.`,
+    ],
+  },
+  formal: {
+    format: "full",
+    opener: [
+      (c) => `${cap(c.subject)} with demonstrated capability${c.skillStr ? ` across ${c.skillStr}` : " in core professional disciplines"}`,
+      (c) => `A ${c.traitStr ? `${c.traitStr} ` : ""}${c.subject} with a record of consistent performance`,
+      (c) => `${cap(c.subject)} who upholds professional standards${c.traitStr ? ` and brings ${c.traitStr} attributes` : ""}`,
+    ],
+    middle: [
+      (c) => c.skillStr ? `supported by hands-on proficiency in ${c.skillStr}` : `supported by a methodical approach to every assignment`,
+      (_c) => `with an emphasis on accuracy, accountability, and follow-through`,
+      (_c) => `drawing on disciplined work habits and structured execution`,
+    ],
+    strength: [
+      (_c) => `Maintains rigorous attention to detail across all responsibilities and communicates progress with clarity and professionalism.`,
+      (_c) => `Approaches every assignment with diligence and a commitment to delivering high-caliber outcomes.`,
+      (_c) => `Sustains composure under pressure and consistently meets project commitments on schedule.`,
+    ],
+    closer: [
+      (c) => `Seeking a ${c.field ? `${c.field} ` : ""}position in which these capabilities can contribute meaningfully to organisational objectives.`,
+      (_c) => `Open to opportunities that require reliability, precision, and continued professional development.`,
+      (c) => `Pursuing a role within ${c.field || "a results-driven environment"} that values discipline and sustained performance.`,
+    ],
+  },
+  direct: {
+    format: "full",
+    opener: [
+      (c) => `${c.traitStr ? cap(c.firstTrait) + " " : ""}${c.subject}${c.skillStr ? ` who works with ${c.skillStr}` : ""}`,
+      (c) => `${cap(c.subject)}. ${c.skillStr ? `Builds with ${c.skillStr}` : "Picks up new tools fast"}`,
+      (c) => `${cap(c.subject)} focused on shipping`,
+    ],
+    middle: [
+      (_c) => `hits deadlines and asks the right questions`,
+      (_c) => `owns problems end-to-end and follows through`,
+      (c) => c.skillStr ? `comfortable across ${c.skillStr}` : `learns by doing and moves fast`,
+    ],
+    strength: [
+      (_c) => `Low-maintenance, decision-ready, and clear in communication.`,
+      (_c) => `Strong on follow-up. Comfortable making calls and adjusting on the fly.`,
+      (_c) => `Cuts to the point, shares progress honestly, and finishes what I start.`,
+    ],
+    closer: [
+      (c) => `Looking for a ${c.field ? `${c.field} ` : ""}role where I can add value fast.`,
+      (_c) => `Open to roles that put initiative and judgment to work.`,
+      (c) => `Want to join a ${c.field ? `${c.field} team` : "team"} that ships and learns quickly.`,
+    ],
+  },
+  warm: {
+    format: "full",
+    opener: [
+      (c) => `${cap(c.subject)} who genuinely enjoys ${c.field ? `the ${c.field} world` : "helping teams do their best work"}`,
+      (c) => `Friendly, ${c.traitStr || "reliable"} ${c.subject} happy to roll up sleeves and pitch in`,
+      (c) => `${cap(c.subject)} with a warm, ${c.traitStr || "collaborative"} approach to the work`,
+    ],
+    middle: [
+      (c) => c.skillStr ? `with a real love for ${c.skillStr}` : `with a real love for learning new things together`,
+      (c) => c.skillStr ? `bringing positive energy to ${c.skillStr}` : `bringing positive energy to every project`,
+      (_c) => `always ready to support teammates, clients, and the people around me`,
+    ],
+    strength: [
+      (_c) => `Easy to work with, patient with the messy parts, and quick to celebrate other people's wins.`,
+      (_c) => `Believes in the long game: listening first, asking thoughtful questions, and showing up consistently.`,
+      (_c) => `Builds trust through kindness, follow-through, and clear, honest communication.`,
+    ],
+    closer: [
+      (c) => `Looking for a ${c.field ? `${c.field} ` : ""}team where I can grow alongside people who care about the work.`,
+      (_c) => `Hoping to join a place that values heart as much as hustle.`,
+      (c) => `Excited to find a ${c.field ? `${c.field} team` : "team"} where good people and good work go together.`,
+    ],
+  },
+  concise: {
+    format: "compact",
+    opener: [
+      (c) => `${c.traitStr ? cap(c.firstTrait) + " " : ""}${c.subject}${c.skillStr ? ` with strengths in ${c.skillStr}` : ""}`,
+      (c) => `${cap(c.subject)}${c.skillStr ? ` skilled in ${c.skillStr}` : ""}`,
+      (c) => `${cap(c.traitStr || "Motivated")} ${c.subject}${c.skillStr ? ` (${c.skillStr})` : ""}`,
+    ],
+    closer: [
+      (c) => `Seeking ${c.field ? `${c.field} ` : ""}opportunities to contribute and grow.`,
+      (_c) => `Open to roles that put these strengths to work.`,
+      (c) => `Looking for a ${c.field ? `${c.field} role` : "team"} where I can add value quickly.`,
+    ],
+  },
+};
+
+function composeVoiceSummary(a, variant, tone) {
+  const ctx = buildVoiceCtx(a);
+  const preset = VOICE_TONE_PRESETS[tone] || VOICE_TONE_PRESETS.standard;
   const v = Math.abs(variant | 0);
-  const s1 = `${opener[v % opener.length]}, ${middle[(v + 1) % middle.length]}.`;
-  const s2 = strength[v % strength.length];
-  const s3 = closer[(v + 2) % closer.length];
+  const pick = (arr, off) => arr[(v + off) % arr.length](ctx);
+  if (preset.format === "compact") {
+    const s1 = pick(preset.opener, 0);
+    const s2 = pick(preset.closer, 2);
+    return stripEmDashes(tidy(`${cap(s1)}. ${s2}`));
+  }
+  const s1 = `${pick(preset.opener, 0)}, ${pick(preset.middle, 1)}.`;
+  const s2 = pick(preset.strength, 0);
+  const s3 = pick(preset.closer, 2);
   return stripEmDashes(tidy(`${cap(s1)} ${cap(s2)} ${s3}`));
 }
 
 let _voiceAnalysis = null;
 let _voiceVariant = 0;
+let _voiceTone = "standard";
 
 function voiceAnalyze() {
   const text = (state.voice_profile || "").trim();
@@ -3025,8 +3126,9 @@ function voiceAnalyze() {
 
 function renderVoiceReview() {
   if (!_voiceAnalysis) return;
+  syncVoiceToneButtons();
   const draft = $("#voice-summary-draft");
-  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
+  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
   // Show the current summary for comparison if one exists.
   const cur = $("#voice-current-summary");
   if (cur) {
@@ -3048,7 +3150,25 @@ function voiceRegenSummary() {
   if (!_voiceAnalysis) return;
   _voiceVariant += 1;
   const draft = $("#voice-summary-draft");
-  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
+  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
+}
+
+function voiceSetTone(btn) {
+  const tone = (btn && btn.dataset && btn.dataset.tone) || "standard";
+  if (!VOICE_TONE_PRESETS[tone]) return;
+  _voiceTone = tone;
+  syncVoiceToneButtons();
+  if (!_voiceAnalysis) return;
+  const draft = $("#voice-summary-draft");
+  if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
+}
+
+function syncVoiceToneButtons() {
+  document.querySelectorAll(".voice-tone-btn").forEach((b) => {
+    const sel = b.dataset && b.dataset.tone === _voiceTone;
+    b.classList.toggle("selected", sel);
+    b.setAttribute("aria-selected", sel ? "true" : "false");
+  });
 }
 
 function voiceToggleChip(btn) {

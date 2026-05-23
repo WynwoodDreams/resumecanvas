@@ -318,6 +318,12 @@
   .vr-label span { letter-spacing: 0.04em; color: var(--text-mute); text-transform: none; }
   .vr-current { font-size: 10.5px; color: var(--text-mute); line-height: 1.5; margin-bottom: 8px; padding: 8px 10px; background: var(--surface-1); border-left: 2px solid var(--border-strong); }
   .voice-summary-draft { min-height: 84px; }
+  .voice-tone-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .voice-tone-label { font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-mute); font-weight: 700; margin-right: 4px; }
+  .voice-tone-btn { font-family: inherit; font-size: 10px; letter-spacing: 0.12em; padding: 5px 10px; border: 1px solid var(--border-strong); background: var(--surface-0); color: var(--text-dim); cursor: pointer; transition: all 0.12s; border-radius: 999px; }
+  .voice-tone-btn:hover { border-color: var(--amber); color: var(--amber-soft); }
+  .voice-tone-btn.selected { border-color: var(--amber); background: linear-gradient(180deg, #f6ecdb 0%, #f1e3c8 100%); color: var(--ink); font-weight: 700; }
+  .voice-tone-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   .vr-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
   .vr-apply { width: auto; margin-top: 0; }
   .voice-skill-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
