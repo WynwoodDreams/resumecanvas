@@ -39,6 +39,30 @@
   </div>
 </div>
 
+<!-- Left icon rail (desktop only — pane-tabs handle mobile navigation). -->
+<aside class="app-rail" id="app-rail" aria-label="Quick navigation">
+  <button class="app-rail-btn" type="button" data-action="railJumpTop" title="Top" aria-label="Scroll to top">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+  </button>
+  <button class="app-rail-btn" type="button" data-action="railOpenIntake" title="Import" aria-label="Open intake / import">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>
+  </button>
+  <button class="app-rail-btn" type="button" data-action="railOpenVoice" title="Voice" aria-label="Open voice intro">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+  </button>
+  <button class="app-rail-btn" type="button" data-action="railJumpSkills" title="Skills" aria-label="Jump to skills section">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+  </button>
+  <button class="app-rail-btn" type="button" data-action="openLibrary" title="Library" aria-label="Open resume library">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h12a3 3 0 0 1 3 3v12H7a3 3 0 0 1-3-3V5z"/><path d="M4 5v12a3 3 0 0 0 3 3"/><path d="M8 9h7"/><path d="M8 13h7"/></svg>
+  </button>
+  <span class="app-rail-spacer" aria-hidden="true"></span>
+  <button class="app-rail-btn theme-toggle" type="button" data-action="toggleTheme" title="Toggle theme" aria-label="Toggle light/dark theme" aria-pressed="false">
+    <svg class="rail-svg rail-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8z"/></svg>
+    <svg class="rail-svg rail-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+</aside>
+
 <div class="pane-tabs" id="pane-tabs" role="tablist" aria-label="Switch between editor, preview, and final view">
   <button class="pane-tab active" data-pane-target="left" role="tab" aria-selected="true">EDIT</button>
   <span class="pane-tab-hint" aria-hidden="true">swipe ⇄</span>
@@ -266,9 +290,9 @@
       </div>
       <div class="toolbar-group hide-in-match" id="font-family-chips">
         <span class="toolbar-label" title="Applies to the whole resume">TYPEFACE</span>
-        <button class="toolbar-chip active" data-family="times" id="family-chip-times">TIMES</button>
-        <button class="toolbar-chip" data-family="arial" id="family-chip-arial">ARIAL</button>
-        <button class="toolbar-chip" data-family="calibri" id="family-chip-calibri">CALIBRI</button>
+        <button class="toolbar-chip active" data-family="times" id="family-chip-times" aria-label="Times typeface"><span class="tc-letter" aria-hidden="true">T</span><span class="tc-name">TIMES</span></button>
+        <button class="toolbar-chip" data-family="arial" id="family-chip-arial" aria-label="Arial typeface"><span class="tc-letter" aria-hidden="true">A</span><span class="tc-name">ARIAL</span></button>
+        <button class="toolbar-chip" data-family="calibri" id="family-chip-calibri" aria-label="Calibri typeface"><span class="tc-letter" aria-hidden="true">C</span><span class="tc-name">CALIBRI</span></button>
       </div>
       <div class="toolbar-group hide-in-match" id="font-chips">
         <span class="toolbar-label" title="Manual override — floor 10pt">SIZE</span>
