@@ -101,10 +101,12 @@
         <span class="intake-caret">▼</span>
       </div>
       <div class="intake-body">
-        <div class="intake-help">Talk for about 30 seconds about yourself — your background, strengths, tools you use, and the kind of role you want. We transcribe it right in your browser so the generated resume sounds like <em>you</em> (it shapes the summary's tone) and any real skills you mention can surface in the skills section. <strong>Your audio is never saved or uploaded</strong> — only the editable text below, and only for this session.</div>
+        <div class="intake-help">Talk about yourself — your background, strengths, tools you use, and the kind of role you want. We transcribe it right in your browser so the generated resume sounds like <em>you</em> (it shapes the summary's tone) and any real skills you mention can surface in the skills section. Pause when you're done and recording stops automatically. <strong>Your audio is never saved or uploaded</strong> — only the editable text below, and only for this session.<br><span class="intake-help-tip">While dictating you can also say <strong>"new bullet"</strong>, <strong>"scratch that"</strong>, <strong>"period"</strong>, <strong>"comma"</strong>, or <strong>"stop listening"</strong>.</span></div>
         <div class="voice-controls">
           <button class="add-btn voice-rec-btn" type="button" data-action="voiceToggle" id="voice-rec-btn" aria-pressed="false">🎤 START RECORDING</button>
+          <span class="voice-meter voice-meter-card" id="voice-meter-card" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></span>
           <span class="voice-status" id="voice-status" aria-live="polite" aria-atomic="true"></span>
+          <button class="icon-btn voice-skip" type="button" data-action="skipVoice">SKIP · I'LL TYPE</button>
         </div>
         <textarea id="voice-transcript" class="voice-transcript" placeholder="Your spoken intro appears here — or just type a few sentences about yourself. Edit freely; this shapes tone only, not the facts."></textarea>
         <div class="voice-actions">
@@ -333,6 +335,7 @@
 <!-- Floating dictation mic — targets the focused field, or the voice-intro card if nothing is focused. -->
 <button class="voice-fab hidden" id="voice-fab" type="button" data-action="voiceFabToggle" aria-pressed="false" aria-label="Dictate into focused field (Ctrl+Shift+M)" title="Dictate (Ctrl+Shift+M)">
   <span class="voice-fab-icon" aria-hidden="true">🎤</span>
+  <span class="voice-meter voice-meter-fab" id="voice-meter-fab" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></span>
   <span class="voice-fab-label" id="voice-fab-label">DICTATE</span>
 </button>
 <span class="voice-fab-live" id="voice-fab-live" aria-live="polite" aria-atomic="true"></span>

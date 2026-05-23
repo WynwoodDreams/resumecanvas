@@ -1053,7 +1053,7 @@ const ACTIONS = {
   printPDF: () => printPDF(),
   closeModalBackdrop: (el, ev) => { if (ev.target === el) closeModal(); },
   toggleIntake: () => $("#intake-card").classList.toggle("collapsed"),
-  toggleVoice: () => $("#voice-card").classList.toggle("collapsed"),
+  toggleVoice: () => { $("#voice-card").classList.toggle("collapsed"); markVoiceIntroSeen(); },
   voiceToggle: () => voiceToggle(),
   clearVoice: () => clearVoice(),
   voiceAnalyze: () => voiceAnalyze(),
@@ -1082,6 +1082,7 @@ const ACTIONS = {
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
   voiceFabToggle: () => voiceFabToggle(),
+  skipVoice: () => skipVoiceIntro(),
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
   finalBackToEdit: () => finalBackToEdit(),
@@ -2386,6 +2387,9 @@ function renderShareModal() {
 let _recognition = null;
 let _recordingTarget = null;
 let _baseValue = "";
+// Snapshot of _baseValue from before the last appended chunk so "scratch that"
+// can undo the most recent thing the user dictated.
+let _lastBaseSnapshot = "";
 
 function getSpeechCtor() {
   if (typeof window === "undefined") return null;
@@ -2414,10 +2418,12 @@ function ensureRecognition() {
       else interim += res[0].transcript;
     }
     if (final) {
-      _baseValue = appendDictation(_baseValue, final);
+      const segments = processVoiceCommands(final, _recordingTarget);
+      applyVoiceSegments(segments);
     }
-    const display = interim ? appendDictation(_baseValue, interim) : _baseValue;
-    writeToMicTarget(_recordingTarget, display);
+    if (interim && _recordingTarget) {
+      writeToMicTarget(_recordingTarget, appendDictation(_baseValue, interim));
+    }
     // Silence-based auto-stop for the voice-intro recorder: reset on every chunk.
     if (_recordingTarget === "voiceProfile" && (interim || final)) armVoiceSilenceTimer();
   };
@@ -2446,6 +2452,131 @@ function appendDictation(base, addition) {
   if (!b) return a;
   if (!a) return b;
   return `${b} ${a}`;
+}
+
+// ── Inline voice commands ──────────────────────────────────────────────────
+// Recognised at the *end* of a final transcript chunk: punctuation
+// ("period", "comma"), structural moves ("new bullet"), edit corrections
+// ("scratch that"), and session control ("stop listening"). Phrases that
+// only make sense in some contexts (e.g. "new bullet" outside a bullet
+// field) are ignored and pass through as literal text.
+const VOICE_COMMANDS = [
+  { re: /\b(scratch|delete|cancel|forget)\s+that\b/i, op: "scratchThat" },
+  { re: /\b(new|next)\s+(bullet|point|line\s+item)\b/i, op: "newBullet", needs: ["projBullet", "expBullet"] },
+  { re: /\b(stop|end)\s+(dictation|listening|recording)\b/i, op: "stopDictation" },
+  { re: /\b(new\s+line|new\s+paragraph|line\s+break)\b/i, op: "newLine" },
+  { re: /\bquestion\s+mark\b/i, op: "punct", char: "?" },
+  { re: /\bexclamation\s+(mark|point)\b/i, op: "punct", char: "!" },
+  { re: /\bperiod\b|\bfull\s+stop\b/i, op: "punct", char: "." },
+  { re: /\bcomma\b/i, op: "punct", char: "," },
+  { re: /\bcolon\b/i, op: "punct", char: ":" },
+  { re: /\bsemi[-\s]?colon\b/i, op: "punct", char: ";" },
+];
+
+function commandAppliesToTarget(cmd, target) {
+  if (!cmd.needs) return true;
+  if (!target) return false;
+  const kind = target.split(":")[0];
+  return cmd.needs.includes(kind);
+}
+
+function processVoiceCommands(text, target) {
+  const segments = [];
+  let remaining = text;
+  // Iteratively peel off the earliest command match; intervening prose
+  // becomes text segments, recognised commands become command segments.
+  while (remaining) {
+    let best = null;
+    for (const c of VOICE_COMMANDS) {
+      if (!commandAppliesToTarget(c, target)) continue;
+      const m = c.re.exec(remaining);
+      if (!m) continue;
+      if (!best || m.index < best.match.index) best = { cmd: c, match: m };
+    }
+    if (!best) { segments.push({ text: remaining }); break; }
+    const pre = remaining.slice(0, best.match.index);
+    if (pre) segments.push({ text: pre });
+    segments.push({ command: best.cmd.op, char: best.cmd.char });
+    remaining = remaining.slice(best.match.index + best.match[0].length);
+  }
+  return segments;
+}
+
+function applyVoiceSegments(segments) {
+  for (let i = 0; i < segments.length; i++) {
+    if (!_recordingTarget) break;
+    const seg = segments[i];
+    if (seg.text) {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = appendDictation(_baseValue, seg.text);
+      writeToMicTarget(_recordingTarget, _baseValue);
+      continue;
+    }
+    if (seg.command === "newBullet") {
+      // Hand the remaining segments to the bullet-switcher so anything the
+      // user said *after* "new bullet" lands in the freshly created bullet.
+      newBulletDuringDictation(segments.slice(i + 1));
+      return;
+    }
+    if (seg.command) executeVoiceCommand(seg.command, seg.char);
+  }
+}
+
+function executeVoiceCommand(op, char) {
+  if (!_recordingTarget) return;
+  switch (op) {
+    case "scratchThat": {
+      _baseValue = _lastBaseSnapshot;
+      writeToMicTarget(_recordingTarget, _baseValue);
+      toast("✓ SCRATCHED");
+      return;
+    }
+    case "punct": {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = _baseValue.replace(/\s+$/, "") + (char || ".");
+      writeToMicTarget(_recordingTarget, _baseValue);
+      return;
+    }
+    case "newLine": {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = _baseValue.replace(/\s+$/, "") + "\n";
+      writeToMicTarget(_recordingTarget, _baseValue);
+      return;
+    }
+    case "stopDictation": {
+      if (_recordingTarget === "voiceProfile") stopVoiceRecording();
+      else stopDictation();
+      return;
+    }
+  }
+}
+
+// "new bullet" in a project/experience bullet: stash current text, splice an
+// empty bullet right after the current one, re-render, and resume dictation
+// on the freshly created bullet. SpeechRecognition.start() can throw
+// InvalidStateError if called during the previous engine's teardown, so we
+// defer the restart by a tick. Any segments the user spoke after "new bullet"
+// are replayed into the new bullet once dictation resumes.
+function newBulletDuringDictation(remainingSegments) {
+  const target = _recordingTarget;
+  if (!target) return;
+  const parts = target.split(":");
+  const kind = parts[0];
+  if (kind !== "projBullet" && kind !== "expBullet") return;
+  const i = +parts[1], bi = +parts[2];
+  const arr = kind === "projBullet" ? state.projects[i]?.bullets : state.experience[i]?.bullets;
+  if (!arr) return;
+  stopDictation();
+  arr.splice(bi + 1, 0, "");
+  render();
+  const nextTarget = `${kind}:${i}:${bi + 1}`;
+  toast("✓ NEW BULLET");
+  setTimeout(() => {
+    startDictation(nextTarget);
+    if (_recordingTarget === nextTarget && remainingSegments && remainingSegments.length) {
+      applyVoiceSegments(remainingSegments);
+    }
+  }, 140);
 }
 
 function findMicButton(targetId) {
@@ -2501,6 +2632,7 @@ function startDictation(targetId) {
   if (!field) return;
   _recordingTarget = targetId;
   _baseValue = field.value || "";
+  _lastBaseSnapshot = _baseValue;
   try {
     r.start();
   } catch (_err) {
@@ -2562,6 +2694,7 @@ function voiceToggle() {
     toast("VOICE INPUT NOT SUPPORTED — TYPE YOUR INTRO BELOW");
     return;
   }
+  markVoiceIntroSeen();
   startDictation("voiceProfile");
   if (_recordingTarget !== "voiceProfile") return; // start failed (e.g. mic blocked)
   setVoiceButtonState(true);
@@ -2641,12 +2774,19 @@ const VOICE_SKILLS = [
   "Problem Solving", "Critical Thinking", "Bookkeeping", "Sales", "Marketing", "Accounting",
   "Research", "Communication", "Written Communication", "Interpersonal Skills", "Teamwork",
   "Collaboration", "Organization", "Multitasking", "Attention to Detail", "Conflict Resolution",
-  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Google Workspace", "Google Sheets",
-  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "C++",
-  "SQL", "HTML", "CSS", "R", "Canva", "Photoshop", "Illustrator", "InDesign", "Figma",
-  "Adobe Express", "CapCut", "Premiere Pro", "Tableau", "Power BI", "QuickBooks", "Salesforce",
-  "HubSpot", "Mailchimp", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
-  "Google Analytics", "Meta Ads Manager", "Scheduling", "Event Coordination", "Event Planning",
+  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Microsoft Teams", "Google Workspace", "Google Sheets",
+  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "TypeScript", "C++",
+  "C#", "SQL", "HTML", "CSS", "R", "Go", "Rust", "Swift", "Kotlin", "Ruby",
+  "React", "React Native", "Next.js", "Vue.js", "Svelte", "Astro", "Angular", "Tailwind CSS",
+  "Node.js", "Express", "Django", "Flask", "FastAPI", "Ruby on Rails",
+  "AWS", "Azure", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Linux",
+  "Machine Learning", "Deep Learning", "Generative AI", "Prompt Engineering", "LLMs",
+  "Canva", "Photoshop", "Illustrator", "InDesign", "Figma", "Sketch", "Adobe XD", "Procreate",
+  "Adobe Express", "CapCut", "Premiere Pro", "After Effects", "DaVinci Resolve",
+  "Tableau", "Power BI", "Looker", "QuickBooks", "Salesforce",
+  "HubSpot", "Mailchimp", "Klaviyo", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
+  "Google Analytics", "Meta Ads Manager", "TikTok Ads", "LinkedIn Ads", "Zoom",
+  "Scheduling", "Event Coordination", "Event Planning",
   "Inventory Management", "Cash Handling", "Point of Sale", "Filing", "Recordkeeping",
   "Spanish", "Bilingual", "Tutoring", "Mentoring", "Phone Etiquette", "Front Desk Operations",
 ];
@@ -2667,7 +2807,64 @@ const VOICE_SKILL_ALIASES = {
   "customer support": "Customer Service", "client service": "Customer Service",
   "data analytics": "Data Analysis", "video editor": "Video Editing",
   "graphic designer": "Graphic Design", "book keeping": "Bookkeeping",
+  // Modern stacks — speech-to-text strips dots and merges words.
+  "next js": "Next.js", "nextjs": "Next.js",
+  "node js": "Node.js", "nodejs": "Node.js",
+  "vue js": "Vue.js", "vuejs": "Vue.js",
+  "react js": "React", "reactjs": "React",
+  "react native": "React Native",
+  "type script": "TypeScript", "typescript": "TypeScript",
+  "tailwind": "Tailwind CSS", "tailwind css": "Tailwind CSS",
+  "ruby on rails": "Ruby on Rails", "rails": "Ruby on Rails",
+  "fast api": "FastAPI", "fastapi": "FastAPI",
+  // Cloud & devops
+  "amazon web services": "AWS", "a w s": "AWS",
+  "google cloud platform": "Google Cloud", "gcp": "Google Cloud",
+  "ci cd": "CI/CD", "ci/cd": "CI/CD",
+  "git hub": "GitHub", "git lab": "GitLab",
+  // AI/ML
+  "machine learning": "Machine Learning", "deep learning": "Deep Learning",
+  "generative ai": "Generative AI", "gen ai": "Generative AI",
+  "prompt engineering": "Prompt Engineering",
+  "large language models": "LLMs", "l l m s": "LLMs", "llm": "LLMs",
+  // Design / video tools
+  "adobe xd": "Adobe XD",
+  "after effects": "After Effects",
+  "davinci resolve": "DaVinci Resolve", "da vinci resolve": "DaVinci Resolve",
+  // Office / collab
+  "ms teams": "Microsoft Teams", "microsoft teams": "Microsoft Teams",
+  "ms word": "Microsoft Word",
+  // Ads
+  "tik tok ads": "TikTok Ads", "tiktok ads": "TikTok Ads",
+  "linked in ads": "LinkedIn Ads", "linkedin ads": "LinkedIn Ads",
+  "facebook ads": "Meta Ads Manager", "meta ads": "Meta Ads Manager",
 };
+// Verb→skill mapping. Helps when a speaker describes what they *did* without
+// naming the skill outright ("I built a small web app" → Project Management,
+// "I tutored classmates" → Tutoring). Kept conservative to avoid false hits.
+const VOICE_VERB_SKILLS = [
+  { re: /\b(design(ed|s|ing)?|redesign(ed|s|ing)?)\b/i, skill: "Graphic Design" },
+  { re: /\b(led|leading|leads|lead\s+a|manag(ed|es|ing|ement))\b/i, skill: "Leadership" },
+  { re: /\b(present(ed|s|ing|ation)|spoke\s+(in\s+front|publicly)|gave\s+a\s+talk)\b/i, skill: "Public Speaking" },
+  { re: /\b(tutor(ed|s|ing)?|taught|teach(ing|es)?)\b/i, skill: "Tutoring" },
+  { re: /\b(collaborat(ed|e|es|ing|ion))\b/i, skill: "Collaboration" },
+  { re: /\b(research(ed|es|ing)?)\b/i, skill: "Research" },
+  { re: /\b(analyz(ed|es|ing|e)|analys(ed|es|ing|e))\b/i, skill: "Data Analysis" },
+  { re: /\b(edit(ed|s|ing)\s+(videos?|reels?|clips?)|video\s+edit(or|ing))\b/i, skill: "Video Editing" },
+  { re: /\b(photograph(ed|s|ing|y)|shot\s+photos|took\s+photos)\b/i, skill: "Photography" },
+  { re: /\b(train(ed|s|ing)\s+(new\s+hires|staff|team|people|interns))\b/i, skill: "Mentoring" },
+  { re: /\b(schedul(ed|es|ing)|booked\s+appointments)\b/i, skill: "Scheduling" },
+  { re: /\b(wrote|writing|written|author(ed|ing)?)\b/i, skill: "Written Communication" },
+  { re: /\b(sold|sales|selling|upsold|closed\s+deals)\b/i, skill: "Sales" },
+  { re: /\b(bookkeep(ing|er)?|reconcil(ed|es|ing|iation))\b/i, skill: "Bookkeeping" },
+  { re: /\b(organiz(ed|es|ing|ation))\b/i, skill: "Organization" },
+  { re: /\b(mentor(ed|s|ing)?)\b/i, skill: "Mentoring" },
+  { re: /\b(built|building|develop(ed|s|ing)?|shipped|launched|created)\b[^.!?\n]{0,40}\b(app|website|project|product|platform|tool|feature|side[-\s]project|portfolio)s?\b/i, skill: "Project Management" },
+  { re: /\b(ran|run\s+a|managing)\s+(events?|meetings?|workshops?)\b/i, skill: "Event Coordination" },
+  { re: /\b(handled\s+cash|cashier|cash\s+register)\b/i, skill: "Cash Handling" },
+  { re: /\b(answered\s+phones?|phone\s+calls?|customer\s+calls?)\b/i, skill: "Phone Etiquette" },
+  { re: /\b(front\s+desk|reception(ist)?)\b/i, skill: "Front Desk Operations" },
+];
 const VOICE_FIELDS = [
   "business", "marketing", "finance", "accounting", "information technology",
   "computer science", "cybersecurity", "data science", "graphic design", "design",
@@ -2699,6 +2896,10 @@ function analyzeVoiceProfile(text) {
   const skills = voiceMatchTerms(lower, VOICE_SKILLS);
   for (const [alias, canon] of Object.entries(VOICE_SKILL_ALIASES)) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !skills.includes(canon)) skills.push(canon);
+  }
+  // Verb-driven skills: pick up things the user *did* without naming them.
+  for (const v of VOICE_VERB_SKILLS) {
+    if (v.re.test(lower) && !skills.includes(v.skill)) skills.push(v.skill);
   }
   // Re-apply substring de-dupe now that aliases may have added longer canon forms.
   const dedupedSkills = skills.filter(t =>
@@ -2813,6 +3014,7 @@ let _voiceVariant = 0;
 function voiceAnalyze() {
   const text = (state.voice_profile || "").trim();
   if (!text) { toast("RECORD OR TYPE YOUR INTRO FIRST"); return; }
+  markVoiceIntroSeen();
   _voiceAnalysis = analyzeVoiceProfile(text);
   _voiceVariant = 0;
   renderVoiceReview();
@@ -2837,7 +3039,7 @@ function renderVoiceReview() {
   if (chipBox) {
     const items = [...(_voiceAnalysis.skills || []), ..._voiceAnalysis.traits || []];
     chipBox.innerHTML = items.length
-      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip">${esc(s)}</button>`).join("")
+      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip" role="checkbox" aria-checked="true">${esc(s)}</button>`).join("")
       : `<div class="vr-empty">No clear skills detected — add them in the Skills section, or reword and try again.</div>`;
   }
 }
@@ -2849,7 +3051,10 @@ function voiceRegenSummary() {
   if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant);
 }
 
-function voiceToggleChip(btn) { btn.classList.toggle("selected"); }
+function voiceToggleChip(btn) {
+  btn.classList.toggle("selected");
+  btn.setAttribute("aria-checked", btn.classList.contains("selected") ? "true" : "false");
+}
 
 function voiceApplySummary() {
   const draft = $("#voice-summary-draft");
@@ -2947,9 +3152,11 @@ function getTargetForElement(el) {
 
 function setVoiceFabState(recording, targetId) {
   const fab = $("#voice-fab");
-  if (!fab) return;
-  fab.classList.toggle("recording", !!recording);
-  fab.setAttribute("aria-pressed", recording ? "true" : "false");
+  if (fab) {
+    fab.classList.toggle("recording", !!recording);
+    fab.setAttribute("aria-pressed", recording ? "true" : "false");
+  }
+  document.body.classList.toggle("voice-recording", !!recording);
   const labelEl = $("#voice-fab-label");
   if (labelEl) labelEl.textContent = recording ? "STOP" : "DICTATE";
   const live = $("#voice-fab-live");
@@ -2965,6 +3172,147 @@ function setVoiceFabState(recording, targetId) {
       live.textContent = "Dictation stopped.";
     }
   }
+  if (recording) startLevelMeter();
+  else stopLevelMeter();
+}
+
+// ── First-visit handling for the voice card ────────────────────────────────
+// On a brand-new install we expand the voice card so users actually see the
+// fastest path through the form. After any engagement (record, skip, toggle,
+// analyze) we remember the choice and never auto-expand again.
+const VOICE_INTRO_SEEN_KEY = "resumecanvas:v1:voice-intro-seen";
+
+function hasSeenVoiceIntro() {
+  try { return localStorage.getItem(VOICE_INTRO_SEEN_KEY) === "1"; }
+  catch (_e) { return true; }
+}
+
+function markVoiceIntroSeen() {
+  try { localStorage.setItem(VOICE_INTRO_SEEN_KEY, "1"); } catch (_e) { /* ignore */ }
+  const card = $("#voice-card");
+  if (card) card.classList.remove("voice-fresh");
+}
+
+function applyVoiceIntroDefaultState() {
+  if (hasSeenVoiceIntro()) return;
+  if (!isSpeechSupported()) return; // no point promoting a feature they can't use
+  const card = $("#voice-card");
+  if (!card) return;
+  card.classList.remove("collapsed");
+  card.classList.add("voice-fresh");
+}
+
+function skipVoiceIntro() {
+  const card = $("#voice-card");
+  if (card) card.classList.add("collapsed");
+  markVoiceIntroSeen();
+  const nameInput = document.querySelector('[data-bind="name"]');
+  if (nameInput && typeof nameInput.focus === "function") nameInput.focus();
+}
+
+// ── Input-level meter ──────────────────────────────────────────────────────
+// Three small bars driven by the user's mic via getUserMedia + AnalyserNode.
+// Strictly cosmetic: if the browser declines or the API isn't there, the
+// bars just stay flat. We only attempt this when mic permission is already
+// "granted" to avoid double-prompting the user alongside SpeechRecognition.
+let _meterStream = null;
+let _meterAudioCtx = null;
+let _meterAnalyser = null;
+let _meterRaf = null;
+let _meterBars = null;
+
+function collectMeterBars() {
+  const nodes = document.querySelectorAll(".voice-meter .vm-bar");
+  const cardBars = [], fabBars = [];
+  nodes.forEach((n) => {
+    const parent = n.parentElement;
+    if (!parent) return;
+    if (parent.id === "voice-meter-card") cardBars.push(n);
+    else if (parent.id === "voice-meter-fab") fabBars.push(n);
+  });
+  return { cardBars, fabBars };
+}
+
+async function startLevelMeter() {
+  if (_meterStream) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  // Don't trigger an extra permission prompt — only run if mic is already granted.
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const p = await navigator.permissions.query({ name: "microphone" });
+      if (p && p.state !== "granted") return;
+    }
+  } catch (_e) { /* permissions API may not support "microphone" — fall through */ }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _meterStream = stream;
+    _meterAudioCtx = new Ctx();
+    const src = _meterAudioCtx.createMediaStreamSource(stream);
+    _meterAnalyser = _meterAudioCtx.createAnalyser();
+    _meterAnalyser.fftSize = 64;
+    _meterAnalyser.smoothingTimeConstant = 0.6;
+    src.connect(_meterAnalyser);
+    _meterBars = collectMeterBars();
+    tickLevelMeter();
+  } catch (_err) {
+    // Optional feature — fail silently and leave recording running.
+    stopLevelMeter();
+  }
+}
+
+function tickLevelMeter() {
+  if (!_meterAnalyser) return;
+  const buf = new Uint8Array(_meterAnalyser.frequencyBinCount);
+  _meterAnalyser.getByteFrequencyData(buf);
+  const n = buf.length;
+  const third = Math.max(1, Math.floor(n / 3));
+  const lo = meterBandAvg(buf, 0, third);
+  const mid = meterBandAvg(buf, third, third * 2);
+  const hi = meterBandAvg(buf, third * 2, n);
+  const levels = [bandToLevel(lo), bandToLevel(mid), bandToLevel(hi)];
+  paintMeter(_meterBars && _meterBars.cardBars, levels);
+  paintMeter(_meterBars && _meterBars.fabBars, levels);
+  _meterRaf = requestAnimationFrame(tickLevelMeter);
+}
+
+function meterBandAvg(buf, lo, hi) {
+  let s = 0, n = 0;
+  for (let i = lo; i < hi; i++) { s += buf[i]; n++; }
+  return n ? s / n : 0;
+}
+
+function bandToLevel(v) {
+  // 0..255 → 0..5 with a slight bias so quiet rooms don't flicker at level 1.
+  if (v < 18) return 0;
+  if (v < 40) return 1;
+  if (v < 70) return 2;
+  if (v < 105) return 3;
+  if (v < 150) return 4;
+  return 5;
+}
+
+function paintMeter(bars, levels) {
+  if (!bars) return;
+  for (let i = 0; i < bars.length && i < levels.length; i++) {
+    bars[i].setAttribute("data-level", String(levels[i]));
+  }
+}
+
+function stopLevelMeter() {
+  if (_meterRaf) { cancelAnimationFrame(_meterRaf); _meterRaf = null; }
+  if (_meterStream) {
+    try { _meterStream.getTracks().forEach((t) => t.stop()); } catch (_e) { /* ignore */ }
+    _meterStream = null;
+  }
+  if (_meterAudioCtx) {
+    try { _meterAudioCtx.close(); } catch (_e) { /* ignore */ }
+    _meterAudioCtx = null;
+  }
+  _meterAnalyser = null;
+  // Reset all bars to 0 so the meter doesn't freeze on its last frame.
+  document.querySelectorAll(".voice-meter .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
 }
 
 function voiceFabToggle() {
@@ -2985,6 +3333,7 @@ function voiceFabToggle() {
   // Nothing useful focused — open the voice-intro card and start there.
   const card = $("#voice-card");
   if (card) card.classList.remove("collapsed");
+  markVoiceIntroSeen();
   voiceToggle();
 }
 
@@ -3019,6 +3368,7 @@ function initVoiceFabOnce() {
   _voiceFabInitialized = true;
   setupVoiceFocusTracking();
   setupVoiceHotkey();
+  applyVoiceIntroDefaultState();
   maybeAutoStartVoiceFromUrl();
 }
 
@@ -3029,6 +3379,7 @@ function maybeAutoStartVoiceFromUrl() {
     if (!isSpeechSupported()) return;
     const card = $("#voice-card");
     if (card) card.classList.remove("collapsed");
+    markVoiceIntroSeen();
     // Defer so the rest of the UI has a beat to settle before the mic prompt.
     setTimeout(() => { voiceToggle(); }, 350);
   } catch (_err) { /* URL not available — ignore */ }
