@@ -2387,6 +2387,9 @@ function renderShareModal() {
 let _recognition = null;
 let _recordingTarget = null;
 let _baseValue = "";
+// Snapshot of _baseValue from before the last appended chunk so "scratch that"
+// can undo the most recent thing the user dictated.
+let _lastBaseSnapshot = "";
 
 function getSpeechCtor() {
   if (typeof window === "undefined") return null;
@@ -2415,10 +2418,12 @@ function ensureRecognition() {
       else interim += res[0].transcript;
     }
     if (final) {
-      _baseValue = appendDictation(_baseValue, final);
+      const segments = processVoiceCommands(final, _recordingTarget);
+      applyVoiceSegments(segments);
     }
-    const display = interim ? appendDictation(_baseValue, interim) : _baseValue;
-    writeToMicTarget(_recordingTarget, display);
+    if (interim && _recordingTarget) {
+      writeToMicTarget(_recordingTarget, appendDictation(_baseValue, interim));
+    }
     // Silence-based auto-stop for the voice-intro recorder: reset on every chunk.
     if (_recordingTarget === "voiceProfile" && (interim || final)) armVoiceSilenceTimer();
   };
@@ -2447,6 +2452,131 @@ function appendDictation(base, addition) {
   if (!b) return a;
   if (!a) return b;
   return `${b} ${a}`;
+}
+
+// ── Inline voice commands ──────────────────────────────────────────────────
+// Recognised at the *end* of a final transcript chunk: punctuation
+// ("period", "comma"), structural moves ("new bullet"), edit corrections
+// ("scratch that"), and session control ("stop listening"). Phrases that
+// only make sense in some contexts (e.g. "new bullet" outside a bullet
+// field) are ignored and pass through as literal text.
+const VOICE_COMMANDS = [
+  { re: /\b(scratch|delete|cancel|forget)\s+that\b/i, op: "scratchThat" },
+  { re: /\b(new|next)\s+(bullet|point|line\s+item)\b/i, op: "newBullet", needs: ["projBullet", "expBullet"] },
+  { re: /\b(stop|end)\s+(dictation|listening|recording)\b/i, op: "stopDictation" },
+  { re: /\b(new\s+line|new\s+paragraph|line\s+break)\b/i, op: "newLine" },
+  { re: /\bquestion\s+mark\b/i, op: "punct", char: "?" },
+  { re: /\bexclamation\s+(mark|point)\b/i, op: "punct", char: "!" },
+  { re: /\bperiod\b|\bfull\s+stop\b/i, op: "punct", char: "." },
+  { re: /\bcomma\b/i, op: "punct", char: "," },
+  { re: /\bcolon\b/i, op: "punct", char: ":" },
+  { re: /\bsemi[-\s]?colon\b/i, op: "punct", char: ";" },
+];
+
+function commandAppliesToTarget(cmd, target) {
+  if (!cmd.needs) return true;
+  if (!target) return false;
+  const kind = target.split(":")[0];
+  return cmd.needs.includes(kind);
+}
+
+function processVoiceCommands(text, target) {
+  const segments = [];
+  let remaining = text;
+  // Iteratively peel off the earliest command match; intervening prose
+  // becomes text segments, recognised commands become command segments.
+  while (remaining) {
+    let best = null;
+    for (const c of VOICE_COMMANDS) {
+      if (!commandAppliesToTarget(c, target)) continue;
+      const m = c.re.exec(remaining);
+      if (!m) continue;
+      if (!best || m.index < best.match.index) best = { cmd: c, match: m };
+    }
+    if (!best) { segments.push({ text: remaining }); break; }
+    const pre = remaining.slice(0, best.match.index);
+    if (pre) segments.push({ text: pre });
+    segments.push({ command: best.cmd.op, char: best.cmd.char });
+    remaining = remaining.slice(best.match.index + best.match[0].length);
+  }
+  return segments;
+}
+
+function applyVoiceSegments(segments) {
+  for (let i = 0; i < segments.length; i++) {
+    if (!_recordingTarget) break;
+    const seg = segments[i];
+    if (seg.text) {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = appendDictation(_baseValue, seg.text);
+      writeToMicTarget(_recordingTarget, _baseValue);
+      continue;
+    }
+    if (seg.command === "newBullet") {
+      // Hand the remaining segments to the bullet-switcher so anything the
+      // user said *after* "new bullet" lands in the freshly created bullet.
+      newBulletDuringDictation(segments.slice(i + 1));
+      return;
+    }
+    if (seg.command) executeVoiceCommand(seg.command, seg.char);
+  }
+}
+
+function executeVoiceCommand(op, char) {
+  if (!_recordingTarget) return;
+  switch (op) {
+    case "scratchThat": {
+      _baseValue = _lastBaseSnapshot;
+      writeToMicTarget(_recordingTarget, _baseValue);
+      toast("✓ SCRATCHED");
+      return;
+    }
+    case "punct": {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = _baseValue.replace(/\s+$/, "") + (char || ".");
+      writeToMicTarget(_recordingTarget, _baseValue);
+      return;
+    }
+    case "newLine": {
+      _lastBaseSnapshot = _baseValue;
+      _baseValue = _baseValue.replace(/\s+$/, "") + "\n";
+      writeToMicTarget(_recordingTarget, _baseValue);
+      return;
+    }
+    case "stopDictation": {
+      if (_recordingTarget === "voiceProfile") stopVoiceRecording();
+      else stopDictation();
+      return;
+    }
+  }
+}
+
+// "new bullet" in a project/experience bullet: stash current text, splice an
+// empty bullet right after the current one, re-render, and resume dictation
+// on the freshly created bullet. SpeechRecognition.start() can throw
+// InvalidStateError if called during the previous engine's teardown, so we
+// defer the restart by a tick. Any segments the user spoke after "new bullet"
+// are replayed into the new bullet once dictation resumes.
+function newBulletDuringDictation(remainingSegments) {
+  const target = _recordingTarget;
+  if (!target) return;
+  const parts = target.split(":");
+  const kind = parts[0];
+  if (kind !== "projBullet" && kind !== "expBullet") return;
+  const i = +parts[1], bi = +parts[2];
+  const arr = kind === "projBullet" ? state.projects[i]?.bullets : state.experience[i]?.bullets;
+  if (!arr) return;
+  stopDictation();
+  arr.splice(bi + 1, 0, "");
+  render();
+  const nextTarget = `${kind}:${i}:${bi + 1}`;
+  toast("✓ NEW BULLET");
+  setTimeout(() => {
+    startDictation(nextTarget);
+    if (_recordingTarget === nextTarget && remainingSegments && remainingSegments.length) {
+      applyVoiceSegments(remainingSegments);
+    }
+  }, 140);
 }
 
 function findMicButton(targetId) {
@@ -2502,6 +2632,7 @@ function startDictation(targetId) {
   if (!field) return;
   _recordingTarget = targetId;
   _baseValue = field.value || "";
+  _lastBaseSnapshot = _baseValue;
   try {
     r.start();
   } catch (_err) {
@@ -2643,12 +2774,19 @@ const VOICE_SKILLS = [
   "Problem Solving", "Critical Thinking", "Bookkeeping", "Sales", "Marketing", "Accounting",
   "Research", "Communication", "Written Communication", "Interpersonal Skills", "Teamwork",
   "Collaboration", "Organization", "Multitasking", "Attention to Detail", "Conflict Resolution",
-  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Google Workspace", "Google Sheets",
-  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "C++",
-  "SQL", "HTML", "CSS", "R", "Canva", "Photoshop", "Illustrator", "InDesign", "Figma",
-  "Adobe Express", "CapCut", "Premiere Pro", "Tableau", "Power BI", "QuickBooks", "Salesforce",
-  "HubSpot", "Mailchimp", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
-  "Google Analytics", "Meta Ads Manager", "Scheduling", "Event Coordination", "Event Planning",
+  "Microsoft Excel", "Microsoft Office", "Microsoft Word", "Microsoft Teams", "Google Workspace", "Google Sheets",
+  "Google Docs", "Excel", "PowerPoint", "Outlook", "Python", "Java", "JavaScript", "TypeScript", "C++",
+  "C#", "SQL", "HTML", "CSS", "R", "Go", "Rust", "Swift", "Kotlin", "Ruby",
+  "React", "React Native", "Next.js", "Vue.js", "Svelte", "Astro", "Angular", "Tailwind CSS",
+  "Node.js", "Express", "Django", "Flask", "FastAPI", "Ruby on Rails",
+  "AWS", "Azure", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Linux",
+  "Machine Learning", "Deep Learning", "Generative AI", "Prompt Engineering", "LLMs",
+  "Canva", "Photoshop", "Illustrator", "InDesign", "Figma", "Sketch", "Adobe XD", "Procreate",
+  "Adobe Express", "CapCut", "Premiere Pro", "After Effects", "DaVinci Resolve",
+  "Tableau", "Power BI", "Looker", "QuickBooks", "Salesforce",
+  "HubSpot", "Mailchimp", "Klaviyo", "WordPress", "Shopify", "Notion", "Slack", "Trello", "Asana",
+  "Google Analytics", "Meta Ads Manager", "TikTok Ads", "LinkedIn Ads", "Zoom",
+  "Scheduling", "Event Coordination", "Event Planning",
   "Inventory Management", "Cash Handling", "Point of Sale", "Filing", "Recordkeeping",
   "Spanish", "Bilingual", "Tutoring", "Mentoring", "Phone Etiquette", "Front Desk Operations",
 ];
@@ -2669,7 +2807,64 @@ const VOICE_SKILL_ALIASES = {
   "customer support": "Customer Service", "client service": "Customer Service",
   "data analytics": "Data Analysis", "video editor": "Video Editing",
   "graphic designer": "Graphic Design", "book keeping": "Bookkeeping",
+  // Modern stacks — speech-to-text strips dots and merges words.
+  "next js": "Next.js", "nextjs": "Next.js",
+  "node js": "Node.js", "nodejs": "Node.js",
+  "vue js": "Vue.js", "vuejs": "Vue.js",
+  "react js": "React", "reactjs": "React",
+  "react native": "React Native",
+  "type script": "TypeScript", "typescript": "TypeScript",
+  "tailwind": "Tailwind CSS", "tailwind css": "Tailwind CSS",
+  "ruby on rails": "Ruby on Rails", "rails": "Ruby on Rails",
+  "fast api": "FastAPI", "fastapi": "FastAPI",
+  // Cloud & devops
+  "amazon web services": "AWS", "a w s": "AWS",
+  "google cloud platform": "Google Cloud", "gcp": "Google Cloud",
+  "ci cd": "CI/CD", "ci/cd": "CI/CD",
+  "git hub": "GitHub", "git lab": "GitLab",
+  // AI/ML
+  "machine learning": "Machine Learning", "deep learning": "Deep Learning",
+  "generative ai": "Generative AI", "gen ai": "Generative AI",
+  "prompt engineering": "Prompt Engineering",
+  "large language models": "LLMs", "l l m s": "LLMs", "llm": "LLMs",
+  // Design / video tools
+  "adobe xd": "Adobe XD",
+  "after effects": "After Effects",
+  "davinci resolve": "DaVinci Resolve", "da vinci resolve": "DaVinci Resolve",
+  // Office / collab
+  "ms teams": "Microsoft Teams", "microsoft teams": "Microsoft Teams",
+  "ms word": "Microsoft Word",
+  // Ads
+  "tik tok ads": "TikTok Ads", "tiktok ads": "TikTok Ads",
+  "linked in ads": "LinkedIn Ads", "linkedin ads": "LinkedIn Ads",
+  "facebook ads": "Meta Ads Manager", "meta ads": "Meta Ads Manager",
 };
+// Verb→skill mapping. Helps when a speaker describes what they *did* without
+// naming the skill outright ("I built a small web app" → Project Management,
+// "I tutored classmates" → Tutoring). Kept conservative to avoid false hits.
+const VOICE_VERB_SKILLS = [
+  { re: /\b(design(ed|s|ing)?|redesign(ed|s|ing)?)\b/i, skill: "Graphic Design" },
+  { re: /\b(led|leading|leads|lead\s+a|manag(ed|es|ing|ement))\b/i, skill: "Leadership" },
+  { re: /\b(present(ed|s|ing|ation)|spoke\s+(in\s+front|publicly)|gave\s+a\s+talk)\b/i, skill: "Public Speaking" },
+  { re: /\b(tutor(ed|s|ing)?|taught|teach(ing|es)?)\b/i, skill: "Tutoring" },
+  { re: /\b(collaborat(ed|e|es|ing|ion))\b/i, skill: "Collaboration" },
+  { re: /\b(research(ed|es|ing)?)\b/i, skill: "Research" },
+  { re: /\b(analyz(ed|es|ing|e)|analys(ed|es|ing|e))\b/i, skill: "Data Analysis" },
+  { re: /\b(edit(ed|s|ing)\s+(videos?|reels?|clips?)|video\s+edit(or|ing))\b/i, skill: "Video Editing" },
+  { re: /\b(photograph(ed|s|ing|y)|shot\s+photos|took\s+photos)\b/i, skill: "Photography" },
+  { re: /\b(train(ed|s|ing)\s+(new\s+hires|staff|team|people|interns))\b/i, skill: "Mentoring" },
+  { re: /\b(schedul(ed|es|ing)|booked\s+appointments)\b/i, skill: "Scheduling" },
+  { re: /\b(wrote|writing|written|author(ed|ing)?)\b/i, skill: "Written Communication" },
+  { re: /\b(sold|sales|selling|upsold|closed\s+deals)\b/i, skill: "Sales" },
+  { re: /\b(bookkeep(ing|er)?|reconcil(ed|es|ing|iation))\b/i, skill: "Bookkeeping" },
+  { re: /\b(organiz(ed|es|ing|ation))\b/i, skill: "Organization" },
+  { re: /\b(mentor(ed|s|ing)?)\b/i, skill: "Mentoring" },
+  { re: /\b(built|building|develop(ed|s|ing)?|shipped|launched|created)\b[^.!?\n]{0,40}\b(app|website|project|product|platform|tool|feature|side[-\s]project|portfolio)s?\b/i, skill: "Project Management" },
+  { re: /\b(ran|run\s+a|managing)\s+(events?|meetings?|workshops?)\b/i, skill: "Event Coordination" },
+  { re: /\b(handled\s+cash|cashier|cash\s+register)\b/i, skill: "Cash Handling" },
+  { re: /\b(answered\s+phones?|phone\s+calls?|customer\s+calls?)\b/i, skill: "Phone Etiquette" },
+  { re: /\b(front\s+desk|reception(ist)?)\b/i, skill: "Front Desk Operations" },
+];
 const VOICE_FIELDS = [
   "business", "marketing", "finance", "accounting", "information technology",
   "computer science", "cybersecurity", "data science", "graphic design", "design",
@@ -2701,6 +2896,10 @@ function analyzeVoiceProfile(text) {
   const skills = voiceMatchTerms(lower, VOICE_SKILLS);
   for (const [alias, canon] of Object.entries(VOICE_SKILL_ALIASES)) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !skills.includes(canon)) skills.push(canon);
+  }
+  // Verb-driven skills: pick up things the user *did* without naming them.
+  for (const v of VOICE_VERB_SKILLS) {
+    if (v.re.test(lower) && !skills.includes(v.skill)) skills.push(v.skill);
   }
   // Re-apply substring de-dupe now that aliases may have added longer canon forms.
   const dedupedSkills = skills.filter(t =>

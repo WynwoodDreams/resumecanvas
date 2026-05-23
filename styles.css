@@ -293,6 +293,8 @@
   .intake-card:not(.collapsed) .intake-body { display: block; }
   .intake-help { font-size: 10.5px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
   .intake-help code { background: var(--surface-1); padding: 1px 5px; color: var(--amber-soft); font-size: 9.5px; }
+  .intake-help-tip { display: inline-block; margin-top: 6px; padding: 6px 9px; background: var(--surface-1); border-left: 2px solid var(--amber); font-size: 10px; color: var(--text); }
+  .intake-help-tip strong { color: var(--amber-soft); font-weight: 700; }
   .dropzone { display: block; padding: 22px 16px; border: 1px dashed var(--border-strong); background: var(--surface-1); text-align: center; cursor: pointer; transition: all 0.15s; }
   .dropzone:hover, .dropzone.drag-over { border-color: var(--amber); background: rgba(140,120,81,0.10); border-style: solid; }
   .dropzone .dz-title { font-size: 12px; letter-spacing: 0.22em; font-weight: 700; color: var(--text); margin-bottom: 4px; }
