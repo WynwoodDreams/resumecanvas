@@ -18,10 +18,33 @@
     --ink: #020826;
     --ink-soft: #4a4a44;
     --rule: #c8b89f;
+    --radius-card: 6px;
+  }
+  /* Dark theme — muted sage palette inspired by the v1.1 mockups. The preview
+     surface (--paper, --ink) intentionally stays light so the resume itself
+     reads as paper-on-screen regardless of editor chrome. */
+  body.theme-dark {
+    --bg: #1c2628;
+    --surface-0: #25323a;
+    --surface-1: #1a2326;
+    --surface-2: #2c3b42;
+    --border: #34464d;
+    --border-strong: #4e6a72;
+    --text: #e6ece5;
+    --text-dim: #a3b1aa;
+    --text-mute: #6f8079;
+    --amber: #c5d49f;
+    --amber-soft: #dde6c1;
+    --sage: #8eb076;
+    --sage-ink: #b5d39a;
+    --red: #ec6557;
+    --red-ink: #ff8273;
+    --rule: #4e6a72;
   }
   * { box-sizing: border-box; }
   html, body { background: var(--bg); color: var(--text); font-family: "JetBrains Mono", monospace; margin: 0; padding: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-  body { background-image: radial-gradient(circle at 20% 10%, rgba(140,120,81,0.06), transparent 40%), radial-gradient(circle at 80% 90%, rgba(242,80,66,0.04), transparent 40%); background-attachment: fixed; }
+  body { background-image: radial-gradient(circle at 20% 10%, rgba(140,120,81,0.06), transparent 40%), radial-gradient(circle at 80% 90%, rgba(242,80,66,0.04), transparent 40%); background-attachment: fixed; transition: background-color 0.2s ease, color 0.2s ease; }
+  body.theme-dark { background-image: radial-gradient(circle at 20% 10%, rgba(142,176,118,0.06), transparent 45%), radial-gradient(circle at 80% 90%, rgba(236,101,87,0.04), transparent 45%); }
 
   /* Top bar */
   .topbar { position: sticky; top: 0; z-index: 40; background: rgba(249,244,239,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
@@ -225,8 +248,8 @@
   .pane.right { background: linear-gradient(180deg, #f4ede4 0%, #efe5d4 100%); }
 
   /* Section panels */
-  .panel { border: 1px solid var(--border); background: var(--surface-0); margin-bottom: 14px; }
-  .panel header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; background: var(--surface-1); border-bottom: 1px solid transparent; transition: border-color 0.15s; }
+  .panel { border: 1px solid var(--border); background: var(--surface-0); margin-bottom: 14px; border-radius: var(--radius-card); overflow: hidden; transition: border-color 0.15s, background 0.2s; }
+  .panel header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; background: var(--surface-1); border-bottom: 1px solid transparent; transition: border-color 0.15s, background 0.2s; }
   .panel.open header { border-bottom-color: var(--border); }
   .panel header h2 { margin: 0; font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: var(--text); }
   .panel header h2 .idx { color: var(--amber-soft); margin-right: 10px; font-weight: 700; }
@@ -239,7 +262,7 @@
   .reorder-btn { background: var(--surface-0); border: 1px solid var(--border); color: var(--text-mute); padding: 3px 7px; font-family: inherit; font-size: 9px; line-height: 1; cursor: pointer; transition: all 0.12s; }
   .reorder-btn:hover { border-color: var(--amber); color: var(--amber-soft); background: rgba(140,120,81,0.08); }
   .reorder-btn[aria-disabled="true"] { opacity: 0.25; cursor: default; pointer-events: none; }
-  .section-toggle { background: rgba(110,140,74,0.10); border: 1px solid var(--sage); color: var(--sage-ink); padding: 4px 10px; font-family: inherit; font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+  .section-toggle { background: rgba(110,140,74,0.10); border: 1px solid var(--sage); color: var(--sage-ink); padding: 4px 12px; font-family: inherit; font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700; cursor: pointer; transition: all 0.12s; border-radius: 999px; }
   .section-toggle:hover { background: rgba(110,140,74,0.20); }
   .section-toggle[aria-pressed="false"] { background: rgba(242,80,66,0.10); border-color: var(--red); color: var(--red-ink); }
   .section-toggle[aria-pressed="false"]:hover { background: rgba(242,80,66,0.20); }
@@ -839,3 +862,56 @@
     #preview .preview-frame:last-child { page-break-after: auto; }
     #preview .page-label { display: none; }
   }
+
+  /* ─────────────────────────────────────────────────────────
+     APP RAIL — fixed-width icon sidebar on desktop (≥1101px).
+     Hidden on mobile, where pane-tabs already drive navigation.
+     ───────────────────────────────────────────────────────── */
+  .app-rail { display: none; flex-direction: column; align-items: center; gap: 4px; position: fixed; left: 0; top: 50px; bottom: 0; width: 56px; padding: 14px 0; background: var(--surface-1); border-right: 1px solid var(--border); z-index: 35; transition: background 0.2s, border-color 0.2s; }
+  .app-rail-spacer { flex: 1 1 auto; min-height: 8px; }
+  .app-rail-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-dim); border: 1px solid transparent; border-radius: 8px; font-family: inherit; font-size: 16px; line-height: 1; cursor: pointer; transition: all 0.15s; padding: 0; }
+  .app-rail-btn:hover { background: var(--surface-0); color: var(--text); border-color: var(--border); }
+  .app-rail-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .app-rail-btn.active { background: var(--surface-2); color: var(--amber-soft); border-color: var(--amber); }
+  .app-rail-divider { width: 24px; height: 1px; background: var(--border); margin: 6px 0; }
+  @media (min-width: 1101px) {
+    .app-rail { display: flex; }
+    .shell { margin-left: 56px; }
+    .action-bar { left: 56px; }
+    .topbar { padding-left: 80px; }
+  }
+  /* Dark-mode chrome overrides — selectors that hard-code the cream beige
+     translucent panes need explicit dark backgrounds so the blur+tint reads
+     correctly. CSS-variable-driven surfaces re-skin on their own. */
+  body.theme-dark .topbar { background: rgba(28,38,40,0.92); }
+  body.theme-dark .pane-tabs { background: rgba(28,38,40,0.94); }
+  body.theme-dark .final-top { background: rgba(28,38,40,0.94); }
+  body.theme-dark .final-actions { background: rgba(28,38,40,0.97); }
+  body.theme-dark .action-bar { background: rgba(28,38,40,0.96); }
+  body.theme-dark .pane.right { background: linear-gradient(180deg, var(--surface-1) 0%, var(--bg) 100%); }
+  body.theme-dark input[type="text"]:focus,
+  body.theme-dark textarea:focus,
+  body.theme-dark select:focus { background: var(--surface-2); }
+  body.theme-dark .preview-frame { box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+  /* Slight extra emphasis for inline panel action chips in dark mode so the
+     light pill doesn't blow out the screen. */
+  body.theme-dark .section-toggle { background: rgba(142,176,118,0.15); }
+  body.theme-dark .section-toggle:hover { background: rgba(142,176,118,0.28); }
+  body.theme-dark .section-toggle[aria-pressed="false"] { background: rgba(236,101,87,0.15); }
+  body.theme-dark .section-toggle[aria-pressed="false"]:hover { background: rgba(236,101,87,0.28); }
+
+  /* Toolbar font chips — moderate refresh: the typeface chips become small
+     card buttons with a big letter glyph and the font name underneath. */
+  .toolbar-chip[data-family] { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 44px; padding: 5px 8px; line-height: 1.05; }
+  .toolbar-chip[data-family] .tc-letter { font-size: 16px; font-weight: 700; letter-spacing: 0; }
+  .toolbar-chip[data-family] .tc-name { font-size: 7.5px; letter-spacing: 0.14em; opacity: 0.75; }
+  .toolbar-chip[data-family].active .tc-name { opacity: 1; }
+  /* Typeface family chips show their own font preview so users can tell them apart at a glance. */
+  .toolbar-chip[data-family="times"] .tc-letter { font-family: "Newsreader", Georgia, serif; }
+  .toolbar-chip[data-family="arial"] .tc-letter { font-family: Arial, Helvetica, sans-serif; }
+  .toolbar-chip[data-family="calibri"] .tc-letter { font-family: "Calibri", "Segoe UI", sans-serif; }
+
+  /* Theme toggle in the rail */
+  .app-rail-btn.theme-toggle .rail-icon-dark { display: none; }
+  body.theme-dark .app-rail-btn.theme-toggle .rail-icon-light { display: none; }
+  body.theme-dark .app-rail-btn.theme-toggle .rail-icon-dark { display: inline; }

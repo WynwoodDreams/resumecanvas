@@ -1062,6 +1062,11 @@ const ACTIONS = {
   voiceApplySkills: () => voiceApplySkills(),
   voiceToggleChip: (btn) => voiceToggleChip(btn),
   voiceSetTone: (btn) => voiceSetTone(btn),
+  toggleTheme: () => toggleTheme(),
+  railJumpTop: () => railJumpTo("top"),
+  railOpenIntake: () => railOpen("intake"),
+  railOpenVoice: () => railOpen("voice"),
+  railJumpSkills: () => railJumpTo("skills"),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -3492,6 +3497,56 @@ function initVoiceFabOnce() {
   maybeAutoStartVoiceFromUrl();
 }
 
+// ── Theme + app rail ───────────────────────────────────────────────────────
+// Light by default; users opt into dark from the rail toggle. We persist the
+// choice so subsequent loads are stable, and never auto-switch on system
+// preference change so the editor doesn't flip mid-session.
+const THEME_KEY = "resumecanvas:v1:theme";
+
+function applySavedTheme() {
+  let theme = "light";
+  try { theme = localStorage.getItem(THEME_KEY) || "light"; } catch (_e) { /* ignore */ }
+  setTheme(theme, { persist: false });
+}
+
+function setTheme(theme, opts) {
+  const dark = theme === "dark";
+  document.body.classList.toggle("theme-dark", dark);
+  const btn = document.querySelector(".app-rail-btn.theme-toggle");
+  if (btn) {
+    btn.setAttribute("aria-pressed", dark ? "true" : "false");
+    btn.setAttribute("title", dark ? "Switch to light theme" : "Switch to dark theme");
+  }
+  if (!opts || opts.persist !== false) {
+    try { localStorage.setItem(THEME_KEY, dark ? "dark" : "light"); } catch (_e) { /* ignore */ }
+  }
+}
+
+function toggleTheme() {
+  const next = document.body.classList.contains("theme-dark") ? "light" : "dark";
+  setTheme(next);
+}
+
+// Rail click handlers: scroll the left editor pane to a specific panel, or
+// toggle one of the optional intake/voice cards open before scrolling.
+function railJumpTo(where) {
+  let el = null;
+  if (where === "top") el = document.querySelector(".pane.left");
+  else if (where === "skills") el = document.querySelector('.panel[data-section="skills"]');
+  if (!el) return;
+  if (where === "skills" && !el.classList.contains("open")) el.classList.add("open");
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function railOpen(card) {
+  const id = card === "intake" ? "intake-card" : "voice-card";
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("collapsed");
+  if (card === "voice") markVoiceIntroSeen();
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function maybeAutoStartVoiceFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -4607,6 +4662,9 @@ if ("serviceWorker" in navigator) {
 // INIT
 // ─────────────────────────────────────────────────────────
 
+// Apply the saved theme before the first render so users don't see a flash
+// of the light palette when they've opted into dark mode.
+applySavedTheme();
 restoreState();
 render();
 updatePreviewScale();
