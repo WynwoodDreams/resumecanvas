@@ -116,7 +116,15 @@
 
         <div class="voice-review hidden" id="voice-review">
           <div class="vr-block">
-            <div class="vr-label">SUGGESTED SUMMARY <span>· standard form, in your voice · editable</span></div>
+            <div class="vr-label">SUGGESTED SUMMARY <span>· in your voice · editable</span></div>
+            <div class="voice-tone-row" role="tablist" aria-label="Summary tone">
+              <span class="voice-tone-label">TONE</span>
+              <button class="voice-tone-btn selected" type="button" role="tab" aria-selected="true" data-action="voiceSetTone" data-tone="standard">STANDARD</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="formal">FORMAL</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="direct">DIRECT</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="warm">WARM</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="concise">CONCISE</button>
+            </div>
             <div class="vr-current hidden" id="voice-current-summary"></div>
             <textarea id="voice-summary-draft" class="voice-summary-draft" placeholder="A drafted summary will appear here."></textarea>
             <div class="vr-row">
