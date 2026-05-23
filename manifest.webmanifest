@@ -30,5 +30,16 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Talk through your resume",
+      "short_name": "Voice intro",
+      "description": "Open ResumeCanvas and start dictating your resume right away.",
+      "url": "./?voice=1",
+      "icons": [
+        { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }
+      ]
+    }
   ]
 }

@@ -1081,6 +1081,7 @@ const ACTIONS = {
   closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
+  voiceFabToggle: () => voiceFabToggle(),
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
   finalBackToEdit: () => finalBackToEdit(),
@@ -1700,6 +1701,7 @@ function render() {
   renderPreview();
   updateLibraryPill();
   hideMicButtonsIfUnsupported();
+  initVoiceFabOnce();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2416,6 +2418,8 @@ function ensureRecognition() {
     }
     const display = interim ? appendDictation(_baseValue, interim) : _baseValue;
     writeToMicTarget(_recordingTarget, display);
+    // Silence-based auto-stop for the voice-intro recorder: reset on every chunk.
+    if (_recordingTarget === "voiceProfile" && (interim || final)) armVoiceSilenceTimer();
   };
   r.onerror = (ev) => {
     if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
@@ -2509,6 +2513,7 @@ function startDictation(targetId) {
     const hint = $("#mic-hint-summary");
     if (hint) hint.classList.add("show");
   }
+  setVoiceFabState(true, targetId);
   toast("LISTENING… TAP MIC TO STOP");
 }
 
@@ -2523,6 +2528,7 @@ function finalizeDictation() {
   const targetId = _recordingTarget;
   _recordingTarget = null;
   _baseValue = "";
+  setVoiceFabState(false);
   if (targetId === "voiceProfile") {
     clearVoiceTimers();
     setVoiceButtonState(false);
@@ -2539,11 +2545,16 @@ function finalizeDictation() {
 }
 
 // ── Voice personality recorder ──────────────────────────────────────────────
-// Reuses the SpeechRecognition engine (target "voiceProfile") with a ~30s
-// auto-stop. Only the transcribed text is kept; raw audio is never stored.
+// Reuses the SpeechRecognition engine (target "voiceProfile"). Stops on ~2s
+// of silence after the user starts speaking; a hard safety cap keeps the
+// recorder from running indefinitely if the API never fires events.
+// Only the transcribed text is kept; raw audio is never stored.
 let _voiceStopTimer = null;
 let _voiceTick = null;
-const VOICE_SECONDS = 30;
+let _voiceSilenceTimer = null;
+let _voiceStartedAt = 0;
+const VOICE_SAFETY_CAP_SECONDS = 90;
+const VOICE_SILENCE_MS = 2000;
 
 function voiceToggle() {
   if (_recordingTarget === "voiceProfile") { stopVoiceRecording(); return; }
@@ -2554,13 +2565,21 @@ function voiceToggle() {
   startDictation("voiceProfile");
   if (_recordingTarget !== "voiceProfile") return; // start failed (e.g. mic blocked)
   setVoiceButtonState(true);
-  let remaining = VOICE_SECONDS;
-  updateVoiceStatus(`● Recording… ${remaining}s left`);
+  _voiceStartedAt = Date.now();
+  updateVoiceStatus("● Listening… speak naturally");
   _voiceTick = setInterval(() => {
-    remaining -= 1;
-    updateVoiceStatus(remaining > 0 ? `● Recording… ${remaining}s left` : "● Recording…");
+    const elapsed = Math.floor((Date.now() - _voiceStartedAt) / 1000);
+    const mm = String(Math.floor(elapsed / 60)).padStart(1, "0");
+    const ss = String(elapsed % 60).padStart(2, "0");
+    updateVoiceStatus(`● Listening… ${mm}:${ss} — pause to stop`);
+    if (elapsed >= VOICE_SAFETY_CAP_SECONDS) stopVoiceRecording();
   }, 1000);
-  _voiceStopTimer = setTimeout(stopVoiceRecording, VOICE_SECONDS * 1000);
+  _voiceStopTimer = setTimeout(stopVoiceRecording, VOICE_SAFETY_CAP_SECONDS * 1000);
+}
+
+function armVoiceSilenceTimer() {
+  if (_voiceSilenceTimer) clearTimeout(_voiceSilenceTimer);
+  _voiceSilenceTimer = setTimeout(stopVoiceRecording, VOICE_SILENCE_MS);
 }
 
 function stopVoiceRecording() {
@@ -2571,6 +2590,7 @@ function stopVoiceRecording() {
 function clearVoiceTimers() {
   if (_voiceStopTimer) { clearTimeout(_voiceStopTimer); _voiceStopTimer = null; }
   if (_voiceTick) { clearInterval(_voiceTick); _voiceTick = null; }
+  if (_voiceSilenceTimer) { clearTimeout(_voiceSilenceTimer); _voiceSilenceTimer = null; }
 }
 
 function setVoiceButtonState(recording) {
@@ -2893,12 +2913,125 @@ function micToggle(btn) {
 // Hide mic buttons up-front in browsers without Speech API support, so users
 // don't see an affordance they can't use.
 function hideMicButtonsIfUnsupported() {
-  if (isSpeechSupported()) return;
+  if (isSpeechSupported()) {
+    const fab = $("#voice-fab");
+    if (fab) fab.classList.remove("hidden");
+    return;
+  }
   document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
   // The voice recorder falls back to typing — hide its record button and say so.
   const vbtn = $("#voice-rec-btn");
   if (vbtn) vbtn.classList.add("hidden");
+  const fab = $("#voice-fab");
+  if (fab) fab.classList.add("hidden");
   updateVoiceStatus("Voice capture isn't supported here — type your intro below.");
+}
+
+// ── Floating dictation mic (FAB) ───────────────────────────────────────────
+// Targets the last-focused dictatable field; if none, opens the voice-intro
+// card and records into the intro transcript. Also driven by Ctrl/Cmd+Shift+M.
+let _lastFocusedMicTarget = null;
+
+function getTargetForElement(el) {
+  if (!el) return null;
+  if (el.id === "voice-transcript") return "voiceProfile";
+  if (el.id === "summary") return "summary";
+  if (el.dataset && el.hasAttribute && el.hasAttribute("data-proj-bullet") && el.hasAttribute("data-bullet-i")) {
+    return `projBullet:${el.dataset.projBullet}:${el.dataset.bulletI}`;
+  }
+  if (el.dataset && el.hasAttribute && el.hasAttribute("data-exp-bullet") && el.hasAttribute("data-bullet-i")) {
+    return `expBullet:${el.dataset.expBullet}:${el.dataset.bulletI}`;
+  }
+  return null;
+}
+
+function setVoiceFabState(recording, targetId) {
+  const fab = $("#voice-fab");
+  if (!fab) return;
+  fab.classList.toggle("recording", !!recording);
+  fab.setAttribute("aria-pressed", recording ? "true" : "false");
+  const labelEl = $("#voice-fab-label");
+  if (labelEl) labelEl.textContent = recording ? "STOP" : "DICTATE";
+  const live = $("#voice-fab-live");
+  if (live) {
+    if (recording) {
+      const where = targetId === "voiceProfile" ? "voice intro"
+        : targetId === "summary" ? "summary"
+        : targetId && targetId.startsWith("projBullet:") ? "project bullet"
+        : targetId && targetId.startsWith("expBullet:") ? "experience bullet"
+        : "focused field";
+      live.textContent = `Dictation started — listening into ${where}.`;
+    } else {
+      live.textContent = "Dictation stopped.";
+    }
+  }
+}
+
+function voiceFabToggle() {
+  if (!isSpeechSupported()) {
+    toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
+    return;
+  }
+  if (_recordingTarget) {
+    if (_recordingTarget === "voiceProfile") stopVoiceRecording();
+    else stopDictation();
+    return;
+  }
+  const target = _lastFocusedMicTarget;
+  if (target && findMicField(target)) {
+    startDictation(target);
+    return;
+  }
+  // Nothing useful focused — open the voice-intro card and start there.
+  const card = $("#voice-card");
+  if (card) card.classList.remove("collapsed");
+  voiceToggle();
+}
+
+function setupVoiceFocusTracking() {
+  document.addEventListener("focusin", (ev) => {
+    const target = getTargetForElement(ev.target);
+    if (target) _lastFocusedMicTarget = target;
+  });
+  // Keep the FAB from stealing focus (and blurring the textarea) on click.
+  const fab = $("#voice-fab");
+  if (fab) {
+    fab.addEventListener("mousedown", (ev) => ev.preventDefault());
+    fab.addEventListener("pointerdown", (ev) => ev.preventDefault());
+  }
+}
+
+function setupVoiceHotkey() {
+  document.addEventListener("keydown", (ev) => {
+    // Ctrl+Shift+M (or Cmd+Shift+M) toggles dictation on the focused field.
+    if (!ev.shiftKey) return;
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    const k = (ev.key || "").toLowerCase();
+    if (k !== "m") return;
+    ev.preventDefault();
+    voiceFabToggle();
+  });
+}
+
+let _voiceFabInitialized = false;
+function initVoiceFabOnce() {
+  if (_voiceFabInitialized) return;
+  _voiceFabInitialized = true;
+  setupVoiceFocusTracking();
+  setupVoiceHotkey();
+  maybeAutoStartVoiceFromUrl();
+}
+
+function maybeAutoStartVoiceFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("voice") !== "1") return;
+    if (!isSpeechSupported()) return;
+    const card = $("#voice-card");
+    if (card) card.classList.remove("collapsed");
+    // Defer so the rest of the UI has a beat to settle before the mic prompt.
+    setTimeout(() => { voiceToggle(); }, 350);
+  } catch (_err) { /* URL not available — ignore */ }
 }
 
 async function sharePdf() {
