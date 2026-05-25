@@ -123,42 +123,42 @@ const TEMPLATES = {
     layout: "single", header: "structured", headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
     projMode: "dated", expMode: "italic", certs: false,
     namePt: 20, sectionPt: 12, bodyPt: 12,
-    name: "Single column · Categorical", desc: "12pt body, skills as labeled categories (Technical, Administrative, etc). Best for students with broad skill profiles.",
+    name: "Categorical", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
     labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_2: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
     projMode: "bullets", expMode: "company", certs: true,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Single column · Two-col skills", desc: "11pt smallCaps headers, two-column skill grid, certifications section. Best for technical hires with more density.",
+    name: "Two-Column Skills", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
     labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_1: {
     layout: "single", header: "lines", headerCase: "title", skillsMode: "two_column", eduMode: "demo1",
     projMode: "paragraph", expMode: "company", certs: false,
     namePt: 18, sectionPt: 12, bodyPt: 11,
-    name: "Single column · Highlighted skills", desc: "Title-case headers, two-column bulleted skills, coursework lists, paragraph-style projects. Best for AI / data students.",
+    name: "Highlighted Skills", desc: "Single column · title-case headers · bulleted skills · paragraph projects. Good for AI / data students.",
     labels: { summary: "Profile Summary", skills: "Highlighted Skills", education: "Education", projects: "Projects", experience: "Work Experience", certs: "Certifications" },
   },
   demo_5: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "pipe", eduMode: "demo5",
     projMode: "paragraph_inline", expMode: "company", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Single column · Inline skills", desc: "smallCaps headers, single pipe-separated skills line, degree-first education, \"Title: description\" projects. Best for cybersecurity / IT.",
+    name: "Inline Skills", desc: "Single column · smallCaps headers · pipe-separated skills line · degree-first education. Good for cybersecurity / IT.",
     labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_6: {
     layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
     projMode: "none", expMode: "company_first", certs: false,
     namePt: 22, sectionPt: 11, bodyPt: 10,
-    name: "Two column · Sidebar", desc: "Left sidebar (contact, education, key skills) beside a main column (about me, career highlights). Best for a modern, design-forward look.",
+    name: "Sidebar", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
     labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
   },
   demo_8: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo8",
     projMode: "none", expMode: "company", certs: false,
     namePt: 17, sectionPt: 11, bodyPt: 11,
-    name: "Single column · Marketing", desc: "Single contact line, PROFILE summary, categorized skills & tools, dated experience, education with coursework + certifications. Best for marketing / business.",
+    name: "Marketing", desc: "Single column · PROFILE summary · categorized skills & tools · dated experience · certifications. Good for marketing / business.",
     labels: { summary: "PROFILE", skills: "SKILLS & TOOLS", education: "EDUCATION", projects: "PROJECTS", experience: "EXPERIENCE", certs: "CERTIFICATIONS" },
   },
 };
@@ -1182,8 +1182,7 @@ function updateReorderButtonStates() {
   if (!dd || (dd.options && dd.options.length > 0)) return;
   dd.innerHTML = TEMPLATE_ORDER.map(tpl => {
     const c = TEMPLATES[tpl];
-    const code = tpl.replace("_", " ").replace(/\b\w/g, m => m.toUpperCase());
-    return `<option value="${tpl}">${code} — ${esc(c.name)}</option>`;
+    return `<option value="${tpl}">${esc(c.name)}</option>`;
   }).join("");
 })();
 
