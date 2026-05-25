@@ -85,15 +85,17 @@
     <div class="tpl-select">
       <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT</label>
       <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
-        <option value="demo_1">Demo 1 — Single column · Highlighted skills</option>
-        <option value="demo_2">Demo 2 — Single column · Two-col skills</option>
-        <option value="demo_4">Demo 4 — Single column · Categorical</option>
-        <option value="demo_5">Demo 5 — Single column · Inline skills</option>
-        <option value="demo_6">Demo 6 — Two column · Sidebar</option>
-        <option value="demo_8">Demo 8 — Single column · Marketing</option>
+        <option value="demo_1">Highlighted Skills</option>
+        <option value="demo_2">Two-Column Skills</option>
+        <option value="demo_4">Categorical</option>
+        <option value="demo_5">Inline Skills</option>
+        <option value="demo_6">Sidebar</option>
+        <option value="demo_8">Marketing</option>
       </select>
       <div class="tpl-desc" id="tpl-desc"></div>
     </div>
+
+    <div class="section-group"><span>Get Started</span><i></i></div>
 
     <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
     <div class="intake-card collapsed" id="intake-card">
@@ -172,15 +174,17 @@
       </div>
     </div>
 
+    <div class="section-group"><span>Resume</span><i></i></div>
+
     <!-- Sections -->
     <div class="panel open" data-section="header">
-      <header><h2><span class="idx">01</span> SUBJECT</h2><span class="caret">▶</span></header>
+      <header><h2>SUBJECT</h2><span class="caret">▶</span></header>
       <div class="body" id="body-header"></div>
     </div>
 
     <div class="panel" data-section="summary" data-optional="true">
       <header>
-        <h2><span class="idx">02</span> PROFILE SUMMARY</h2>
+        <h2>PROFILE SUMMARY</h2>
         <div class="header-controls">
           <button class="section-toggle" data-action="toggleSection" data-section="summary" aria-pressed="true">INCLUDED</button>
           <span class="caret">▶</span>
@@ -198,7 +202,7 @@
 
     <div class="panel" data-section="education" data-reorderable="true">
       <header>
-        <h2><span class="idx">03</span> EDUCATION</h2>
+        <h2>EDUCATION</h2>
         <div class="header-controls">
           <div class="reorder-controls">
             <button class="reorder-btn" data-action="movePanel" data-section="education" data-dir="up" aria-label="Move education up" title="Move up">▲</button>
@@ -212,7 +216,7 @@
 
     <div class="panel" data-section="skills" data-reorderable="true">
       <header>
-        <h2><span class="idx">04</span> SKILLS</h2>
+        <h2>SKILLS</h2>
         <div class="header-controls">
           <div class="reorder-controls">
             <button class="reorder-btn" data-action="movePanel" data-section="skills" data-dir="up" aria-label="Move skills up" title="Move up">▲</button>
@@ -226,7 +230,7 @@
 
     <div class="panel hidden" data-section="certs" data-reorderable="true" id="panel-certs">
       <header>
-        <h2><span class="idx">05</span> CERTIFICATIONS</h2>
+        <h2>CERTIFICATIONS</h2>
         <div class="header-controls">
           <div class="reorder-controls">
             <button class="reorder-btn" data-action="movePanel" data-section="certs" data-dir="up" aria-label="Move certifications up" title="Move up">▲</button>
@@ -243,7 +247,7 @@
 
     <div class="panel" data-section="projects" data-optional="true" data-reorderable="true">
       <header>
-        <h2><span class="idx">05</span> PROJECTS</h2>
+        <h2>PROJECTS</h2>
         <div class="header-controls">
           <div class="reorder-controls">
             <button class="reorder-btn" data-action="movePanel" data-section="projects" data-dir="up" aria-label="Move projects up" title="Move up">▲</button>
@@ -262,7 +266,7 @@
 
     <div class="panel" data-section="experience" data-optional="true" data-reorderable="true">
       <header>
-        <h2><span class="idx">06</span> WORK EXPERIENCE</h2>
+        <h2>WORK EXPERIENCE</h2>
         <div class="header-controls">
           <div class="reorder-controls">
             <button class="reorder-btn" data-action="movePanel" data-section="experience" data-dir="up" aria-label="Move work experience up" title="Move up">▲</button>
