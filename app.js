@@ -1066,7 +1066,7 @@ const ACTIONS = {
   railJumpTop: () => railJumpTo("top"),
   railOpenIntake: () => railOpen("intake"),
   railOpenVoice: () => railOpen("voice"),
-  railJumpSkills: () => railJumpTo("skills"),
+  railOpenMatch: () => railOpenMatch(),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -3526,14 +3526,12 @@ function toggleTheme() {
   setTheme(next);
 }
 
-// Rail click handlers: scroll the left editor pane to a specific panel, or
-// toggle one of the optional intake/voice cards open before scrolling.
+// Rail click handlers: scroll the left editor pane to the top, or toggle one
+// of the optional intake/voice cards open before scrolling.
 function railJumpTo(where) {
   let el = null;
   if (where === "top") el = document.querySelector(".pane.left");
-  else if (where === "skills") el = document.querySelector('.panel[data-section="skills"]');
   if (!el) return;
-  if (where === "skills" && !el.classList.contains("open")) el.classList.add("open");
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -3544,6 +3542,22 @@ function railOpen(card) {
   el.classList.remove("collapsed");
   if (card === "voice") markVoiceIntroSeen();
   el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Rail "MATCH" jumps to the job-description matcher. On mobile we first
+// bring the preview pane to the front; on desktop the preview is always
+// visible so we just turn match mode on and focus the JD input.
+function railOpenMatch() {
+  const mobile = window.matchMedia("(max-width: 1100px)").matches;
+  if (mobile) {
+    const tab = document.querySelector('.pane-tab[data-pane-target="right"]');
+    if (tab) tab.click();
+  }
+  if (!state.match.on) toggleMatch();
+  setTimeout(() => {
+    const jd = document.getElementById("jd-input");
+    if (jd) { jd.focus(); jd.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }, 80);
 }
 
 function maybeAutoStartVoiceFromUrl() {
