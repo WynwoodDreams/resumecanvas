@@ -70,7 +70,6 @@
   .brand .slash { color: var(--red); }
   .brand .sub { color: var(--text-dim); font-weight: 400; font-size: 11px; letter-spacing: 0.18em; }
   .meta { margin-left: auto; display: flex; align-items: center; gap: 16px; color: var(--text-dim); font-size: 10px; letter-spacing: 0.16em; }
-  .meta .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--sage); box-shadow: 0 0 8px rgba(110,140,74,0.55); display: inline-block; }
   .meta .id { color: var(--text-mute); }
 
   /* Pane tabs (mobile only) */
@@ -787,7 +786,6 @@
     .brand { font-size: 11.5px; gap: 8px; flex: 1; min-width: 0; }
     .brand .sub { display: none; }
     .meta { gap: 10px; font-size: 9px; letter-spacing: 0.12em; }
-    .meta-engine { display: none; }
     .meta .id { display: none; }
 
     .pane-tabs { top: 42px; padding: 6px 10px; gap: 10px; }
