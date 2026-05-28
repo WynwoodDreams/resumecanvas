@@ -386,8 +386,8 @@
 
   /* ─────────────────────────────────────────────────────────
      3-BAR INPUT-LEVEL METER
-     Rendered next to the record button and inside the FAB. Hidden
-     until body.voice-recording is set.
+     Rendered next to the voice-intro record button. Hidden until
+     body.voice-recording is set.
      ───────────────────────────────────────────────────────── */
   .voice-meter { display: none; align-items: flex-end; gap: 2px; height: 16px; vertical-align: middle; }
   .voice-meter .vm-bar { width: 3px; height: 3px; background: var(--text-dim); transition: height 90ms ease-out, background 90ms ease-out; }
@@ -398,13 +398,6 @@
   .voice-meter .vm-bar[data-level="4"] { height: 14px; background: var(--amber); }
   .voice-meter .vm-bar[data-level="5"] { height: 16px; background: var(--red); }
   body.voice-recording .voice-meter { display: inline-flex; }
-  .voice-fab .voice-meter { height: 14px; }
-  .voice-fab.recording .voice-meter .vm-bar[data-level="0"] { background: rgba(255,255,255,0.5); opacity: 0.6; }
-  .voice-fab.recording .voice-meter .vm-bar[data-level="1"],
-  .voice-fab.recording .voice-meter .vm-bar[data-level="2"] { background: rgba(255,255,255,0.85); }
-  .voice-fab.recording .voice-meter .vm-bar[data-level="3"],
-  .voice-fab.recording .voice-meter .vm-bar[data-level="4"],
-  .voice-fab.recording .voice-meter .vm-bar[data-level="5"] { background: #fffffe; }
   @media (prefers-reduced-motion: reduce) {
     .voice-meter .vm-bar { transition: none; }
   }
@@ -669,29 +662,6 @@
   @media (max-width: 640px) {
     .mic-btn { min-height: 44px; min-width: 44px; font-size: 16px; padding: 8px 10px; }
     .summary-with-mic .mic-btn { top: 6px; right: 6px; }
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     FLOATING DICTATION MIC (voice FAB)
-     Persistent button that targets whatever textarea is focused,
-     or falls back to opening the voice-intro card.
-     ───────────────────────────────────────────────────────── */
-  .voice-fab { position: fixed; right: 24px; bottom: 96px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--surface-0); color: var(--text); border: 1px solid var(--border-strong); border-radius: 999px; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; box-shadow: 0 8px 22px rgba(2,8,38,0.16); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, background 0.15s; min-height: 48px; }
-  .voice-fab:hover { border-color: var(--amber); color: var(--amber-soft); transform: translateY(-1px); box-shadow: 0 10px 26px rgba(2,8,38,0.20); }
-  .voice-fab:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
-  .voice-fab .voice-fab-icon { font-size: 16px; line-height: 1; }
-  .voice-fab.recording { background: var(--red); color: #fffffe; border-color: var(--red-ink); animation: micPulse 1.2s ease-in-out infinite; }
-  .voice-fab.recording:hover { background: var(--red-ink); color: #fffffe; }
-  .voice-fab-live { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-  body.viewing-final .voice-fab { display: none !important; }
-
-  @media (max-width: 640px) {
-    .voice-fab { right: 14px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); padding: 12px 14px; font-size: 10.5px; letter-spacing: 0.14em; min-height: 52px; }
-    .voice-fab .voice-fab-label { display: none; }
-    .voice-fab .voice-fab-icon { font-size: 20px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .voice-fab.recording { animation: none; }
   }
 
   /* ─────────────────────────────────────────────────────────

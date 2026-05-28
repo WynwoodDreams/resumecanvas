@@ -1087,7 +1087,6 @@ const ACTIONS = {
   closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
-  voiceFabToggle: () => voiceFabToggle(),
   skipVoice: () => skipVoiceIntro(),
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
@@ -1707,7 +1706,7 @@ function render() {
   renderPreview();
   updateLibraryPill();
   hideMicButtonsIfUnsupported();
-  initVoiceFabOnce();
+  initVoiceOnce();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2650,7 +2649,7 @@ function startDictation(targetId) {
     const hint = $("#mic-hint-summary");
     if (hint) hint.classList.add("show");
   }
-  setVoiceFabState(true, targetId);
+  setRecordingMeter(true);
   toast("LISTENING… TAP MIC TO STOP");
 }
 
@@ -2665,7 +2664,7 @@ function finalizeDictation() {
   const targetId = _recordingTarget;
   _recordingTarget = null;
   _baseValue = "";
-  setVoiceFabState(false);
+  setRecordingMeter(false);
   if (targetId === "voiceProfile") {
     clearVoiceTimers();
     setVoiceButtonState(false);
@@ -3242,60 +3241,18 @@ function micToggle(btn) {
 // Hide mic buttons up-front in browsers without Speech API support, so users
 // don't see an affordance they can't use.
 function hideMicButtonsIfUnsupported() {
-  if (isSpeechSupported()) {
-    const fab = $("#voice-fab");
-    if (fab) fab.classList.remove("hidden");
-    return;
-  }
+  if (isSpeechSupported()) return;
   document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
   // The voice recorder falls back to typing — hide its record button and say so.
   const vbtn = $("#voice-rec-btn");
   if (vbtn) vbtn.classList.add("hidden");
-  const fab = $("#voice-fab");
-  if (fab) fab.classList.add("hidden");
   updateVoiceStatus("Voice capture isn't supported here — type your intro below.");
 }
 
-// ── Floating dictation mic (FAB) ───────────────────────────────────────────
-// Targets the last-focused dictatable field; if none, opens the voice-intro
-// card and records into the intro transcript. Also driven by Ctrl/Cmd+Shift+M.
-let _lastFocusedMicTarget = null;
-
-function getTargetForElement(el) {
-  if (!el) return null;
-  if (el.id === "voice-transcript") return "voiceProfile";
-  if (el.id === "summary") return "summary";
-  if (el.dataset && el.hasAttribute && el.hasAttribute("data-proj-bullet") && el.hasAttribute("data-bullet-i")) {
-    return `projBullet:${el.dataset.projBullet}:${el.dataset.bulletI}`;
-  }
-  if (el.dataset && el.hasAttribute && el.hasAttribute("data-exp-bullet") && el.hasAttribute("data-bullet-i")) {
-    return `expBullet:${el.dataset.expBullet}:${el.dataset.bulletI}`;
-  }
-  return null;
-}
-
-function setVoiceFabState(recording, targetId) {
-  const fab = $("#voice-fab");
-  if (fab) {
-    fab.classList.toggle("recording", !!recording);
-    fab.setAttribute("aria-pressed", recording ? "true" : "false");
-  }
+// Toggle the body recording flag (reveals the voice-intro level meter) and
+// drive the shared input-level meter for any active dictation target.
+function setRecordingMeter(recording) {
   document.body.classList.toggle("voice-recording", !!recording);
-  const labelEl = $("#voice-fab-label");
-  if (labelEl) labelEl.textContent = recording ? "STOP" : "DICTATE";
-  const live = $("#voice-fab-live");
-  if (live) {
-    if (recording) {
-      const where = targetId === "voiceProfile" ? "voice intro"
-        : targetId === "summary" ? "summary"
-        : targetId && targetId.startsWith("projBullet:") ? "project bullet"
-        : targetId && targetId.startsWith("expBullet:") ? "experience bullet"
-        : "focused field";
-      live.textContent = `Dictation started — listening into ${where}.`;
-    } else {
-      live.textContent = "Dictation stopped.";
-    }
-  }
   if (recording) startLevelMeter();
   else stopLevelMeter();
 }
@@ -3346,15 +3303,7 @@ let _meterRaf = null;
 let _meterBars = null;
 
 function collectMeterBars() {
-  const nodes = document.querySelectorAll(".voice-meter .vm-bar");
-  const cardBars = [], fabBars = [];
-  nodes.forEach((n) => {
-    const parent = n.parentElement;
-    if (!parent) return;
-    if (parent.id === "voice-meter-card") cardBars.push(n);
-    else if (parent.id === "voice-meter-fab") fabBars.push(n);
-  });
-  return { cardBars, fabBars };
+  return Array.from(document.querySelectorAll("#voice-meter-card .vm-bar"));
 }
 
 async function startLevelMeter() {
@@ -3396,8 +3345,7 @@ function tickLevelMeter() {
   const mid = meterBandAvg(buf, third, third * 2);
   const hi = meterBandAvg(buf, third * 2, n);
   const levels = [bandToLevel(lo), bandToLevel(mid), bandToLevel(hi)];
-  paintMeter(_meterBars && _meterBars.cardBars, levels);
-  paintMeter(_meterBars && _meterBars.fabBars, levels);
+  paintMeter(_meterBars, levels);
   _meterRaf = requestAnimationFrame(tickLevelMeter);
 }
 
@@ -3439,59 +3387,10 @@ function stopLevelMeter() {
   document.querySelectorAll(".voice-meter .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
 }
 
-function voiceFabToggle() {
-  if (!isSpeechSupported()) {
-    toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
-    return;
-  }
-  if (_recordingTarget) {
-    if (_recordingTarget === "voiceProfile") stopVoiceRecording();
-    else stopDictation();
-    return;
-  }
-  const target = _lastFocusedMicTarget;
-  if (target && findMicField(target)) {
-    startDictation(target);
-    return;
-  }
-  // Nothing useful focused — open the voice-intro card and start there.
-  const card = $("#voice-card");
-  if (card) card.classList.remove("collapsed");
-  markVoiceIntroSeen();
-  voiceToggle();
-}
-
-function setupVoiceFocusTracking() {
-  document.addEventListener("focusin", (ev) => {
-    const target = getTargetForElement(ev.target);
-    if (target) _lastFocusedMicTarget = target;
-  });
-  // Keep the FAB from stealing focus (and blurring the textarea) on click.
-  const fab = $("#voice-fab");
-  if (fab) {
-    fab.addEventListener("mousedown", (ev) => ev.preventDefault());
-    fab.addEventListener("pointerdown", (ev) => ev.preventDefault());
-  }
-}
-
-function setupVoiceHotkey() {
-  document.addEventListener("keydown", (ev) => {
-    // Ctrl+Shift+M (or Cmd+Shift+M) toggles dictation on the focused field.
-    if (!ev.shiftKey) return;
-    if (!(ev.ctrlKey || ev.metaKey)) return;
-    const k = (ev.key || "").toLowerCase();
-    if (k !== "m") return;
-    ev.preventDefault();
-    voiceFabToggle();
-  });
-}
-
-let _voiceFabInitialized = false;
-function initVoiceFabOnce() {
-  if (_voiceFabInitialized) return;
-  _voiceFabInitialized = true;
-  setupVoiceFocusTracking();
-  setupVoiceHotkey();
+let _voiceInitialized = false;
+function initVoiceOnce() {
+  if (_voiceInitialized) return;
+  _voiceInitialized = true;
   applyVoiceIntroDefaultState();
   maybeAutoStartVoiceFromUrl();
 }
