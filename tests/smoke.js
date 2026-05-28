@@ -116,4 +116,59 @@ const swCacheRule = vercel.headers?.find((rule) => rule.source === '/sw.js');
 assert(swCacheRule, 'vercel.json must include a /sw.js header rule');
 assert(swCacheRule.headers.some((h) => h.key === 'Cache-Control' && h.value.includes('max-age=0')), '/sw.js must be served with max-age=0 so updates land immediately');
 
+// Resume parser module (phase A: extracted to vendor/resume-parse.js)
+assert(fs.existsSync(path.join(root, 'vendor/resume-parse.js')), 'vendor/resume-parse.js must exist');
+assert(html.includes('./vendor/resume-parse.js'), 'index.html must load the resume parser before app.js');
+assert(sw.includes('./vendor/resume-parse.js'), 'service worker must precache the resume parser');
+assert(app.includes('RcParse.parseResumeText'), 'app.js must call the extracted RcParse.parseResumeText');
+assert(!/function parseResumeText/.test(app), 'app.js must not redefine the parser inline');
+
+const RcParse = require('../vendor/resume-parse.js');
+assert(typeof RcParse.parseResumeText === 'function', 'RcParse must export parseResumeText');
+
+const sample = [
+  'Jane Doe',
+  'jane@example.com | (555) 123-4567 | Austin, TX',
+  '',
+  'SUMMARY',
+  'Seasoned engineer with a focus on web apps.',
+  '',
+  'EXPERIENCE',
+  'Senior Engineer — Acme Inc',
+  'Jan 2020 - Present',
+  '• Built the thing',
+  '• Shipped the other thing',
+  '',
+  'SKILLS',
+  'JavaScript, CSS, HTML',
+  '',
+  'AWARDS',
+  '• Employee of the Year 2021',
+  '',
+  'VOLUNTEER EXPERIENCE',
+  'Mentored students at a local coding bootcamp',
+].join('\n');
+
+const parsed = RcParse.parseResumeText(sample);
+assert(parsed.header.name === 'Jane Doe', 'parser must read the name from the header');
+assert(parsed.header.email === 'jane@example.com', 'parser must read the email from the header');
+assert(/Seasoned engineer/.test(parsed.summary), 'parser must capture the summary text');
+assert(parsed.skills.includes('JavaScript') && parsed.skills.includes('CSS'), 'parser must split skills');
+assert(parsed.experience.length === 1 && parsed.experience[0].bullets.length === 2, 'parser must capture experience bullets');
+
+// Unknown sections must be quarantined into `other`, not bleed into prior sections.
+assert(Array.isArray(parsed.other), 'parser must return an `other` array for unmodeled sections');
+const titles = parsed.other.map((o) => o.title.toLowerCase());
+assert(titles.some((t) => /awards/.test(t)), 'AWARDS must be quarantined into `other`');
+assert(titles.some((t) => /volunteer/.test(t)), 'VOLUNTEER EXPERIENCE must be quarantined into `other`');
+assert(!parsed.skills.some((s) => /employee of the year/i.test(s)), 'awards content must not pollute skills');
+
+// Import review UI (phase B: trustworthy confirm modal)
+assert(app.includes('data-import-field'), 'import modal must render inline-editable contact fields');
+assert(app.includes('ir-details') && app.includes('ir-detail-body'), 'import modal must render expandable section previews');
+assert(app.includes('OTHER SECTIONS WE FOUND'), 'import modal must surface the unmodeled "other" sections group');
+assert(/\[data-import-field\]/.test(app), 'applyImport must read edited contact/summary field values');
+assert(css.includes('.ir-input') && css.includes('.ir-details'), 'styles.css must style editable import fields + previews');
+assert(css.includes('.import-other'), 'styles.css must style the "other sections" group');
+
 console.log('Smoke checks passed');

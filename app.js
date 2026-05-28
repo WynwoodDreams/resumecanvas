@@ -1087,7 +1087,6 @@ const ACTIONS = {
   closeShareBackdrop: (el, ev) => { if (ev.target === el) closeShareModal(); },
   sharePdf: () => sharePdf(),
   micToggle: (btn) => micToggle(btn),
-  voiceFabToggle: () => voiceFabToggle(),
   skipVoice: () => skipVoiceIntro(),
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
@@ -1707,7 +1706,7 @@ function render() {
   renderPreview();
   updateLibraryPill();
   hideMicButtonsIfUnsupported();
-  initVoiceFabOnce();
+  initVoiceOnce();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2650,7 +2649,7 @@ function startDictation(targetId) {
     const hint = $("#mic-hint-summary");
     if (hint) hint.classList.add("show");
   }
-  setVoiceFabState(true, targetId);
+  setRecordingMeter(true);
   toast("LISTENING… TAP MIC TO STOP");
 }
 
@@ -2665,7 +2664,7 @@ function finalizeDictation() {
   const targetId = _recordingTarget;
   _recordingTarget = null;
   _baseValue = "";
-  setVoiceFabState(false);
+  setRecordingMeter(false);
   if (targetId === "voiceProfile") {
     clearVoiceTimers();
     setVoiceButtonState(false);
@@ -3242,60 +3241,18 @@ function micToggle(btn) {
 // Hide mic buttons up-front in browsers without Speech API support, so users
 // don't see an affordance they can't use.
 function hideMicButtonsIfUnsupported() {
-  if (isSpeechSupported()) {
-    const fab = $("#voice-fab");
-    if (fab) fab.classList.remove("hidden");
-    return;
-  }
+  if (isSpeechSupported()) return;
   document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
   // The voice recorder falls back to typing — hide its record button and say so.
   const vbtn = $("#voice-rec-btn");
   if (vbtn) vbtn.classList.add("hidden");
-  const fab = $("#voice-fab");
-  if (fab) fab.classList.add("hidden");
   updateVoiceStatus("Voice capture isn't supported here — type your intro below.");
 }
 
-// ── Floating dictation mic (FAB) ───────────────────────────────────────────
-// Targets the last-focused dictatable field; if none, opens the voice-intro
-// card and records into the intro transcript. Also driven by Ctrl/Cmd+Shift+M.
-let _lastFocusedMicTarget = null;
-
-function getTargetForElement(el) {
-  if (!el) return null;
-  if (el.id === "voice-transcript") return "voiceProfile";
-  if (el.id === "summary") return "summary";
-  if (el.dataset && el.hasAttribute && el.hasAttribute("data-proj-bullet") && el.hasAttribute("data-bullet-i")) {
-    return `projBullet:${el.dataset.projBullet}:${el.dataset.bulletI}`;
-  }
-  if (el.dataset && el.hasAttribute && el.hasAttribute("data-exp-bullet") && el.hasAttribute("data-bullet-i")) {
-    return `expBullet:${el.dataset.expBullet}:${el.dataset.bulletI}`;
-  }
-  return null;
-}
-
-function setVoiceFabState(recording, targetId) {
-  const fab = $("#voice-fab");
-  if (fab) {
-    fab.classList.toggle("recording", !!recording);
-    fab.setAttribute("aria-pressed", recording ? "true" : "false");
-  }
+// Toggle the body recording flag (reveals the voice-intro level meter) and
+// drive the shared input-level meter for any active dictation target.
+function setRecordingMeter(recording) {
   document.body.classList.toggle("voice-recording", !!recording);
-  const labelEl = $("#voice-fab-label");
-  if (labelEl) labelEl.textContent = recording ? "STOP" : "DICTATE";
-  const live = $("#voice-fab-live");
-  if (live) {
-    if (recording) {
-      const where = targetId === "voiceProfile" ? "voice intro"
-        : targetId === "summary" ? "summary"
-        : targetId && targetId.startsWith("projBullet:") ? "project bullet"
-        : targetId && targetId.startsWith("expBullet:") ? "experience bullet"
-        : "focused field";
-      live.textContent = `Dictation started — listening into ${where}.`;
-    } else {
-      live.textContent = "Dictation stopped.";
-    }
-  }
   if (recording) startLevelMeter();
   else stopLevelMeter();
 }
@@ -3346,15 +3303,7 @@ let _meterRaf = null;
 let _meterBars = null;
 
 function collectMeterBars() {
-  const nodes = document.querySelectorAll(".voice-meter .vm-bar");
-  const cardBars = [], fabBars = [];
-  nodes.forEach((n) => {
-    const parent = n.parentElement;
-    if (!parent) return;
-    if (parent.id === "voice-meter-card") cardBars.push(n);
-    else if (parent.id === "voice-meter-fab") fabBars.push(n);
-  });
-  return { cardBars, fabBars };
+  return Array.from(document.querySelectorAll("#voice-meter-card .vm-bar"));
 }
 
 async function startLevelMeter() {
@@ -3396,8 +3345,7 @@ function tickLevelMeter() {
   const mid = meterBandAvg(buf, third, third * 2);
   const hi = meterBandAvg(buf, third * 2, n);
   const levels = [bandToLevel(lo), bandToLevel(mid), bandToLevel(hi)];
-  paintMeter(_meterBars && _meterBars.cardBars, levels);
-  paintMeter(_meterBars && _meterBars.fabBars, levels);
+  paintMeter(_meterBars, levels);
   _meterRaf = requestAnimationFrame(tickLevelMeter);
 }
 
@@ -3439,59 +3387,10 @@ function stopLevelMeter() {
   document.querySelectorAll(".voice-meter .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
 }
 
-function voiceFabToggle() {
-  if (!isSpeechSupported()) {
-    toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
-    return;
-  }
-  if (_recordingTarget) {
-    if (_recordingTarget === "voiceProfile") stopVoiceRecording();
-    else stopDictation();
-    return;
-  }
-  const target = _lastFocusedMicTarget;
-  if (target && findMicField(target)) {
-    startDictation(target);
-    return;
-  }
-  // Nothing useful focused — open the voice-intro card and start there.
-  const card = $("#voice-card");
-  if (card) card.classList.remove("collapsed");
-  markVoiceIntroSeen();
-  voiceToggle();
-}
-
-function setupVoiceFocusTracking() {
-  document.addEventListener("focusin", (ev) => {
-    const target = getTargetForElement(ev.target);
-    if (target) _lastFocusedMicTarget = target;
-  });
-  // Keep the FAB from stealing focus (and blurring the textarea) on click.
-  const fab = $("#voice-fab");
-  if (fab) {
-    fab.addEventListener("mousedown", (ev) => ev.preventDefault());
-    fab.addEventListener("pointerdown", (ev) => ev.preventDefault());
-  }
-}
-
-function setupVoiceHotkey() {
-  document.addEventListener("keydown", (ev) => {
-    // Ctrl+Shift+M (or Cmd+Shift+M) toggles dictation on the focused field.
-    if (!ev.shiftKey) return;
-    if (!(ev.ctrlKey || ev.metaKey)) return;
-    const k = (ev.key || "").toLowerCase();
-    if (k !== "m") return;
-    ev.preventDefault();
-    voiceFabToggle();
-  });
-}
-
-let _voiceFabInitialized = false;
-function initVoiceFabOnce() {
-  if (_voiceFabInitialized) return;
-  _voiceFabInitialized = true;
-  setupVoiceFocusTracking();
-  setupVoiceHotkey();
+let _voiceInitialized = false;
+function initVoiceOnce() {
+  if (_voiceInitialized) return;
+  _voiceInitialized = true;
   applyVoiceIntroDefaultState();
   maybeAutoStartVoiceFromUrl();
 }
@@ -3748,22 +3647,6 @@ async function copyPayloadAndPrompt() {
 
 let _pendingImport = null;
 
-const SECTION_PATTERNS = [
-  ["summary", /^(profile\s+summary|professional\s+summary|career\s+summary|summary|objective|profile|about\s+me|about)\s*:?\s*$/i],
-  ["education", /^(education|academic\s+background|academics)\s*:?\s*$/i],
-  ["skills", /^(highlighted\s+skills|technical\s+skills|core\s+competencies|competencies|skills)\s*:?\s*$/i],
-  ["projects", /^(projects|project\s+experience|key\s+projects|selected\s+projects)\s*:?\s*$/i],
-  ["experience", /^(work\s+experience|professional\s+experience|employment\s+history|experience|employment)\s*:?\s*$/i],
-  ["certifications", /^(certifications?|certificates|licenses(\s*&\s*certifications)?|licenses)\s*:?\s*$/i],
-];
-
-const BULLET_RE = /^[•*\-‒–—◦·▪]\s+/;
-const DATE_TOKEN_RE = /((jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\b\d{4}\b|present|current|expected)/i;
-const LOCATION_RE = /[A-Z][a-zA-Z.\s]+,\s*[A-Z]{2}(?:\s+\d{5})?/;
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-const PHONE_RE = /(?:\+?\d[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
-const LINKEDIN_RE = /(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/[^\s|]+/i;
-
 async function handleImportFile(file) {
   try {
     let text;
@@ -3779,7 +3662,7 @@ async function handleImportFile(file) {
       toast("FILE WAS EMPTY");
       return;
     }
-    showImportConfirm(parseResumeText(text), file.name);
+    showImportConfirm(RcParse.parseResumeText(text), file.name);
   } catch (err) {
     console.error("Import failed", err);
     toast("IMPORT FAILED — try pasting text instead");
@@ -3789,7 +3672,7 @@ async function handleImportFile(file) {
 function parseImportFromPaste() {
   const text = $("#import-paste").value;
   if (!text.trim()) { toast("PASTE SOME TEXT FIRST"); return; }
-  showImportConfirm(parseResumeText(text), "(pasted)");
+  showImportConfirm(RcParse.parseResumeText(text), "(pasted)");
 }
 
 async function extractDocxText(file) {
@@ -3838,151 +3721,81 @@ function docxXmlToText(xml) {
   return lines.join("\n");
 }
 
-function parseResumeText(text) {
-  const rawLines = text.replace(/\r/g, "").split("\n").map(l => l.replace(/•/g, "•").replace(/\t/g, " ").trim());
-  const sections = { header: [], summary: [], education: [], skills: [], projects: [], experience: [], certifications: [] };
-  let current = "header";
-  for (const line of rawLines) {
-    const matched = SECTION_PATTERNS.find(([, re]) => re.test(line));
-    if (matched) { current = matched[0]; continue; }
-    sections[current].push(line);
-  }
-
-  const header = parseHeader(sections.header);
-  const summary = sections.summary.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-  const skills = parseSkills(sections.skills);
-  const education = parseEducationBlocks(sections.education);
-  const projects = parseEntryBlocks(sections.projects);
-  const experience = parseEntryBlocks(sections.experience);
-  const certifications = sections.certifications.filter(Boolean).map(l => l.replace(BULLET_RE, ""));
-
-  return { header, summary, skills, education, projects, experience, certifications };
-}
-
-function parseHeader(lines) {
-  const nonEmpty = lines.filter(Boolean);
-  const name = nonEmpty[0] || "";
-  const rest = nonEmpty.slice(1).join(" | ");
-  const email = (rest.match(EMAIL_RE) || [""])[0];
-  const phone = (rest.match(PHONE_RE) || [""])[0];
-  const linkedin = (rest.match(LINKEDIN_RE) || [""])[0];
-  const location = (rest.match(LOCATION_RE) || [""])[0];
-  return { name, email, phone, linkedin, location };
-}
-
-function parseSkills(lines) {
-  const seen = new Set();
-  const items = [];
-  for (const raw of lines) {
-    if (!raw) continue;
-    const cleaned = raw.replace(BULLET_RE, "").replace(/^[A-Z][a-zA-Z]+:\s*/, ""); // drop "Category: " prefixes
-    cleaned.split(/[,;|·•]/).forEach(piece => {
-      const t = piece.trim();
-      if (t && !seen.has(t.toLowerCase())) {
-        seen.add(t.toLowerCase());
-        items.push(t);
-      }
-    });
-  }
-  return items;
-}
-
-function parseEducationBlocks(lines) {
-  const blocks = groupByBlankLine(lines);
-  return blocks.map(block => {
-    const dateLine = block.find(l => DATE_TOKEN_RE.test(l)) || "";
-    const degreeLine = block.find(l => l !== dateLine && /(associate|bachelor|master|ph\.?d|degree|diploma|certificate|major|minor|gpa)/i.test(l)) || "";
-    let school = block.find(l => l !== degreeLine && l !== dateLine) || block[0] || "";
-    let city = "";
-    const splitMatch = school.match(/^(.+?)\s*[—–\-|]\s*(.+)$/);
-    if (splitMatch && LOCATION_RE.test(splitMatch[2])) {
-      school = splitMatch[1].trim();
-      city = splitMatch[2].trim();
-    } else {
-      const cityInDate = (dateLine.match(LOCATION_RE) || [""])[0];
-      if (cityInDate) city = cityInDate;
-    }
-    return { school, city, degree: degreeLine, date: dateLine };
-  });
-}
-
-function parseEntryBlocks(lines) {
-  const blocks = [];
-  let cur = null;
-  for (const line of lines) {
-    if (!line) {
-      if (cur) { blocks.push(cur); cur = null; }
-      continue;
-    }
-    const isBullet = BULLET_RE.test(line);
-    if (isBullet) {
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.bullets.push(line.replace(BULLET_RE, ""));
-    } else {
-      // a non-bullet line after bullets starts a new block
-      if (cur && cur.bullets.length) { blocks.push(cur); cur = null; }
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.heading.push(line);
-    }
-  }
-  if (cur) blocks.push(cur);
-
-  return blocks.map(b => {
-    const headingJoined = b.heading.join(" | ");
-    const date = (headingJoined.match(new RegExp(`${DATE_TOKEN_RE.source}\\s*[–\\-—]+\\s*${DATE_TOKEN_RE.source}|${DATE_TOKEN_RE.source}`, "i")) || [""])[0];
-    const location = (headingJoined.match(LOCATION_RE) || [""])[0];
-    let title = b.heading[0] || "";
-    // strip trailing date/location from title line
-    title = title.replace(DATE_TOKEN_RE, "").replace(LOCATION_RE, "").replace(/[\s|–—\-]+$/, "").trim();
-    return { title, date, location, bullets: b.bullets };
-  });
-}
-
-function groupByBlankLine(lines) {
-  const out = [];
-  let cur = [];
-  for (const l of lines) {
-    if (!l) {
-      if (cur.length) { out.push(cur); cur = []; }
-    } else {
-      cur.push(l);
-    }
-  }
-  if (cur.length) out.push(cur);
-  return out;
-}
-
 function showImportConfirm(parsed, sourceName) {
   _pendingImport = parsed;
-  const summarySnippet = parsed.summary.length > 180 ? parsed.summary.slice(0, 180) + "…" : parsed.summary;
-  const row = (key, label, value, hasContent) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${hasContent ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${hasContent ? esc(value) : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
-  const count = (key, label, n, detail) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${n > 0 ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${n > 0 ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
   const h = parsed.header;
+
+  // Inline-editable single-value field (name/email/phone/location/linkedin).
+  // Checkbox enabled even when empty so a missed field can be typed in and kept.
+  const fieldRow = (key, label, value) => {
+    const has = !!value;
+    return `
+    <div class="import-row import-field">
+      <input type="checkbox" data-import-key="${key}" ${has ? "checked" : ""}>
+      <div class="ir-label">${label}</div>
+      <input type="text" class="ir-input" data-import-field="${key}" value="${esc(value)}" placeholder="none detected — type to add" aria-label="${label}">
+    </div>`;
+  };
+
+  // Summary gets a wider editable textarea so long text can be reviewed/trimmed.
+  const summaryRow = () => {
+    const has = !!parsed.summary;
+    return `
+    <div class="import-row import-field import-summary">
+      <input type="checkbox" data-import-key="summary" ${has ? "checked" : ""}>
+      <div class="ir-label">PROFILE SUMMARY</div>
+      <textarea class="ir-input ir-textarea" data-import-field="summary" rows="3" placeholder="none detected — type to add" aria-label="Profile summary">${esc(parsed.summary)}</textarea>
+    </div>`;
+  };
+
+  // Collection row with an expandable preview of the actual parsed entries.
+  const sectionRow = (key, label, n, detail, detailHtml) => {
+    const has = n > 0;
+    return `
+    <div class="import-row import-section">
+      <input type="checkbox" data-import-key="${key}" ${has ? "checked" : "disabled"}>
+      <div class="ir-label">${label}</div>
+      <div class="ir-value">
+        ${has ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}
+        ${has && detailHtml ? `<details class="ir-details"><summary>preview</summary><div class="ir-detail-body">${detailHtml}</div></details>` : ""}
+      </div>
+    </div>`;
+  };
+
+  const eduHtml = parsed.education.map((e) =>
+    `<div class="ir-item">${esc([e.school, e.degree].filter(Boolean).join(" — ")) || "(entry)"}${e.date ? ` <span class="muted">(${esc(e.date)})</span>` : ""}</div>`).join("");
+  const skillsHtml = `<div class="ir-chips">${parsed.skills.map((s) => `<span class="ir-chip">${esc(s)}</span>`).join("")}</div>`;
+  const entryHtml = (entries) => entries.map((e) =>
+    `<div class="ir-item"><strong>${esc(e.title || "(untitled)")}</strong>${e.date ? ` <span class="muted">${esc(e.date)}</span>` : ""}${e.location ? ` <span class="muted">${esc(e.location)}</span>` : ""}${e.bullets.length ? `<ul>${e.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}</div>`).join("");
+  const certHtml = parsed.certifications.map((c) => `<div class="ir-item">${esc(c)}</div>`).join("");
+
+  // Surface sections we detected but have no standard home for, so nothing is
+  // lost silently. Routing these into real sections lands in the next phase.
+  const otherHtml = (parsed.other && parsed.other.length) ? `
+    <div class="import-other">
+      <div class="import-other-h">OTHER SECTIONS WE FOUND</div>
+      <div class="import-other-note">These don't match a standard section, so we set them aside instead of dropping them. Routing options are coming next.</div>
+      ${parsed.other.map((o) => `
+        <details class="ir-details ir-other">
+          <summary><span class="count">${o.lines.length}</span> ${esc(o.title)}</summary>
+          <div class="ir-detail-body">${o.lines.map((l) => `<div class="ir-item">${esc(l)}</div>`).join("")}</div>
+        </details>`).join("")}
+    </div>` : "";
+
   $("#import-preview").innerHTML = `
     <div class="import-source">SOURCE: <span class="amber">${esc(sourceName)}</span></div>
-    ${row("name", "NAME", h.name, !!h.name)}
-    ${row("email", "EMAIL", h.email, !!h.email)}
-    ${row("phone", "PHONE", h.phone, !!h.phone)}
-    ${row("location", "LOCATION", h.location, !!h.location)}
-    ${row("linkedin", "LINKEDIN", h.linkedin, !!h.linkedin)}
-    ${row("summary", "PROFILE SUMMARY", summarySnippet, !!parsed.summary)}
-    ${count("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries")}
-    ${count("skills", "SKILLS", parsed.skills.length, "items")}
-    ${count("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks")}
-    ${count("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions")}
-    ${count("certifications", "CERTIFICATIONS", parsed.certifications.length, "items")}
+    ${fieldRow("name", "NAME", h.name)}
+    ${fieldRow("email", "EMAIL", h.email)}
+    ${fieldRow("phone", "PHONE", h.phone)}
+    ${fieldRow("location", "LOCATION", h.location)}
+    ${fieldRow("linkedin", "LINKEDIN", h.linkedin)}
+    ${summaryRow()}
+    ${sectionRow("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries", eduHtml)}
+    ${sectionRow("skills", "SKILLS", parsed.skills.length, "items", skillsHtml)}
+    ${sectionRow("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks", entryHtml(parsed.projects))}
+    ${sectionRow("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions", entryHtml(parsed.experience))}
+    ${sectionRow("certifications", "CERTIFICATIONS", parsed.certifications.length, "items", certHtml)}
+    ${otherHtml}
   `;
   $("#import-modal-bg").classList.add("show");
 }
@@ -3997,15 +3810,19 @@ function applyImport() {
   $$("#import-preview input[type='checkbox']").forEach(cb => {
     enabled[cb.dataset.importKey] = cb.checked && !cb.disabled;
   });
+  // Pick up any inline edits the user made to the contact/summary fields.
+  const edited = {};
+  $$("#import-preview [data-import-field]").forEach(inp => {
+    edited[inp.dataset.importField] = inp.value.trim();
+  });
 
   const p = _pendingImport;
-  const h = p.header;
-  if (enabled.name) state.name = h.name;
-  if (enabled.email) state.email = h.email;
-  if (enabled.phone) state.phone = h.phone;
-  if (enabled.location) state.location = h.location;
-  if (enabled.linkedin) state.linkedin = h.linkedin;
-  if (enabled.summary) state.summary = p.summary;
+  if (enabled.name) state.name = edited.name;
+  if (enabled.email) state.email = edited.email;
+  if (enabled.phone) state.phone = edited.phone;
+  if (enabled.location) state.location = edited.location;
+  if (enabled.linkedin) state.linkedin = edited.linkedin;
+  if (enabled.summary) state.summary = edited.summary;
 
   // Mirror imported contact fields into demo_2's two contact lines.
   if (enabled.location || enabled.phone) {

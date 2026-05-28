@@ -375,14 +375,6 @@
   <button class="compile-btn" data-action="showCompile">▼ PAYLOAD / ENGINE</button>
 </div>
 
-<!-- Floating dictation mic — targets the focused field, or the voice-intro card if nothing is focused. -->
-<button class="voice-fab hidden" id="voice-fab" type="button" data-action="voiceFabToggle" aria-pressed="false" aria-label="Dictate into focused field (Ctrl+Shift+M)" title="Dictate (Ctrl+Shift+M)">
-  <span class="voice-fab-icon" aria-hidden="true">🎤</span>
-  <span class="voice-meter voice-meter-fab" id="voice-meter-fab" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></span>
-  <span class="voice-fab-label" id="voice-fab-label">DICTATE</span>
-</button>
-<span class="voice-fab-live" id="voice-fab-live" aria-live="polite" aria-atomic="true"></span>
-
 <!-- Toast -->
 <div class="toast" id="toast">COPIED</div>
 
@@ -418,7 +410,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
     </div>
     <div class="modal-b">
       <div class="modal-instructions">
-        Review what we extracted. Uncheck any section you don't want to bring in. Existing data in <span class="amber">checked sections will be replaced</span>; unchecked sections stay untouched.
+        Review what we extracted &mdash; <span class="amber">edit the contact fields</span> and expand any section to preview its entries. Uncheck anything you don't want. Existing data in <span class="amber">checked sections will be replaced</span>; unchecked sections stay untouched.
       </div>
       <div id="import-preview"></div>
     </div>
@@ -484,6 +476,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
 
 <script src="./vendor/pdf-writer.js" defer></script>
 <script src="./vendor/qr.js" defer></script>
+<script src="./vendor/resume-parse.js" defer></script>
 <script src="./app.js" defer></script>
 
 
