@@ -21,7 +21,9 @@ assert(!/<script>/.test(html), 'index.html must not contain inline script blocks
 assert(!/<style>/.test(html), 'index.html must not contain inline style blocks');
 assert(!/\son\w+=/i.test(html), 'index.html must not contain inline event handlers');
 assert(!/\sstyle=/i.test(html), 'index.html must not contain inline style attributes');
-assert(!/onclick=|\sstyle=|\.style\b|unsafe-inline/i.test(app), 'app.js must avoid inline handlers/styles and unsafe-inline CSP dependencies');
+// CSSOM writes (element.style.x = …) are CSP-safe; only inline event-handler
+// attributes, HTML style="" attributes, and unsafe-inline require unsafe-inline.
+assert(!/\bon\w+\s*=\s*["']|style\s*=\s*["']|setAttribute\(\s*["']style|unsafe-inline/i.test(app), 'app.js must avoid inline handlers/style attributes and unsafe-inline CSP dependencies');
 
 new Function(app);
 

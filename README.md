@@ -2,7 +2,9 @@
 
 Student resume builder for the Miami Dade College Works program.
 
-Static HTML/CSS/JS app. Two master templates (Demo 4, Demo 2) with live preview, dynamic add/remove for skills, education, projects, and work experience. Manual font size override down to a 10pt floor.
+Static HTML/CSS/JS app with a live preview and six layouts: Highlighted Skills, Two-Column Skills, Categorical, Inline Skills, Sidebar, and Marketing. Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
+
+Extras: import an existing resume (.txt/.docx, paste, or phone-camera scan), browser-only voice dictation to shape the summary tone, a local "match against a job description" heat-map, a multi-resume library (drafts + saved), and export via real PDF, .doc, print, native share, or a QR contact card.
 
 ## Local dev
 
@@ -22,8 +24,10 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 
 ## Export options
 
-- `DOWNLOAD .DOC` saves the live preview as a Word-compatible `.doc` file.
-- `SAVE PDF` opens the browser print dialog so users can choose “Save as PDF”.
+- `DOWNLOAD PDF` builds a real PDF in the browser (no print dialog) via the bundled `vendor/pdf-writer.js`.
+- `SHARE` opens the native share sheet to send the PDF, plus a scannable QR contact card.
+- `.DOC` saves the live preview as a Word-compatible `.doc` file.
+- `PRINT` opens the browser print dialog so users can also choose “Save as PDF”.
 - `PAYLOAD` keeps the JSON handoff available for the companion `.docx` engine.
 
 ## Stack
@@ -31,7 +35,8 @@ Static site. Vercel auto-detects it. No configuration needed beyond the included
 - Plain HTML/CSS/JS, no runtime dependencies, no build step
 - JetBrains Mono and Newsreader (Google Fonts)
 - External `styles.css` and `app.js` so Vercel can enforce a CSP without `unsafe-inline`
-- Tactical dossier aesthetic, dark theme, amber accent
+- Tactical dossier aesthetic, light/dark theme toggle, amber accent
+- Installable PWA with an offline service worker
 
 ## Security hardening
 
