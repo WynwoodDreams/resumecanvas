@@ -435,9 +435,13 @@
   .import-other { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
   .import-other-h { font-size: 10px; letter-spacing: 0.18em; font-weight: 700; color: var(--amber-soft); margin-bottom: 4px; }
   .import-other-note { font-size: 10.5px; color: var(--text-dim); line-height: 1.45; margin-bottom: 10px; }
-  .ir-other { padding: 7px 4px; border-bottom: 1px solid var(--border); margin-top: 0; }
-  .ir-other:last-child { border-bottom: none; }
+  .ir-other-row { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  .ir-other-row:last-child { border-bottom: none; }
+  .ir-other { flex: 1; min-width: 160px; padding: 0; border: none; margin-top: 2px; }
   .ir-other > summary { font-size: 11px; letter-spacing: 0.04em; color: var(--text); }
+  .ir-route { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.1em; color: var(--text-dim); flex-shrink: 0; }
+  .ir-route select { font: inherit; font-size: 11px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; cursor: pointer; }
+  .ir-route select:focus { outline: none; border-color: var(--amber); }
 
   /* Action bar */
   .action-bar { position: fixed; bottom: 0; left: 0; right: 50%; background: rgba(249,244,239,0.96); border-top: 1px solid var(--border); border-right: 1px solid var(--border); padding: 14px 32px; display: flex; gap: 12px; align-items: center; z-index: 50; backdrop-filter: blur(8px); }

@@ -171,4 +171,16 @@ assert(/\[data-import-field\]/.test(app), 'applyImport must read edited contact/
 assert(css.includes('.ir-input') && css.includes('.ir-details'), 'styles.css must style editable import fields + previews');
 assert(css.includes('.import-other'), 'styles.css must style the "other sections" group');
 
+// Routing of unmodeled sections (phase C)
+assert(typeof RcParse.suggestDestination === 'function', 'RcParse must export suggestDestination');
+assert(RcParse.suggestDestination('Volunteer Experience') === 'experience', 'volunteer should default to experience');
+assert(RcParse.suggestDestination('Languages') === 'skills', 'languages should default to skills');
+assert(RcParse.suggestDestination('Awards & Honors') === 'certifications', 'awards should default to certifications');
+assert(RcParse.suggestDestination('Publications') === 'projects', 'publications should default to projects');
+assert(RcParse.suggestDestination('Hobbies') === 'skip', 'unrecognized sections should default to skip');
+assert(typeof RcParse.parseSkills === 'function' && typeof RcParse.parseEntryBlocks === 'function', 'RcParse must expose parseSkills + parseEntryBlocks for routing');
+assert(app.includes('data-other-idx'), 'import modal must render a destination dropdown per other-section');
+assert(app.includes('select[data-other-idx]'), 'applyImport must read the routing dropdowns');
+assert(css.includes('.ir-route'), 'styles.css must style the routing dropdown');
+
 console.log('Smoke checks passed');

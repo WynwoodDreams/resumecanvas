@@ -3770,16 +3770,25 @@ function showImportConfirm(parsed, sourceName) {
   const certHtml = parsed.certifications.map((c) => `<div class="ir-item">${esc(c)}</div>`).join("");
 
   // Surface sections we detected but have no standard home for, so nothing is
-  // lost silently. Routing these into real sections lands in the next phase.
+  // lost silently. Each gets a destination dropdown (pre-set to a smart guess)
+  // so its content can be routed into a real section or skipped.
+  const DEST_OPTIONS = [["skip", "Skip"], ["skills", "Skills"], ["experience", "Experience"], ["projects", "Projects"], ["certifications", "Certifications"]];
   const otherHtml = (parsed.other && parsed.other.length) ? `
     <div class="import-other">
       <div class="import-other-h">OTHER SECTIONS WE FOUND</div>
-      <div class="import-other-note">These don't match a standard section, so we set them aside instead of dropping them. Routing options are coming next.</div>
-      ${parsed.other.map((o) => `
-        <details class="ir-details ir-other">
-          <summary><span class="count">${o.lines.length}</span> ${esc(o.title)}</summary>
-          <div class="ir-detail-body">${o.lines.map((l) => `<div class="ir-item">${esc(l)}</div>`).join("")}</div>
-        </details>`).join("")}
+      <div class="import-other-note">These don't match a standard section. Pick where each should go &mdash; we've guessed a destination, but you can change it or skip it.</div>
+      ${parsed.other.map((o, idx) => {
+        const suggested = RcParse.suggestDestination(o.title);
+        const opts = DEST_OPTIONS.map(([v, l]) => `<option value="${v}"${v === suggested ? " selected" : ""}>${l}</option>`).join("");
+        return `
+        <div class="ir-other-row">
+          <details class="ir-details ir-other">
+            <summary><span class="count">${o.lines.length}</span> ${esc(o.title)}</summary>
+            <div class="ir-detail-body">${o.lines.map((l) => `<div class="ir-item">${esc(l)}</div>`).join("")}</div>
+          </details>
+          <label class="ir-route">Import as <select data-other-idx="${idx}" aria-label="Import ${esc(o.title)} as">${opts}</select></label>
+        </div>`;
+      }).join("")}
     </div>` : "";
 
   $("#import-preview").innerHTML = `
@@ -3846,29 +3855,49 @@ function applyImport() {
     }));
   }
 
-  if (enabled.skills && p.skills.length) {
-    state.skills_categories = [{ label: "Technical", content: p.skills.join(", ") }];
-    state.skills_inline = p.skills.join(" │ ");
+  // Combine each destination's imported content with any "other" sections the
+  // user routed into it (see the routing dropdowns in the modal).
+  const skillsList = enabled.skills ? p.skills.slice() : [];
+  const experienceList = enabled.experience ? p.experience.slice() : [];
+  const projectsList = enabled.projects ? p.projects.slice() : [];
+  const certList = enabled.certifications ? p.certifications.slice() : [];
+  $$("#import-preview select[data-other-idx]").forEach(sel => {
+    const o = p.other && p.other[+sel.dataset.otherIdx];
+    if (!o) return;
+    switch (sel.value) {
+      case "skills": skillsList.push(...RcParse.parseSkills(o.lines)); break;
+      case "experience": experienceList.push(...RcParse.parseEntryBlocks(o.lines)); break;
+      case "projects": projectsList.push(...RcParse.parseEntryBlocks(o.lines)); break;
+      case "certifications":
+        certList.push(...o.lines.map(l => l.replace(RcParse.BULLET_RE, "").trim()).filter(Boolean));
+        break;
+      // "skip": leave the section out entirely.
+    }
+  });
+
+  if (skillsList.length) {
+    const seen = new Set();
+    const skills = skillsList.filter(s => { const k = s.toLowerCase(); return s && !seen.has(k) && seen.add(k); });
+    state.skills_categories = [{ label: "Technical", content: skills.join(", ") }];
+    state.skills_inline = skills.join(" │ ");
     state.skills_two_column = [];
-    for (let i = 0; i < p.skills.length; i += 2) {
-      state.skills_two_column.push({ left: p.skills[i] || "", right: p.skills[i + 1] || "" });
+    for (let i = 0; i < skills.length; i += 2) {
+      state.skills_two_column.push({ left: skills[i] || "", right: skills[i + 1] || "" });
     }
   }
 
-  if (enabled.projects) {
-    if (p.projects.length) {
-      state.projects = p.projects.map(pr => ({
-        title: pr.title || "",
-        date: pr.date || "",
-        location: pr.location || "",
-        bullets: pr.bullets.length ? pr.bullets : [""],
-      }));
-      state.section_enabled.projects = true;
-    }
+  if (projectsList.length) {
+    state.projects = projectsList.map(pr => ({
+      title: pr.title || "",
+      date: pr.date || "",
+      location: pr.location || "",
+      bullets: pr.bullets.length ? pr.bullets : [""],
+    }));
+    state.section_enabled.projects = true;
   }
 
-  if (enabled.experience && p.experience.length) {
-    state.experience = p.experience.map(e => ({
+  if (experienceList.length) {
+    state.experience = experienceList.map(e => ({
       title: e.title || "",
       date: e.date || "",
       location: e.location || "",
@@ -3878,8 +3907,8 @@ function applyImport() {
     state.section_enabled.experience = true;
   }
 
-  if (enabled.certifications && p.certifications.length) {
-    state.certifications = p.certifications;
+  if (certList.length) {
+    state.certifications = certList;
   }
 
   _pendingImport = null;
