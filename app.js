@@ -3647,22 +3647,6 @@ async function copyPayloadAndPrompt() {
 
 let _pendingImport = null;
 
-const SECTION_PATTERNS = [
-  ["summary", /^(profile\s+summary|professional\s+summary|career\s+summary|summary|objective|profile|about\s+me|about)\s*:?\s*$/i],
-  ["education", /^(education|academic\s+background|academics)\s*:?\s*$/i],
-  ["skills", /^(highlighted\s+skills|technical\s+skills|core\s+competencies|competencies|skills)\s*:?\s*$/i],
-  ["projects", /^(projects|project\s+experience|key\s+projects|selected\s+projects)\s*:?\s*$/i],
-  ["experience", /^(work\s+experience|professional\s+experience|employment\s+history|experience|employment)\s*:?\s*$/i],
-  ["certifications", /^(certifications?|certificates|licenses(\s*&\s*certifications)?|licenses)\s*:?\s*$/i],
-];
-
-const BULLET_RE = /^[•*\-‒–—◦·▪]\s+/;
-const DATE_TOKEN_RE = /((jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\b\d{4}\b|present|current|expected)/i;
-const LOCATION_RE = /[A-Z][a-zA-Z.\s]+,\s*[A-Z]{2}(?:\s+\d{5})?/;
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-const PHONE_RE = /(?:\+?\d[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
-const LINKEDIN_RE = /(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/[^\s|]+/i;
-
 async function handleImportFile(file) {
   try {
     let text;
@@ -3678,7 +3662,7 @@ async function handleImportFile(file) {
       toast("FILE WAS EMPTY");
       return;
     }
-    showImportConfirm(parseResumeText(text), file.name);
+    showImportConfirm(RcParse.parseResumeText(text), file.name);
   } catch (err) {
     console.error("Import failed", err);
     toast("IMPORT FAILED — try pasting text instead");
@@ -3688,7 +3672,7 @@ async function handleImportFile(file) {
 function parseImportFromPaste() {
   const text = $("#import-paste").value;
   if (!text.trim()) { toast("PASTE SOME TEXT FIRST"); return; }
-  showImportConfirm(parseResumeText(text), "(pasted)");
+  showImportConfirm(RcParse.parseResumeText(text), "(pasted)");
 }
 
 async function extractDocxText(file) {
@@ -3735,120 +3719,6 @@ function docxXmlToText(xml) {
     return decode(runs.join(""));
   });
   return lines.join("\n");
-}
-
-function parseResumeText(text) {
-  const rawLines = text.replace(/\r/g, "").split("\n").map(l => l.replace(/•/g, "•").replace(/\t/g, " ").trim());
-  const sections = { header: [], summary: [], education: [], skills: [], projects: [], experience: [], certifications: [] };
-  let current = "header";
-  for (const line of rawLines) {
-    const matched = SECTION_PATTERNS.find(([, re]) => re.test(line));
-    if (matched) { current = matched[0]; continue; }
-    sections[current].push(line);
-  }
-
-  const header = parseHeader(sections.header);
-  const summary = sections.summary.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-  const skills = parseSkills(sections.skills);
-  const education = parseEducationBlocks(sections.education);
-  const projects = parseEntryBlocks(sections.projects);
-  const experience = parseEntryBlocks(sections.experience);
-  const certifications = sections.certifications.filter(Boolean).map(l => l.replace(BULLET_RE, ""));
-
-  return { header, summary, skills, education, projects, experience, certifications };
-}
-
-function parseHeader(lines) {
-  const nonEmpty = lines.filter(Boolean);
-  const name = nonEmpty[0] || "";
-  const rest = nonEmpty.slice(1).join(" | ");
-  const email = (rest.match(EMAIL_RE) || [""])[0];
-  const phone = (rest.match(PHONE_RE) || [""])[0];
-  const linkedin = (rest.match(LINKEDIN_RE) || [""])[0];
-  const location = (rest.match(LOCATION_RE) || [""])[0];
-  return { name, email, phone, linkedin, location };
-}
-
-function parseSkills(lines) {
-  const seen = new Set();
-  const items = [];
-  for (const raw of lines) {
-    if (!raw) continue;
-    const cleaned = raw.replace(BULLET_RE, "").replace(/^[A-Z][a-zA-Z]+:\s*/, ""); // drop "Category: " prefixes
-    cleaned.split(/[,;|·•]/).forEach(piece => {
-      const t = piece.trim();
-      if (t && !seen.has(t.toLowerCase())) {
-        seen.add(t.toLowerCase());
-        items.push(t);
-      }
-    });
-  }
-  return items;
-}
-
-function parseEducationBlocks(lines) {
-  const blocks = groupByBlankLine(lines);
-  return blocks.map(block => {
-    const dateLine = block.find(l => DATE_TOKEN_RE.test(l)) || "";
-    const degreeLine = block.find(l => l !== dateLine && /(associate|bachelor|master|ph\.?d|degree|diploma|certificate|major|minor|gpa)/i.test(l)) || "";
-    let school = block.find(l => l !== degreeLine && l !== dateLine) || block[0] || "";
-    let city = "";
-    const splitMatch = school.match(/^(.+?)\s*[—–\-|]\s*(.+)$/);
-    if (splitMatch && LOCATION_RE.test(splitMatch[2])) {
-      school = splitMatch[1].trim();
-      city = splitMatch[2].trim();
-    } else {
-      const cityInDate = (dateLine.match(LOCATION_RE) || [""])[0];
-      if (cityInDate) city = cityInDate;
-    }
-    return { school, city, degree: degreeLine, date: dateLine };
-  });
-}
-
-function parseEntryBlocks(lines) {
-  const blocks = [];
-  let cur = null;
-  for (const line of lines) {
-    if (!line) {
-      if (cur) { blocks.push(cur); cur = null; }
-      continue;
-    }
-    const isBullet = BULLET_RE.test(line);
-    if (isBullet) {
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.bullets.push(line.replace(BULLET_RE, ""));
-    } else {
-      // a non-bullet line after bullets starts a new block
-      if (cur && cur.bullets.length) { blocks.push(cur); cur = null; }
-      if (!cur) cur = { heading: [], bullets: [] };
-      cur.heading.push(line);
-    }
-  }
-  if (cur) blocks.push(cur);
-
-  return blocks.map(b => {
-    const headingJoined = b.heading.join(" | ");
-    const date = (headingJoined.match(new RegExp(`${DATE_TOKEN_RE.source}\\s*[–\\-—]+\\s*${DATE_TOKEN_RE.source}|${DATE_TOKEN_RE.source}`, "i")) || [""])[0];
-    const location = (headingJoined.match(LOCATION_RE) || [""])[0];
-    let title = b.heading[0] || "";
-    // strip trailing date/location from title line
-    title = title.replace(DATE_TOKEN_RE, "").replace(LOCATION_RE, "").replace(/[\s|–—\-]+$/, "").trim();
-    return { title, date, location, bullets: b.bullets };
-  });
-}
-
-function groupByBlankLine(lines) {
-  const out = [];
-  let cur = [];
-  for (const l of lines) {
-    if (!l) {
-      if (cur.length) { out.push(cur); cur = []; }
-    } else {
-      cur.push(l);
-    }
-  }
-  if (cur.length) out.push(cur);
-  return out;
 }
 
 function showImportConfirm(parsed, sourceName) {
