@@ -163,4 +163,12 @@ assert(titles.some((t) => /awards/.test(t)), 'AWARDS must be quarantined into `o
 assert(titles.some((t) => /volunteer/.test(t)), 'VOLUNTEER EXPERIENCE must be quarantined into `other`');
 assert(!parsed.skills.some((s) => /employee of the year/i.test(s)), 'awards content must not pollute skills');
 
+// Import review UI (phase B: trustworthy confirm modal)
+assert(app.includes('data-import-field'), 'import modal must render inline-editable contact fields');
+assert(app.includes('ir-details') && app.includes('ir-detail-body'), 'import modal must render expandable section previews');
+assert(app.includes('OTHER SECTIONS WE FOUND'), 'import modal must surface the unmodeled "other" sections group');
+assert(/\[data-import-field\]/.test(app), 'applyImport must read edited contact/summary field values');
+assert(css.includes('.ir-input') && css.includes('.ir-details'), 'styles.css must style editable import fields + previews');
+assert(css.includes('.import-other'), 'styles.css must style the "other sections" group');
+
 console.log('Smoke checks passed');

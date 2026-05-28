@@ -3723,35 +3723,79 @@ function docxXmlToText(xml) {
 
 function showImportConfirm(parsed, sourceName) {
   _pendingImport = parsed;
-  const summarySnippet = parsed.summary.length > 180 ? parsed.summary.slice(0, 180) + "…" : parsed.summary;
-  const row = (key, label, value, hasContent) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${hasContent ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${hasContent ? esc(value) : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
-  const count = (key, label, n, detail) => `
-    <label class="import-row">
-      <input type="checkbox" data-import-key="${key}" ${n > 0 ? "checked" : "disabled"}>
-      <div class="ir-label">${label}</div>
-      <div class="ir-value">${n > 0 ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}</div>
-    </label>
-  `;
   const h = parsed.header;
+
+  // Inline-editable single-value field (name/email/phone/location/linkedin).
+  // Checkbox enabled even when empty so a missed field can be typed in and kept.
+  const fieldRow = (key, label, value) => {
+    const has = !!value;
+    return `
+    <div class="import-row import-field">
+      <input type="checkbox" data-import-key="${key}" ${has ? "checked" : ""}>
+      <div class="ir-label">${label}</div>
+      <input type="text" class="ir-input" data-import-field="${key}" value="${esc(value)}" placeholder="none detected — type to add" aria-label="${label}">
+    </div>`;
+  };
+
+  // Summary gets a wider editable textarea so long text can be reviewed/trimmed.
+  const summaryRow = () => {
+    const has = !!parsed.summary;
+    return `
+    <div class="import-row import-field import-summary">
+      <input type="checkbox" data-import-key="summary" ${has ? "checked" : ""}>
+      <div class="ir-label">PROFILE SUMMARY</div>
+      <textarea class="ir-input ir-textarea" data-import-field="summary" rows="3" placeholder="none detected — type to add" aria-label="Profile summary">${esc(parsed.summary)}</textarea>
+    </div>`;
+  };
+
+  // Collection row with an expandable preview of the actual parsed entries.
+  const sectionRow = (key, label, n, detail, detailHtml) => {
+    const has = n > 0;
+    return `
+    <div class="import-row import-section">
+      <input type="checkbox" data-import-key="${key}" ${has ? "checked" : "disabled"}>
+      <div class="ir-label">${label}</div>
+      <div class="ir-value">
+        ${has ? `<span class="count">${n}</span> ${esc(detail)}` : '<span class="none">none detected</span>'}
+        ${has && detailHtml ? `<details class="ir-details"><summary>preview</summary><div class="ir-detail-body">${detailHtml}</div></details>` : ""}
+      </div>
+    </div>`;
+  };
+
+  const eduHtml = parsed.education.map((e) =>
+    `<div class="ir-item">${esc([e.school, e.degree].filter(Boolean).join(" — ")) || "(entry)"}${e.date ? ` <span class="muted">(${esc(e.date)})</span>` : ""}</div>`).join("");
+  const skillsHtml = `<div class="ir-chips">${parsed.skills.map((s) => `<span class="ir-chip">${esc(s)}</span>`).join("")}</div>`;
+  const entryHtml = (entries) => entries.map((e) =>
+    `<div class="ir-item"><strong>${esc(e.title || "(untitled)")}</strong>${e.date ? ` <span class="muted">${esc(e.date)}</span>` : ""}${e.location ? ` <span class="muted">${esc(e.location)}</span>` : ""}${e.bullets.length ? `<ul>${e.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}</div>`).join("");
+  const certHtml = parsed.certifications.map((c) => `<div class="ir-item">${esc(c)}</div>`).join("");
+
+  // Surface sections we detected but have no standard home for, so nothing is
+  // lost silently. Routing these into real sections lands in the next phase.
+  const otherHtml = (parsed.other && parsed.other.length) ? `
+    <div class="import-other">
+      <div class="import-other-h">OTHER SECTIONS WE FOUND</div>
+      <div class="import-other-note">These don't match a standard section, so we set them aside instead of dropping them. Routing options are coming next.</div>
+      ${parsed.other.map((o) => `
+        <details class="ir-details ir-other">
+          <summary><span class="count">${o.lines.length}</span> ${esc(o.title)}</summary>
+          <div class="ir-detail-body">${o.lines.map((l) => `<div class="ir-item">${esc(l)}</div>`).join("")}</div>
+        </details>`).join("")}
+    </div>` : "";
+
   $("#import-preview").innerHTML = `
     <div class="import-source">SOURCE: <span class="amber">${esc(sourceName)}</span></div>
-    ${row("name", "NAME", h.name, !!h.name)}
-    ${row("email", "EMAIL", h.email, !!h.email)}
-    ${row("phone", "PHONE", h.phone, !!h.phone)}
-    ${row("location", "LOCATION", h.location, !!h.location)}
-    ${row("linkedin", "LINKEDIN", h.linkedin, !!h.linkedin)}
-    ${row("summary", "PROFILE SUMMARY", summarySnippet, !!parsed.summary)}
-    ${count("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries")}
-    ${count("skills", "SKILLS", parsed.skills.length, "items")}
-    ${count("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks")}
-    ${count("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions")}
-    ${count("certifications", "CERTIFICATIONS", parsed.certifications.length, "items")}
+    ${fieldRow("name", "NAME", h.name)}
+    ${fieldRow("email", "EMAIL", h.email)}
+    ${fieldRow("phone", "PHONE", h.phone)}
+    ${fieldRow("location", "LOCATION", h.location)}
+    ${fieldRow("linkedin", "LINKEDIN", h.linkedin)}
+    ${summaryRow()}
+    ${sectionRow("education", "EDUCATION", parsed.education.length, parsed.education.length === 1 ? "entry" : "entries", eduHtml)}
+    ${sectionRow("skills", "SKILLS", parsed.skills.length, "items", skillsHtml)}
+    ${sectionRow("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks", entryHtml(parsed.projects))}
+    ${sectionRow("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions", entryHtml(parsed.experience))}
+    ${sectionRow("certifications", "CERTIFICATIONS", parsed.certifications.length, "items", certHtml)}
+    ${otherHtml}
   `;
   $("#import-modal-bg").classList.add("show");
 }
@@ -3766,15 +3810,19 @@ function applyImport() {
   $$("#import-preview input[type='checkbox']").forEach(cb => {
     enabled[cb.dataset.importKey] = cb.checked && !cb.disabled;
   });
+  // Pick up any inline edits the user made to the contact/summary fields.
+  const edited = {};
+  $$("#import-preview [data-import-field]").forEach(inp => {
+    edited[inp.dataset.importField] = inp.value.trim();
+  });
 
   const p = _pendingImport;
-  const h = p.header;
-  if (enabled.name) state.name = h.name;
-  if (enabled.email) state.email = h.email;
-  if (enabled.phone) state.phone = h.phone;
-  if (enabled.location) state.location = h.location;
-  if (enabled.linkedin) state.linkedin = h.linkedin;
-  if (enabled.summary) state.summary = p.summary;
+  if (enabled.name) state.name = edited.name;
+  if (enabled.email) state.email = edited.email;
+  if (enabled.phone) state.phone = edited.phone;
+  if (enabled.location) state.location = edited.location;
+  if (enabled.linkedin) state.linkedin = edited.linkedin;
+  if (enabled.summary) state.summary = edited.summary;
 
   // Mirror imported contact fields into demo_2's two contact lines.
   if (enabled.location || enabled.phone) {
