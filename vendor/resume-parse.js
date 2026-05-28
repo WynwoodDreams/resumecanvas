@@ -33,6 +33,19 @@
   // titles that merely start with one of these words (e.g. "Research Assistant").
   const OTHER_SECTION_WORDS = /^(volunteer( experience| work)?|community (service|involvement)|leadership( experience)?|awards?( (and|&) honou?rs?)?|honou?rs?( (and|&) awards?)?|achievements?|accomplishments?|languages?|publications?|research( experience)?|references?|interests?|hobbies|activities|extracurricular( activities)?|affiliations?|professional affiliations?|memberships?|professional development|training|(relevant )?coursework|courses|portfolio|patents?|presentations?|additional information)$/i;
 
+  // Suggest a default destination section for an unmodeled "other" section,
+  // based on its heading. Returns one of: skills | experience | projects |
+  // certifications | skip. Used to pre-select the routing dropdown in the
+  // import modal; the user can always override.
+  function suggestDestination(title) {
+    const t = String(title || "").toLowerCase();
+    if (/(volunteer|community|leadership|extracurricular|activities|affiliation|membership)/.test(t)) return "experience";
+    if (/(language|tool|technolog|proficienc|competenc|software|framework)/.test(t)) return "skills";
+    if (/(award|honou?r|achievement|accomplishment|recognition|scholarship)/.test(t)) return "certifications";
+    if (/(publication|research|presentation|patent|portfolio|project)/.test(t)) return "projects";
+    return "skip";
+  }
+
   function nextNonEmpty(lines, i) {
     for (let j = i + 1; j < lines.length; j++) {
       if (lines[j]) return lines[j];
@@ -209,7 +222,11 @@
   return {
     parseResumeText,
     isUnknownHeading,
+    suggestDestination,
+    parseSkills,
+    parseEntryBlocks,
     SECTION_PATTERNS,
     OTHER_SECTION_WORDS,
+    BULLET_RE,
   };
 });
