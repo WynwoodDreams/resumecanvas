@@ -4672,6 +4672,82 @@ if ("serviceWorker" in navigator) {
 }
 
 // ─────────────────────────────────────────────────────────
+// MODAL ACCESSIBILITY
+// Trap Tab focus inside the open dialog, close on Escape, and restore
+// focus to the trigger on close. Wired via a class observer so the
+// existing open/close helpers (which just toggle .show) stay untouched.
+// ─────────────────────────────────────────────────────────
+
+const MODAL_CLOSERS = {
+  "modal-bg": closeModal,
+  "import-modal-bg": closeImportModal,
+  "library-modal-bg": closeLibrary,
+  "share-modal-bg": closeShareModal,
+};
+
+let _modalLastFocus = null;
+
+function modalFocusables(bg) {
+  const sel = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(bg.querySelectorAll(sel)).filter((el) => el.offsetParent !== null);
+}
+
+function onModalOpened(bg) {
+  _modalLastFocus = document.activeElement;
+  const focusables = modalFocusables(bg);
+  const target = focusables[0] || bg.querySelector(".modal");
+  if (target && typeof target.focus === "function") {
+    requestAnimationFrame(() => target.focus());
+  }
+}
+
+function onModalClosed() {
+  const last = _modalLastFocus;
+  _modalLastFocus = null;
+  if (last && typeof last.focus === "function" && document.contains(last)) {
+    last.focus();
+  }
+}
+
+function initModalA11y() {
+  $$(".modal-bg").forEach((bg) => {
+    let wasShown = bg.classList.contains("show");
+    new MutationObserver(() => {
+      const shown = bg.classList.contains("show");
+      if (shown === wasShown) return;
+      wasShown = shown;
+      if (shown) onModalOpened(bg);
+      else onModalClosed();
+    }).observe(bg, { attributes: true, attributeFilter: ["class"] });
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    const bg = document.querySelector(".modal-bg.show");
+    if (!bg) return;
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      const closer = MODAL_CLOSERS[bg.id];
+      if (closer) closer();
+      else bg.classList.remove("show");
+      return;
+    }
+    if (ev.key !== "Tab") return;
+    const focusables = modalFocusables(bg);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (ev.shiftKey && (active === first || !bg.contains(active))) {
+      ev.preventDefault();
+      last.focus();
+    } else if (!ev.shiftKey && (active === last || !bg.contains(active))) {
+      ev.preventDefault();
+      first.focus();
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────
 
@@ -4681,3 +4757,4 @@ applySavedTheme();
 restoreState();
 render();
 updatePreviewScale();
+initModalA11y();
