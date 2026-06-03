@@ -163,6 +163,81 @@ assert(titles.some((t) => /awards/.test(t)), 'AWARDS must be quarantined into `o
 assert(titles.some((t) => /volunteer/.test(t)), 'VOLUNTEER EXPERIENCE must be quarantined into `other`');
 assert(!parsed.skills.some((s) => /employee of the year/i.test(s)), 'awards content must not pollute skills');
 
+// Messy real-world resume robustness (bullet-less, inline headings, loose dates).
+// Weak resumes — the ones this tool exists to rescue — rarely use bullet glyphs,
+// often collapse headings onto the content line, and write dates inconsistently.
+const messy = [
+  'JANE DOE',
+  'jane.doe@gmail.com  •  (305) 555-1234  •  Miami, FL',
+  '',
+  'OBJECTIVE',
+  'Hardworking individual seeking opportunity.',
+  '',
+  'EXPERIENCE',
+  'Cashier, Walmart, Miami FL  2019-2021',
+  'Handled register',
+  'Helped customers',
+  'Server  Olive Garden  2021 to present',
+  'Took orders',
+  '',
+  'SKILLS: Microsoft Word, Excel, Customer Service, Teamwork',
+  '',
+  'EDUCATION',
+  'Miami Dade College',
+  'Associate in Arts, expected 2025',
+].join('\n');
+const m = RcParse.parseResumeText(messy);
+
+// Inline "SKILLS: a, b, c" heading must be recognized and split into items.
+assert(m.skills.length === 4 && m.skills.includes('Microsoft Word') && m.skills.includes('Teamwork'),
+  'inline "SKILLS:" heading must be parsed into individual skills');
+assert(!m.experience.some((e) => /microsoft word/i.test(e.title)),
+  'inline skills line must not leak into experience as a fake job');
+
+// Bullet-less, run-together experience must split into one entry per job, with
+// the undated duty lines captured as bullets (not swallowed into the title).
+assert(m.experience.length === 2, 'bullet-less experience must split into two jobs');
+assert(/Cashier/.test(m.experience[0].title) && m.experience[0].date === '2019-2021',
+  'first job title/date must be separated cleanly');
+assert(m.experience[0].location === 'Miami FL',
+  'a "City ST" location without a comma must still be detected');
+assert(m.experience[0].bullets.join(' ') === 'Handled register Helped customers',
+  'undated duty lines must become the first job\'s bullets');
+assert(/Server/.test(m.experience[1].title) && m.experience[1].bullets.length === 1,
+  'second job must own its own title and duty');
+
+// Education: a degree line that also carries the date must yield both, not one.
+assert(m.education.length === 1, 'education must produce a single entry');
+assert(m.education[0].degree === 'Associate in Arts', 'degree must be isolated from its date');
+assert(m.education[0].date === 'expected 2025', 'a date on the degree line must be split out intact');
+assert(m.education[0].school === 'Miami Dade College', 'school must be identified separately');
+
+// A clean multi-line header (no bullets, single date) must stay ONE entry — the
+// new splitter must not over-segment well-formed resumes.
+const clean = RcParse.parseResumeText([
+  'EXPERIENCE',
+  'Software Engineer',
+  'Acme Corporation',
+  '2020 - 2023',
+].join('\n'));
+assert(clean.experience.length === 1, 'a single dated multi-line header must not be over-split');
+assert(/Software Engineer/.test(clean.experience[0].title), 'multi-line header title must survive');
+
+// A single entry described in plain prose (no bullets, no date) must keep its
+// description lines as bullets rather than dropping them.
+const prose = RcParse.parseResumeText([
+  'PROJECTS',
+  'Budget Tracker App',
+  'Built a React app to track expenses',
+  'Used Firebase for storage',
+].join('\n'));
+assert(prose.projects.length === 1, 'a single prose project must be one entry');
+assert(prose.projects[0].title === 'Budget Tracker App', 'prose project title must be the first line');
+assert(prose.projects[0].bullets.length === 2, 'prose project description lines must be kept as bullets');
+
+// A state code that is really a non-location two-capital token must NOT match.
+assert(!RcParse.LOCATION_RE.test('Microsoft IT Support'), 'two capitals that are not a state must not read as a location');
+
 // Import review UI (phase B: trustworthy confirm modal)
 assert(app.includes('data-import-field'), 'import modal must render inline-editable contact fields');
 assert(app.includes('ir-details') && app.includes('ir-detail-body'), 'import modal must render expandable section previews');
