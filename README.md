@@ -2,7 +2,7 @@
 
 Student resume builder for the Miami Dade College Works program.
 
-Static HTML/CSS/JS app with a live preview and six layouts: Highlighted Skills, Two-Column Skills, Categorical, Inline Skills, Sidebar, and Marketing. Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
+Static HTML/CSS/JS app with a live preview and six layouts: Highlighted Skills, Two-Column Skills, Categorical, Mass Communications, Sidebar, and Criminal Justice. Each template carries its own demo resume; selecting a template previews its sample, and once you import or type a student's info, switching templates re-lays-out that same data. Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
 
 Extras: import an existing resume (.txt/.docx, paste, or phone-camera scan), browser-only voice dictation to shape the summary tone, a local "match against a job description" heat-map, a multi-resume library (drafts + saved), and export via real PDF, .doc, print, native share, or a QR contact card.
 

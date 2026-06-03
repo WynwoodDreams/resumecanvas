@@ -12,9 +12,9 @@ let state = {
     demo_4: ["education", "skills", "projects", "experience"],
     demo_2: ["skills", "education", "certs", "projects", "experience"],
     demo_1: ["skills", "education", "projects", "experience"],
-    demo_5: ["skills", "education", "projects", "experience"],
+    demo_5: ["education", "experience", "skills"],
     demo_6: ["skills", "education", "experience"],
-    demo_8: ["skills", "experience", "education"],
+    demo_8: ["skills", "education", "projects", "experience"],
   },
   match: { on: false, jd: "" },
   // Demo 4 header
@@ -111,6 +111,130 @@ let state = {
 const _DEFAULT_STATE_JSON = JSON.stringify(state);
 
 // ─────────────────────────────────────────────────────────
+// PER-TEMPLATE DEMO CONTENT
+// Each template carries its own demo resume. Selecting a template while the
+// current resume is still an untouched demo swaps in THAT template's demo;
+// once the user imports or types anything, switching only re-lays-out their
+// real data (see the #tpl-dropdown handler). demo_1/2/4/6 share the MDC sample;
+// demo_5 (Mass Communications) and demo_8 (Criminal Justice) carry their own.
+// ─────────────────────────────────────────────────────────
+const DEMO_CONTENT_KEYS = [
+  "name", "professional_title", "location", "phone", "email", "linkedin", "links",
+  "contact_line1", "contact_line2", "summary", "education", "skills_categories",
+  "skills_two_column", "skills_inline", "certifications", "projects", "experience",
+];
+
+// A stable fingerprint of just the resume *content* (ignores template, fonts,
+// match/voice transients) so we can tell an untouched demo from edited data.
+function demoSignature(s) {
+  return JSON.stringify(DEMO_CONTENT_KEYS.map((k) => s[k]));
+}
+
+const DEMO_SEEDS = (function buildDemoSeeds() {
+  const fresh = (tpl) => Object.assign(JSON.parse(_DEFAULT_STATE_JSON), { template: tpl });
+  const seeds = {};
+  ["demo_1", "demo_2", "demo_4", "demo_6"].forEach((tpl) => { seeds[tpl] = fresh(tpl); });
+
+  seeds.demo_5 = Object.assign(fresh("demo_5"), {
+    name: "Jane Doe",
+    contact_line1: "Miami, FL | (786) 438-7871 | JD@gmail.com",
+    contact_line2: "Linkedin.com",
+    summary: "Mass Communications student at Miami Dade College combining journalism, civic engagement, and design skills to support urban planning and community-focused initiatives. Trilingual communicator with hands-on experience in concept design, 3D modeling, and media outreach, plus a strong service background built across hospitality, retail, and education environments.",
+    education: [{
+      school: "Miami Dade College", city: "Miami, FL",
+      degree: "Associate in Arts, Mass Communications", date: "Expected 2026",
+      coursework: "journalism, civic engagement, and urban planning",
+      subline_bold: "", subline_rest: "", certifications: "",
+    }],
+    skills_categories: [
+      { label: "Design & Software", content: "Adobe Creative Suite, Rhino (3D modeling), Canva, Microsoft Office, Google Workspace" },
+      { label: "Communications", content: "Media outreach, content creation, social media, public speaking, documentation, research" },
+      { label: "Operations", content: "Event planning, scheduling, customer service, cash handling, front-desk operations" },
+      { label: "Languages", content: "English (fluent), Spanish (expert), French (intermediate)" },
+    ],
+    projects: [],
+    certifications: [],
+    experience: [
+      { title: "Intern", company_city: "The Blue House | Miami, FL", location: "", date: "January 2026 – Present", bullets: [
+        "Support an urban planning project from concept through documentation, contributing to community-focused design work",
+        "Create concept designs and 3D models using Adobe Creative Suite and Rhino",
+        "Lead media outreach to communicate project goals and updates to broader audiences",
+        "Document project progress and prepare materials for internal and external stakeholders",
+      ] },
+      { title: "Jewelry Sales Associate", company_city: "A&R Jewelry | Miami, FL", location: "", date: "August 2025 – Present", bullets: [
+        "Create and sell custom jewelry, including permanent welded pieces, while upselling charms and accessories to increase per-customer revenue",
+        "Manage high-volume customer interactions during in-store events, markets, and private parties",
+        "Support birthday parties and special events, engaging guests of all ages to deliver a memorable experience",
+        "Prepare jewelry samples and maintain a clean, inviting workspace",
+      ] },
+      { title: "Cashier / Customer Service", company_city: "Food Palace | Miami, FL", location: "", date: "August 2024 – October 2025", bullets: [
+        "Operated cash register and processed customer orders accurately in a fast-paced environment",
+        "Collaborated with team members through clear communication to maintain smooth daily operations",
+        "Handled high-volume and challenging interactions with patience and attentive service",
+      ] },
+      { title: "Hostess / Server", company_city: "Sushi World | Miami, FL", location: "", date: "February 2023 – June 2025", bullets: [
+        "Greeted and seated guests, delivering a welcoming first impression during peak hours",
+        "Served food, drinks, and alcoholic beverages responsibly in line with safety standards",
+        "Maintained calm and efficient service during high-volume shifts and completed thorough closing duties",
+      ] },
+    ],
+  });
+
+  seeds.demo_8 = Object.assign(fresh("demo_8"), {
+    name: "Jane Doe",
+    contact_line1: "Miami, FL 33132 | (305) 987-6543 | jdoe@student.mdc.edu | LinkedIn.com/in/janedoe",
+    contact_line2: "",
+    summary: "Miami Dade College Criminal Justice student with hands-on experience in security operations, access control, and administrative support. Committed to public safety, conflict de-escalation, and professional conduct. Seeking to apply law enforcement knowledge and field experience toward a career in criminal justice or public service.",
+    skills_two_column: [
+      { left: "Patrol & Access Control", right: "Incident Documentation & Reporting" },
+      { left: "Conflict De-escalation", right: "Microsoft Office Suite" },
+      { left: "Criminal Law & Procedure", right: "Bilingual: English & Spanish" },
+      { left: "Emergency Response Protocols", right: "Customer & Client Relations" },
+      { left: "Surveillance & Monitoring", right: "Data Entry & Records Management" },
+    ],
+    education: [{
+      school: "Miami Dade College – The Honors College", city: "Miami, FL",
+      degree: "Associate in Science, Criminal Justice | GPA: 3.75", date: "Expected Spring 2026",
+      coursework: "Introduction to Criminal Justice, Criminal Law, Criminology, Juvenile Justice, Correctional Systems",
+      subline_bold: "", subline_rest: "", certifications: "",
+    }],
+    projects: [
+      { title: "Criminal Justice Club – Miami Dade College", date: "August 2024 – Present", location: "", bullets: [
+        "Attend bi-weekly meetings to discuss current events in law enforcement, criminal policy reform, and legal procedure",
+        "Participated in mock trial simulation organized by MDC faculty, applying knowledge of courtroom procedure and criminal law",
+        "Volunteered at MDC's annual Public Safety Career Fair, connecting students with internship and employment opportunities in law enforcement",
+      ] },
+      { title: "Phi Theta Kappa Honor Society – Beta Theta Tau Chapter", date: "January 2024 – Present", location: "", bullets: [
+        "Inducted based on academic achievement; maintain qualifying GPA while completing full-time coursework and employment",
+        "Participated in community service initiatives including food drives and neighborhood outreach events in the Miami-Dade area",
+      ] },
+    ],
+    certifications: [],
+    experience: [
+      { title: "Security Officer", company_city: "Secure 1st Protection Services | Miami, FL", location: "", date: "June 2023 – Present", bullets: [
+        "Monitor 3 commercial properties across rotating shifts, conducting foot patrols and access point checks to deter unauthorized entry",
+        "Respond to and document security incidents, preparing detailed written reports submitted to site supervisors and property management",
+        "Enforce facility policies and coordinate with local law enforcement on 4+ reported incidents over a 12-month period",
+        "De-escalate confrontational situations involving visitors and tenants, maintaining composure and adherence to post orders",
+      ] },
+      { title: "Office Assistant", company_city: "Coastal Realty Group | Doral, FL", location: "", date: "August 2022 – May 2023", bullets: [
+        "Supported a 6-person administrative team with scheduling, correspondence, and data entry for 50+ active property listings",
+        "Managed front-desk operations including client intake, phone routing, and document processing using Microsoft Office Suite",
+      ] },
+    ],
+  });
+
+  return seeds;
+})();
+
+// True when the live resume is still exactly one of the demos (so a template
+// switch should load the next template's demo rather than relayout user data).
+function currentDemoIsPristine() {
+  const seed = DEMO_SEEDS[state.template];
+  return !!seed && demoSignature(state) === demoSignature(seed);
+}
+
+// ─────────────────────────────────────────────────────────
 // TEMPLATE CONFIG
 // Per-template rendering choices. demo_4 keeps its own structured header
 // path; demo_2/demo_1/demo_5 share the free-form contact-line header but
@@ -141,11 +265,11 @@ const TEMPLATES = {
     labels: { summary: "Profile Summary", skills: "Highlighted Skills", education: "Education", projects: "Projects", experience: "Work Experience", certs: "Certifications" },
   },
   demo_5: {
-    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "pipe", eduMode: "demo5",
-    projMode: "paragraph_inline", expMode: "company", certs: false,
+    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo2",
+    projMode: "dated", expMode: "company_first", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Inline Skills", desc: "Single column · smallCaps headers · pipe-separated skills line · degree-first education. Good for cybersecurity / IT.",
-    labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
+    name: "Mass Communications", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. Good for communications / media / design students.",
+    labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "PROFESSIONAL EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_6: {
     layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
@@ -155,11 +279,11 @@ const TEMPLATES = {
     labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
   },
   demo_8: {
-    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo8",
-    projMode: "none", expMode: "company", certs: false,
+    layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
+    projMode: "dated", expMode: "company", certs: false,
     namePt: 17, sectionPt: 11, bodyPt: 11,
-    name: "Marketing", desc: "Single column · PROFILE summary · categorized skills & tools · dated experience · certifications. Good for marketing / business.",
-    labels: { summary: "PROFILE", skills: "SKILLS & TOOLS", education: "EDUCATION", projects: "PROJECTS", experience: "EXPERIENCE", certs: "CERTIFICATIONS" },
+    name: "Criminal Justice", desc: "Single column · smallCaps headers · highlighted two-column skills · campus involvement + work experience. Good for criminal justice / public-service students.",
+    labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "CAMPUS INVOLVEMENT & ACTIVITIES", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
 };
 
@@ -661,8 +785,8 @@ function resetState() {
   const label = active ? active.name : "this resume";
   const ok = confirm(`Reset "${label}" to the sample data? Other saved resumes are untouched.`);
   if (!ok) return;
-  const fresh = JSON.parse(_DEFAULT_STATE_JSON);
-  replaceStateWith(fresh);
+  const seed = DEMO_SEEDS[state.template] || JSON.parse(_DEFAULT_STATE_JSON);
+  replaceStateWith(seed);
   if (active) {
     active.state = JSON.parse(JSON.stringify(state));
     active.updatedAt = Date.now();
@@ -832,7 +956,7 @@ function renderProjects() {
   const isParagraph = projMode === "paragraph" || projMode === "paragraph_inline";
   const bulletsLabel = isParagraph ? "DESCRIPTION" : "BULLETS";
   body.innerHTML = state.projects.map((p, i) => {
-    const dateLocFields = state.template === "demo_4" ? `
+    const dateLocFields = tcfg().projMode === "dated" ? `
       <div class="row two">
         <div><label>DATE</label><input type="text" data-proj="${i}" data-field="date" value="${esc(p.date || "")}" placeholder="November 2025 – Present"></div>
         <div><label>LOCATION</label><input type="text" data-proj="${i}" data-field="location" value="${esc(p.location || "")}" placeholder="Miami, FL"></div>
@@ -1174,7 +1298,14 @@ function updateReorderButtonStates() {
 $("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
   const tpl = ev.target.value;
   if (!TEMPLATES[tpl] || tpl === state.template) return;
-  state.template = tpl;
+  // Still showing an untouched demo? Load the chosen template's OWN demo so each
+  // template previews its own sample. Once the user has imported or typed real
+  // content, keep it and just re-lay it out in the new template.
+  if (currentDemoIsPristine() && DEMO_SEEDS[tpl]) {
+    replaceStateWith(DEMO_SEEDS[tpl]);
+  } else {
+    state.template = tpl;
+  }
   state.font_pt = null; // reset font choice on template switch — each template has its own default
   $$("[data-font]").forEach(c => c.classList.remove("active"));
   $("#font-chip-default").classList.add("active");
@@ -1660,7 +1791,11 @@ function syncTemplateUI() {
   // Hide the Projects panel for templates whose section order omits projects.
   const order = state.section_order[state.template] || [];
   const projPanel = $(".panel[data-section='projects']");
-  if (projPanel) projPanel.classList.toggle("hidden", !order.includes("projects"));
+  if (projPanel) {
+    projPanel.classList.toggle("hidden", !order.includes("projects"));
+    const projTitle = projPanel.querySelector("h2");
+    if (projTitle) projTitle.textContent = cfg.labels.projects || "PROJECTS";
+  }
   // Reflect the active typeface + size chips.
   const fam = fontFamilyKey();
   $$("[data-family]").forEach(c => c.classList.toggle("active", c.dataset.family === fam));
