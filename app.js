@@ -407,34 +407,20 @@ function seedLibrary() {
 }
 
 function restoreState() {
-  const loaded = loadLibrary() || migrateLegacyLibrary() || migrateLegacyState();
-  _library = loaded || seedLibrary();
-  const wasV2 = !!_library._migratedFromV2;
-  const wasLegacy = !!_library._migratedFromLegacy;
-  delete _library._migratedFromV2;
-  delete _library._migratedFromLegacy;
-  // Guarantee activeId points at something that still exists.
-  if (!activeResume()) {
-    const fallback = _library.drafts[0] || _library.saved[0];
-    _library.activeId = fallback ? fallback.id : null;
-  }
-  const active = activeResume();
-  if (active && active.state) {
-    for (const key of Object.keys(state)) {
-      if (key in active.state) state[key] = active.state[key];
-    }
-    state.match = { on: false, jd: "" };
-    ensureStateDefaults();
-  }
+  // Meeting-room workflow: every launch starts fresh from the original demo
+  // sample, so the six layouts always present the John/Jane Doe placeholder
+  // content. Anything imported or typed during a session overwrites the visible
+  // resume — exactly what you want while building a student's resume to export —
+  // but is intentionally NOT carried across launches. Reopening the app always
+  // returns to a clean set of demos. To keep a finished resume, export it
+  // (PDF / DOC / print); in-app library entries are session-only by design.
+  //
+  // (loadLibrary / migrateLegacyLibrary / migrateLegacyState remain available
+  // for the in-session multi-resume library, but are no longer used to seed the
+  // baseline — the baseline is always the demos.)
+  replaceStateWith(JSON.parse(_DEFAULT_STATE_JSON));
+  _library = seedLibrary();
   writeLibrary();
-  // Only retire the legacy keys after we've confirmed the new library wrote.
-  try {
-    const check = localStorage.getItem(LIBRARY_KEY);
-    if (check) {
-      if (wasV2) localStorage.removeItem(LEGACY_LIBRARY_KEY);
-      if (wasLegacy) localStorage.removeItem(LEGACY_STATE_KEY);
-    }
-  } catch (_err) { /* keep legacy as fallback */ }
 }
 
 function updateLibraryPill() {
