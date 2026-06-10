@@ -772,6 +772,7 @@ const ACTIONS = {
   onboardExplore: () => dismissOnboard(),
   gsShowImport: () => showGetStartedCard("intake"),
   gsShowVoice: () => showGetStartedCard("voice"),
+  showOnboarding: () => showOnboard(),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1332,6 +1333,17 @@ function render() {
 function dismissOnboard() {
   const bg = $("#onboard-bg");
   if (bg) bg.classList.add("dismissed");
+}
+
+// Re-open the launch chooser on demand (Get Started ↺ button). Purely a
+// view-level overlay — current resume data is untouched until a path that
+// changes it (e.g. Start from scratch) is chosen.
+function showOnboard() {
+  const bg = $("#onboard-bg");
+  if (!bg) return;
+  bg.classList.remove("dismissed");
+  const first = bg.querySelector(".onboard-choice");
+  if (first) first.focus();
 }
 
 function onboardScratch() {

@@ -28,6 +28,16 @@ test.describe("onboarding", () => {
     await expect(name).toBeFocused();
   });
 
+  test("the START SCREEN button reopens the chooser without losing data", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.getByRole("button", { name: /START SCREEN/ }).click();
+    await expect(page.locator("#onboard-bg")).toBeVisible();
+    await dismissOnboarding(page);
+    await expect(page.locator("#preview")).toContainText("Ada Lovelace");
+  });
+
   test("IMPORT opens the intake card", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
