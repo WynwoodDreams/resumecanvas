@@ -178,9 +178,6 @@
   .final-btn.final-back { grid-column: span 2; background: transparent; border-style: dashed; color: var(--text-dim); }
   .final-btn.final-back:hover { border-style: solid; border-color: var(--amber); color: var(--amber-soft); }
 
-  /* Hide the global floating .action-bar when the user is on the final pane;
-     the pane's own action footer takes over. */
-  body.viewing-final .action-bar { display: none !important; }
   body.viewing-final .pane-tabs { background: rgba(110,140,74,0.06); }
 
   @media (min-width: 1101px) {
@@ -255,7 +252,7 @@
     .final-btn { font-size: 10.5px; padding: 12px 8px; min-height: 48px; letter-spacing: 0.14em; }
   }
 
-  .pane { padding: 28px 32px 120px 32px; }
+  .pane { padding: 28px 32px 56px 32px; }
   .pane.left { border-right: 1px solid var(--border); }
   .pane.right { background: linear-gradient(180deg, #f4ede4 0%, #efe5d4 100%); }
 
@@ -281,6 +278,14 @@
   .panel.open .body { display: block; }
   .header-controls { display: flex; align-items: center; gap: 10px; }
   .reorder-controls { display: inline-flex; gap: 2px; }
+  /* On pointer devices, keep the ▲▼ reorder buttons quiet until the header is
+     hovered or a button inside is focused — five panels × two arrows is a lot
+     of chrome to show at rest. Touch devices keep them always visible. */
+  @media (hover: hover) and (pointer: fine) {
+    .panel header .reorder-controls { opacity: 0; transition: opacity 0.15s; }
+    .panel header:hover .reorder-controls,
+    .panel header .reorder-controls:focus-within { opacity: 1; }
+  }
   .reorder-btn { background: var(--surface-0); border: 1px solid var(--border); color: var(--text-mute); padding: 3px 7px; font-family: inherit; font-size: 9px; line-height: 1; cursor: pointer; transition: all 0.12s; }
   .reorder-btn:hover { border-color: var(--amber); color: var(--amber-soft); background: rgba(140,120,81,0.08); }
   .reorder-btn[aria-disabled="true"] { opacity: 0.25; cursor: default; pointer-events: none; }
@@ -443,9 +448,7 @@
   .ir-route select { font: inherit; font-size: 11px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; cursor: pointer; }
   .ir-route select:focus { outline: none; border-color: var(--amber); }
 
-  /* Action bar */
-  .action-bar { position: fixed; bottom: 0; left: 0; right: 50%; background: rgba(249,244,239,0.96); border-top: 1px solid var(--border); border-right: 1px solid var(--border); padding: 14px 32px; display: flex; gap: 12px; align-items: center; z-index: 50; backdrop-filter: blur(8px); }
-  @media (max-width: 1100px) { .action-bar { right: 0; } }
+  /* Modal footer buttons */
   .compile-btn { flex: 1; background: var(--amber); color: #fffffe; border: none; padding: 12px 24px; font-family: inherit; font-weight: 700; font-size: 12px; letter-spacing: 0.22em; cursor: pointer; transition: all 0.15s; }
   .compile-btn:hover { background: var(--amber-soft); box-shadow: 0 6px 18px rgba(140,120,81,0.32); }
   .copy-btn { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); padding: 12px 18px; font-family: inherit; font-size: 11px; letter-spacing: 0.18em; cursor: pointer; transition: all 0.15s; }
@@ -796,7 +799,7 @@
     .pane-tab-hint { font-size: 8.5px; }
 
     .shell { height: calc(100dvh - 88px); height: calc(100vh - 88px); }
-    .pane { padding: 14px 14px 120px 14px; }
+    .pane { padding: 14px 14px 56px 14px; }
     .pane.right { padding: 14px 10px 140px 10px; }
 
     .tpl-dropdown { padding: 12px 12px; }
@@ -832,17 +835,11 @@
     .preview-frame.demo_2 .resume-name { font-size: 15pt; }
     .preview-pages { gap: 16px; }
 
-    /* Action bar — sit above the iOS home indicator */
-    .action-bar {
-      padding: 12px 14px;
-      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-      gap: 8px;
-    }
     .copy-btn { padding: 12px 14px; font-size: 10.5px; min-height: 44px; }
     .compile-btn { padding: 14px 18px; font-size: 11px; min-height: 48px; letter-spacing: 0.16em; }
 
-    /* Toast lifted above the action bar */
-    .toast { right: 14px; left: 14px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); text-align: center; }
+    /* Toast — sit above the iOS home indicator */
+    .toast { right: 14px; left: 14px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); text-align: center; }
 
     /* Modals — use full width on small screens */
     .modal-bg { padding: 0; align-items: flex-end; }
@@ -910,7 +907,6 @@
   @media (min-width: 1101px) {
     .app-rail { display: flex; }
     .shell { margin-left: 84px; }
-    .action-bar { left: 84px; }
     .topbar { padding-left: 108px; }
   }
   /* Dark-mode chrome overrides — selectors that hard-code the cream beige
@@ -920,7 +916,6 @@
   body.theme-dark .pane-tabs { background: rgba(28,38,40,0.94); }
   body.theme-dark .final-top { background: rgba(28,38,40,0.94); }
   body.theme-dark .final-actions { background: rgba(28,38,40,0.97); }
-  body.theme-dark .action-bar { background: rgba(28,38,40,0.96); }
   body.theme-dark .pane.right { background: linear-gradient(180deg, var(--surface-1) 0%, var(--bg) 100%); }
   body.theme-dark input[type="text"]:focus,
   body.theme-dark textarea:focus,
