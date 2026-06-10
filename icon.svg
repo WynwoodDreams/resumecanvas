@@ -8,6 +8,6 @@
     <text x="256" y="312" text-anchor="middle" font-size="34" fill="#716040" letter-spacing="10">RESUME</text>
     <text x="256" y="356" text-anchor="middle" font-size="34" fill="#716040" letter-spacing="10">CANVAS</text>
     <circle cx="100" cy="412" r="6" fill="#f25042"/>
-    <text x="256" y="418" text-anchor="middle" font-size="20" fill="#a89678" letter-spacing="10">v1 — MDC</text>
+    <text x="256" y="418" text-anchor="middle" font-size="20" fill="#a89678" letter-spacing="10">v1.0</text>
   </g>
 </svg>

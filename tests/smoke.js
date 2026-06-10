@@ -49,6 +49,18 @@ assert(app.includes('window.print()'), 'PDF export must open the browser print/s
 assert(css.includes('.preview-toolbar'), 'styles.css must include visible toolbar styling');
 assert(css.includes('@media print'), 'styles.css must include print/PDF styles');
 
+// Android / TWA packaging
+for (const png of ['icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png']) {
+  assert(fs.existsSync(path.join(root, png)), `${png} must exist (Play Store requires PNG icons)`);
+  assert(read('manifest.webmanifest').includes(png), `manifest must reference ${png}`);
+  assert(read('sw.js').includes(png), `service worker must precache ${png}`);
+}
+const assetlinks = JSON.parse(read('.well-known/assetlinks.json'));
+assert(assetlinks[0].target.package_name === 'com.wynwooddreams.resumecanvas', 'assetlinks.json must declare the Android package');
+const twa = JSON.parse(read('twa-manifest.json'));
+assert(twa.packageId === assetlinks[0].target.package_name, 'twa-manifest packageId must match assetlinks');
+assert(twa.host === 'resumecanvas-seven.vercel.app', 'twa-manifest must point at the production host');
+
 // PWA shell (phase 2)
 const manifest = JSON.parse(read('manifest.webmanifest'));
 assert(manifest.name && manifest.start_url, 'manifest.webmanifest must include name + start_url');
