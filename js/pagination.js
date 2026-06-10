@@ -10,6 +10,23 @@ function paginatePreview(frameClass) {
   const firstFrame = wrap.firstElementChild;
   if (!firstFrame) return 0;
 
+  // On mobile the preview wrapper carries a CSS zoom (updatePreviewScale).
+  // Under zoom, getBoundingClientRect() reports scaled values while
+  // clientHeight stays in layout px — mixing them packs ~1/zoom too much
+  // content per page. Neutralize the zoom for the measurement pass and
+  // restore it after; engines disagree on which metrics zoom affects, so
+  // measuring unzoomed is the only portable option.
+  const scaler = wrap.closest(".preview-wrap");
+  const prevZoom = scaler ? scaler.style.zoom : "";
+  if (scaler) scaler.style.zoom = "";
+  try {
+    return paginatePreviewUnscaled(wrap, firstFrame, frameClass);
+  } finally {
+    if (scaler) scaler.style.zoom = prevZoom;
+  }
+}
+
+function paginatePreviewUnscaled(wrap, firstFrame, frameClass) {
   // Page content area: aspect-ratio gives us paper-shaped frame height;
   // subtract the frame's actual vertical padding (it varies by breakpoint,
   // so it must be read from computed style, not hardcoded).
@@ -30,10 +47,14 @@ function paginatePreview(frameClass) {
   const measured = children.map((node, i) => {
     const rect = node.getBoundingClientRect();
     const next = children[i + 1];
+    const cs = getComputedStyle(node);
     const h = next
       ? next.getBoundingClientRect().top - rect.top
-      : rect.height + (parseFloat(getComputedStyle(node).marginBottom) || 0);
-    return { node, h };
+      : rect.height + (parseFloat(cs.marginBottom) || 0);
+    // marginTop is needed separately: the top-to-top delta charges the gap
+    // *above* an item to its predecessor, so an item that ends up first on a
+    // later page re-introduces its own top margin uncounted.
+    return { node, h, mt: parseFloat(cs.marginTop) || 0 };
   });
 
   // Classes that introduce an entry (title row, italic location, demo_2's
@@ -58,25 +79,28 @@ function paginatePreview(frameClass) {
     return false;
   }
 
+  // An item opening a page contributes its top margin too (see `mt` above).
+  const itemH = (item, firstOnPage) => item.h + (firstOnPage ? item.mt : 0);
+
   const pages = [[]];
   let pageH = 0;
   for (const item of measured) {
-    const nextH = pageH + item.h;
-    if (nextH > pageContentH && pages[pages.length - 1].length > 0) {
-      const last = pages[pages.length - 1];
+    let cur = pages[pages.length - 1];
+    if (pageH + itemH(item, cur.length === 0) > pageContentH && cur.length > 0) {
       // Walk the tail of the page and pull any "header-ish" rows forward so
       // an entry's title/loc never sit alone with whitespace below them.
       // Stop before emptying the page — if everything popped, the previous
       // page is degenerate but at least keeps one item to avoid blank pages.
       const orphans = [];
-      while (last.length > 1 && isHeaderish(last[last.length - 1])) {
-        orphans.unshift(last.pop());
+      while (cur.length > 1 && isHeaderish(cur[cur.length - 1])) {
+        orphans.unshift(cur.pop());
       }
       pages.push(orphans);
-      pageH = orphans.reduce((s, o) => s + o.h, 0);
+      cur = orphans;
+      pageH = orphans.reduce((s, o, idx) => s + itemH(o, idx === 0), 0);
     }
-    pages[pages.length - 1].push(item);
-    pageH += item.h;
+    pageH += itemH(item, cur.length === 0);
+    cur.push(item);
   }
 
   wrap.innerHTML = "";
