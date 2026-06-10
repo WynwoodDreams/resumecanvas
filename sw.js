@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v19-2026-06-10-android-icons";
+const CACHE_VERSION = "rc-v20-2026-06-10-network-first-shell";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -78,18 +78,18 @@ self.addEventListener("fetch", (event) => {
       );
       return;
     }
-    // Static assets: cache-first, fall through to network, then cache the result.
+    // Static assets: network-first, falling back to cache offline. Cache-first
+    // mixed shell versions after a deploy (fresh network HTML + stale cached
+    // CSS/JS rendered an unstyled page) — the shell is tiny, so the freshness
+    // guarantee is worth the request.
     event.respondWith(
-      caches.match(req).then((cached) => {
-        if (cached) return cached;
-        return fetch(req).then((resp) => {
-          if (resp && resp.status === 200 && resp.type === "basic") {
-            const copy = resp.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(req, copy));
-          }
-          return resp;
-        });
-      })
+      fetch(req).then((resp) => {
+        if (resp && resp.status === 200 && resp.type === "basic") {
+          const copy = resp.clone();
+          caches.open(SHELL_CACHE).then((cache) => cache.put(req, copy));
+        }
+        return resp;
+      }).catch(() => caches.match(req).then((r) => r || Response.error()))
     );
   }
 });
