@@ -332,6 +332,35 @@
   .tpl-desc { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; }
 
   /* Intake / import card */
+  /* Get Started compaction: once the resume has a real name, the bulky
+     intake/voice cards hide and two small reopeners surface on the group
+     line. .gs-force (set when a reopener / rail button is used) wins. */
+  .gs-minis { display: none; gap: 6px; }
+  .gs-mini { background: var(--surface-0); border: 1px solid var(--border); color: var(--text-dim); font-family: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; padding: 4px 9px; cursor: pointer; transition: all 0.15s; }
+  .gs-mini:hover { border-color: var(--amber); color: var(--amber-soft); }
+  body.gs-done .gs-minis { display: inline-flex; }
+  body.gs-done #intake-card:not(.gs-force), body.gs-done #voice-card:not(.gs-force) { display: none; }
+
+  /* Onboarding overlay */
+  .onboard-bg { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(249,244,239,0.97); backdrop-filter: blur(10px); opacity: 1; transition: opacity 0.25s; }
+  body.theme-dark .onboard-bg { background: rgba(2,8,38,0.97); }
+  .onboard-bg.dismissed { opacity: 0; pointer-events: none; visibility: hidden; transition: opacity 0.25s, visibility 0s 0.25s; }
+  .onboard { max-width: 520px; width: 100%; text-align: center; }
+  .onboard-brand { font-size: 11px; letter-spacing: 0.3em; font-weight: 800; color: var(--text-dim); margin-bottom: 18px; }
+  .onboard-brand .slash { color: var(--amber); }
+  .onboard-title { font-family: "Newsreader", Georgia, serif; font-size: 30px; font-weight: 600; margin: 0 0 8px; color: var(--text); }
+  .onboard-sub { font-size: 12px; color: var(--text-dim); margin: 0 0 26px; letter-spacing: 0.04em; }
+  .onboard-choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+  .onboard-choice { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: auto auto; align-items: center; text-align: left; gap: 2px 12px; background: var(--surface-0); border: 1px solid var(--border-strong); padding: 14px 18px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+  .onboard-choice:hover, .onboard-choice:focus-visible { border-color: var(--amber); background: var(--accent-tint, rgba(140,120,81,0.07)); transform: translateY(-1px); }
+  .onboard-choice .oc-icon { grid-row: span 2; font-size: 20px; color: var(--amber); text-align: center; }
+  .onboard-choice .oc-label { font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: var(--text); }
+  .onboard-choice .oc-sub { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+  .onboard-skip { background: none; border: none; color: var(--text-dim); font-family: inherit; font-size: 10.5px; letter-spacing: 0.18em; cursor: pointer; padding: 8px 10px; transition: color 0.15s; }
+  .onboard-skip:hover { color: var(--amber-soft); }
+
+  .camera-note { margin-top: 8px; font-size: 11px; line-height: 1.5; color: var(--text-dim); border-left: 2px solid var(--amber); padding: 4px 0 4px 10px; }
+
   .intake-card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(140,120,81,0.06), rgba(140,120,81,0.02)); margin-bottom: 14px; }
   .intake-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; }
   .intake-title { font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: var(--text); }

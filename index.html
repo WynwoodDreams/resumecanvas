@@ -22,6 +22,34 @@
 </head>
 <body>
 
+<!-- First-run onboarding: pick a starting path. Shown on every launch —
+     state intentionally resets to the demo sample each session. -->
+<div class="onboard-bg" id="onboard-bg" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
+  <div class="onboard">
+    <div class="onboard-brand">RESUME<span class="slash">·</span>CANVAS</div>
+    <h1 class="onboard-title" id="onboard-title">Let's build your resume.</h1>
+    <p class="onboard-sub">Pick a starting point — every path stays available later.</p>
+    <div class="onboard-choices">
+      <button class="onboard-choice" data-action="onboardImport">
+        <span class="oc-icon" aria-hidden="true">⤓</span>
+        <span class="oc-label">IMPORT WHAT YOU HAVE</span>
+        <span class="oc-sub">Drop a file, paste text, or snap a photo of a paper resume</span>
+      </button>
+      <button class="onboard-choice" data-action="onboardScratch">
+        <span class="oc-icon" aria-hidden="true">✎</span>
+        <span class="oc-label">START FROM SCRATCH</span>
+        <span class="oc-sub">A blank resume with guided sections</span>
+      </button>
+      <button class="onboard-choice" data-action="onboardVoice" id="onboard-voice-btn">
+        <span class="oc-icon" aria-hidden="true">🎤</span>
+        <span class="oc-label" id="onboard-voice-label">TALK IT OUT</span>
+        <span class="oc-sub" id="onboard-voice-sub">Speak about yourself — we draft a summary in your own voice</span>
+      </button>
+    </div>
+    <button class="onboard-skip" data-action="onboardExplore">EXPLORE THE SAMPLE RESUME →</button>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="brand">
     <span>RESUME<span class="slash">·</span>CANVAS</span>
@@ -87,7 +115,12 @@
       <div class="tpl-desc" id="tpl-desc"></div>
     </div>
 
-    <div class="section-group"><span>Get Started</span><i></i></div>
+    <div class="section-group" id="get-started-group"><span>Get Started</span><i></i>
+      <span class="gs-minis" aria-label="Reopen intake tools">
+        <button class="gs-mini" data-action="gsShowImport">⤓ IMPORT</button>
+        <button class="gs-mini" data-action="gsShowVoice">🎤 VOICE</button>
+      </span>
+    </div>
 
     <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
     <div class="intake-card collapsed" id="intake-card">
@@ -106,6 +139,7 @@
           <button class="add-btn camera-btn" type="button" data-action="triggerCamera">📷 SCAN WITH PHONE CAMERA</button>
           <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
         </div>
+        <div class="camera-note hidden" id="camera-note"></div>
         <div class="camera-preview hidden" id="camera-preview">
           <div class="cp-status" id="cp-status">Processing image…</div>
           <img id="cp-image" alt="Captured resume page" class="cp-image">

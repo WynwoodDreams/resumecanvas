@@ -4,6 +4,10 @@
   "private": true,
   "description": "Static resume builder for MDC Works.",
   "scripts": {
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }

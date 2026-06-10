@@ -1199,6 +1199,12 @@ const ACTIONS = {
   triggerCamera: () => triggerCamera(),
   finalSaveToLibrary: () => finalSaveToLibrary(),
   finalBackToEdit: () => finalBackToEdit(),
+  onboardImport: () => { dismissOnboard(); showGetStartedCard("intake"); },
+  onboardScratch: () => onboardScratch(),
+  onboardVoice: () => { dismissOnboard(); showGetStartedCard("voice"); },
+  onboardExplore: () => dismissOnboard(),
+  gsShowImport: () => showGetStartedCard("intake"),
+  gsShowVoice: () => showGetStartedCard("voice"),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1542,6 +1548,9 @@ function renderSidebarPreviewHtml() {
 }
 
 function renderPreview() {
+  // Re-checked on every keystroke: typing a real name is what compacts the
+  // Get Started cards, and name edits only reach renderPreview, not render().
+  updateGetStartedState();
   const tpl = state.template;
   const f = $("#preview");
   let html;
@@ -1835,6 +1844,91 @@ function render() {
   updateLibraryPill();
   hideMicButtonsIfUnsupported();
   initVoiceOnce();
+  updateGetStartedState();
+}
+
+// ─────────────────────────────────────────────────────────
+// ONBOARDING + GET-STARTED VISIBILITY
+// The launch overlay routes a new user to import / blank / voice. Once the
+// resume carries a real name (not the demo placeholder), the bulky intake
+// cards compact into two small reopeners on the "Get Started" group line.
+// ─────────────────────────────────────────────────────────
+
+function dismissOnboard() {
+  const bg = $("#onboard-bg");
+  if (bg) bg.classList.add("dismissed");
+}
+
+function onboardScratch() {
+  dismissOnboard();
+  createNewResume({ fromSample: false, name: "My Resume" });
+  const nameInput = document.querySelector('[data-bind="name"]');
+  if (nameInput) nameInput.focus();
+}
+
+// Expand + reveal one of the Get Started cards, even after the group has
+// compacted (gs-force wins over the body.gs-done display:none rule).
+function showGetStartedCard(card) {
+  const el = $(card === "intake" ? "#intake-card" : "#voice-card");
+  if (!el) return;
+  el.classList.add("gs-force");
+  el.classList.remove("collapsed");
+  if (card === "voice") markVoiceIntroSeen();
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (card === "intake") {
+    const paste = $("#import-paste");
+    if (paste) paste.focus({ preventScroll: true });
+  }
+}
+
+// "Real data" heuristic: the user has replaced the demo placeholder name.
+// Both demo seeds use "Jane Doe"; blank resumes start with "".
+function hasUserData() {
+  const name = (state.name || "").trim();
+  return name !== "" && name.toLowerCase() !== "jane doe";
+}
+
+function updateGetStartedState() {
+  document.body.classList.toggle("gs-done", hasUserData());
+}
+
+function initOnboarding() {
+  const bg = $("#onboard-bg");
+  if (!bg) return;
+  // The ?voice=1 deep link already auto-opens the voice flow — don't stack
+  // the chooser on top of it.
+  try {
+    if (new URLSearchParams(window.location.search).get("voice") === "1") {
+      bg.classList.add("dismissed");
+      return;
+    }
+  } catch (_err) { /* ignore */ }
+  // Be honest about voice support (iOS Safari needs Siri/Dictation enabled;
+  // some browsers lack the Web Speech API entirely): keep the path, reframe
+  // it as typing.
+  if (!isSpeechSupported()) {
+    const label = $("#onboard-voice-label");
+    const sub = $("#onboard-voice-sub");
+    if (label) label.textContent = "WRITE A QUICK INTRO";
+    if (sub) sub.textContent = "Voice capture isn't supported in this browser — type a few sentences and we'll draft a summary in your own words";
+  }
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !bg.classList.contains("dismissed")) dismissOnboard();
+  });
+}
+
+// Camera-scan capability note: without an in-browser TextDetector (anything
+// other than Chrome on Android), reading the photo is a manual copy step —
+// say so before the user takes the picture, not after.
+function initCameraCapabilityNote() {
+  if (typeof window.TextDetector === "function") return;
+  const note = $("#camera-note");
+  if (!note) return;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  note.textContent = isIOS
+    ? "Heads up: this browser can't read text from photos automatically. After you snap the picture, use iOS Live Text (tap and hold the image) to copy the words, then paste them below."
+    : "Heads up: this browser can't read text from photos automatically. After you snap the picture, copy the text with your phone's built-in text recognition, then paste it below.";
+  note.classList.remove("hidden");
 }
 
 // ─────────────────────────────────────────────────────────
@@ -3563,12 +3657,7 @@ function railJumpTo(where) {
 }
 
 function railOpen(card) {
-  const id = card === "intake" ? "intake-card" : "voice-card";
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove("collapsed");
-  if (card === "voice") markVoiceIntroSeen();
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  showGetStartedCard(card);
 }
 
 function maybeAutoStartVoiceFromUrl() {
@@ -4711,3 +4800,5 @@ restoreState();
 render();
 updatePreviewScale();
 initModalA11y();
+initOnboarding();
+initCameraCapabilityNote();
