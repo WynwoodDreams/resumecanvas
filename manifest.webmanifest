@@ -1,7 +1,7 @@
 {
   "name": "ResumeCanvas",
   "short_name": "ResumeCanvas",
-  "description": "Student resume builder for the Miami Dade College Works program.",
+  "description": "Free resume builder with live preview, templates, and offline support.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -11,7 +11,13 @@ const assert = (condition, message) => {
 };
 
 const html = read('index.html');
-const app = read('app.js');
+// The app ships as classic scripts sharing one global scope: app.js plus the
+// js/ modules. Assertions on "the app" apply to the combined source.
+const APP_FILES = ['js/library.js', 'js/pagination.js', 'js/export.js', 'js/voice.js', 'app.js'];
+const app = APP_FILES.map(read).join('\n');
+for (const file of APP_FILES) {
+  assert(html.includes(`<script src="./${file}" defer></script>`), `index.html must load deferred ${file}`);
+}
 const css = read('styles.css');
 const vercel = JSON.parse(read('vercel.json'));
 
@@ -85,6 +91,13 @@ assert(app.includes('function downloadPdf') && app.includes('application/pdf'), 
 assert(app.includes('buildResumePdfBytes'), 'app.js must implement buildResumePdfBytes');
 const sw = read('sw.js');
 assert(sw.includes('./vendor/pdf-writer.js'), 'service worker must precache the PDF writer for offline export');
+for (const file of APP_FILES) {
+  assert(sw.includes(`./${file}`), `service worker must precache ${file}`);
+}
+
+// Library backup/restore (data safety: localStorage is best-effort only)
+assert(app.includes('function exportLibraryBackup') && app.includes('function applyLibraryBackup'), 'library must implement backup export + restore');
+assert(html.includes('data-action="backupLibrary"') && html.includes('id="library-restore-file"'), 'library modal must expose backup + restore controls');
 
 // Native share + QR vCard (phase 5)
 assert(fs.existsSync(path.join(root, 'vendor/qr.js')), 'vendor/qr.js must exist');

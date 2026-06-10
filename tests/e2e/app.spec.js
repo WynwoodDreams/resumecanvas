@@ -122,6 +122,30 @@ test.describe("export", () => {
   });
 });
 
+test.describe("library backup", () => {
+  test("backup downloads a JSON and restoring it brings the data back", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator('[data-bind="name"]').fill("Backup Person");
+
+    // Download the backup.
+    await page.locator("#library-pill").click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /BACKUP ALL/ }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^resumecanvas-backup-.*\.json$/);
+    const backupPath = await download.path();
+
+    // Diverge, then restore over it (accepting the confirm dialog).
+    await page.locator('#library-modal-bg [data-action="closeLibrary"]').first().click();
+    await page.locator('[data-bind="name"]').fill("Someone Else");
+    await expect(page.locator("#preview")).toContainText("Someone Else");
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.locator("#library-restore-file").setInputFiles(backupPath);
+    await expect(page.locator("#preview")).toContainText("Backup Person");
+  });
+});
+
 test.describe("feature-detection fallbacks", () => {
   test("without the Web Speech API, voice reframes as typing and mics hide", async ({ page }) => {
     await page.addInitScript(() => {
