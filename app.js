@@ -2610,3 +2610,10 @@ updatePreviewScale();
 initModalA11y();
 initOnboarding();
 initCameraCapabilityNote();
+
+// Web fonts (Newsreader) usually finish loading after the first render; the
+// swap changes line heights, so the initial pagination measurements go stale.
+// Re-paginate once fonts settle.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => renderPreview());
+}
