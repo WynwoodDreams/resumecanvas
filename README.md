@@ -1,6 +1,6 @@
 # ResumeCanvas
 
-Student resume builder for the Miami Dade College Works program.
+Free resume builder for job seekers — live preview, six templates, and full offline support.
 
 Static HTML/CSS/JS app with a live preview and six layouts: Highlighted Skills, Two-Column Skills, Categorical, Mass Communications, Sidebar, and Criminal Justice. Each template carries its own demo resume; selecting a template previews its sample, and once you import or type a student's info, switching templates re-lays-out that same data. Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
 

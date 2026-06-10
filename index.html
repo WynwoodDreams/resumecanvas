@@ -53,17 +53,17 @@
 <div class="topbar">
   <div class="brand">
     <span>RESUME<span class="slash">·</span>CANVAS</span>
-    <span class="sub">v1.0 — MDC WORKFORCE</span>
+    <span class="sub">v1.0 — RESUME BUILDER</span>
   </div>
   <div class="meta">
-    <span class="meta-engine"><span class="dot"></span> ENGINE ONLINE</span>
+    <span class="meta-engine"><span class="dot"></span> READY — WORKS OFFLINE</span>
     <button class="library-pill" id="library-pill" data-action="openLibrary" aria-haspopup="dialog" aria-controls="library-modal-bg">
       <span class="lib-pill-icon" aria-hidden="true">▤</span>
       <span class="lib-pill-name" id="library-pill-name">———</span>
       <span class="lib-pill-count" id="library-pill-count">1</span>
     </button>
     <span class="meta-saved" id="save-indicator" aria-live="polite"><span class="save-dot"></span> <span id="save-text">SAVED</span></span>
-    <span class="id">CASE FILE / <span id="caseId">———</span></span>
+    <span class="id">RESUME ID / <span id="caseId">———</span></span>
   </div>
 </div>
 
@@ -204,7 +204,7 @@
 
     <!-- Sections -->
     <div class="panel open" data-section="header">
-      <header><h2>SUBJECT</h2><span class="caret">▶</span></header>
+      <header><h2>CONTACT INFO</h2><span class="caret">▶</span></header>
       <div class="body" id="body-header"></div>
     </div>
 
@@ -402,7 +402,7 @@
 <div class="modal-bg" id="modal-bg" data-action="closeModalBackdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
     <div class="modal-h">
-      <h3 id="modal-title"><span class="amber">▶</span> COMPILE BRIEFING</h3>
+      <h3 id="modal-title"><span class="amber">▶</span> RESUME DATA (JSON)</h3>
       <button class="icon-btn" data-action="closeModal">CLOSE</button>
     </div>
     <div class="modal-b">
@@ -457,6 +457,12 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
         <button class="add-btn" data-action="newResumeBlank">+ NEW BLANK RESUME</button>
         <button class="add-btn" data-action="newResumeSample">+ NEW FROM SAMPLE</button>
       </div>
+      <div class="lib-backup-row">
+        <span class="lib-backup-note">Resumes live only on this device and the browser can clear them — keep a backup file.</span>
+        <button class="icon-btn" data-action="backupLibrary">⤓ BACKUP ALL (.JSON)</button>
+        <button class="icon-btn" data-action="restoreLibraryBackup">⤴ RESTORE BACKUP</button>
+        <input type="file" id="library-restore-file" accept=".json,application/json" class="hidden">
+      </div>
     </div>
     <div class="modal-f">
       <button class="compile-btn modal-done" data-action="closeLibrary">DONE</button>
@@ -497,6 +503,12 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
 <script src="./vendor/pdf-writer.js" defer></script>
 <script src="./vendor/qr.js" defer></script>
 <script src="./vendor/resume-parse.js" defer></script>
+<!-- App modules: classic scripts sharing one global scope. Declaration-only
+     at load; app.js (last) owns all top-level wiring and init. -->
+<script src="./js/library.js" defer></script>
+<script src="./js/pagination.js" defer></script>
+<script src="./js/export.js" defer></script>
+<script src="./js/voice.js" defer></script>
 <script src="./app.js" defer></script>
 
 
