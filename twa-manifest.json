@@ -1,0 +1,48 @@
+{
+  "packageId": "com.wynwooddreams.resumecanvas",
+  "host": "resumecanvas-seven.vercel.app",
+  "name": "ResumeCanvas",
+  "launcherName": "ResumeCanvas",
+  "display": "standalone",
+  "themeColor": "#f9f4ef",
+  "themeColorDark": "#020826",
+  "navigationColor": "#f9f4ef",
+  "navigationColorDark": "#020826",
+  "navigationDividerColor": "#f9f4ef",
+  "navigationDividerColorDark": "#020826",
+  "backgroundColor": "#f9f4ef",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://resumecanvas-seven.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://resumecanvas-seven.vercel.app/icon-maskable-512.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Talk through your resume",
+      "shortName": "Voice intro",
+      "url": "/?voice=1",
+      "chosenIconUrl": "https://resumecanvas-seven.vercel.app/icon-512.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://resumecanvas-seven.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://resumecanvas-seven.vercel.app/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  }
+}

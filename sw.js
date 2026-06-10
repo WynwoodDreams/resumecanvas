@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v18-2026-06-10-module-split";
+const CACHE_VERSION = "rc-v19-2026-06-10-android-icons";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -19,6 +19,10 @@ const SHELL_URLS = [
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-maskable.svg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./icon-maskable-192.png",
+  "./icon-maskable-512.png",
   "./apple-touch-icon.svg",
 ];
 
