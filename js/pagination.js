@@ -10,6 +10,23 @@ function paginatePreview(frameClass) {
   const firstFrame = wrap.firstElementChild;
   if (!firstFrame) return 0;
 
+  // On mobile the preview wrapper carries a CSS zoom (updatePreviewScale).
+  // Under zoom, getBoundingClientRect() reports scaled values while
+  // clientHeight stays in layout px — mixing them packs ~1/zoom too much
+  // content per page. Neutralize the zoom for the measurement pass and
+  // restore it after; engines disagree on which metrics zoom affects, so
+  // measuring unzoomed is the only portable option.
+  const scaler = wrap.closest(".preview-wrap");
+  const prevZoom = scaler ? scaler.style.zoom : "";
+  if (scaler) scaler.style.zoom = "";
+  try {
+    return paginatePreviewUnscaled(wrap, firstFrame, frameClass);
+  } finally {
+    if (scaler) scaler.style.zoom = prevZoom;
+  }
+}
+
+function paginatePreviewUnscaled(wrap, firstFrame, frameClass) {
   // Page content area: aspect-ratio gives us paper-shaped frame height;
   // subtract the frame's actual vertical padding (it varies by breakpoint,
   // so it must be read from computed style, not hardcoded).

@@ -115,9 +115,10 @@ test.describe("pagination", () => {
       expect(await frames.count()).toBeGreaterThan(1);
     }).toPass();
     // No frame may clip content: scrollHeight must not exceed the visible box.
-    const overflowing = await frames.evaluateAll((els) =>
-      els.filter((el) => el.scrollHeight > el.clientHeight + 2).length);
-    expect(overflowing).toBe(0);
+    const metrics = await frames.evaluateAll((els) =>
+      els.map((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })));
+    const overflowing = metrics.filter((m) => m.scrollHeight > m.clientHeight + 2);
+    expect(overflowing, `frame metrics: ${JSON.stringify(metrics)}`).toEqual([]);
   });
 });
 
