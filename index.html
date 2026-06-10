@@ -24,7 +24,10 @@
 
 <!-- First-run onboarding: pick a starting path. Shown on every launch —
      state intentionally resets to the demo sample each session. -->
-<div class="onboard-bg" id="onboard-bg" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
+<!-- `hidden` is the no-CSS fallback: initOnboarding() reveals the overlay only
+     after confirming the stylesheet applied, so a stale/missing styles.css
+     degrades to "no onboarding" instead of an unstyled wall of buttons. -->
+<div class="onboard-bg" id="onboard-bg" role="dialog" aria-modal="true" aria-labelledby="onboard-title" hidden>
   <div class="onboard">
     <div class="onboard-brand">RESUME<span class="slash">·</span>CANVAS</div>
     <h1 class="onboard-title" id="onboard-title">Let's build your resume.</h1>

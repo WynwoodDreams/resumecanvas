@@ -1382,6 +1382,12 @@ function updateGetStartedState() {
 function initOnboarding() {
   const bg = $("#onboard-bg");
   if (!bg) return;
+  // The overlay ships with the `hidden` attribute as a no-CSS fallback.
+  // Reveal it only if our stylesheet actually applied (it sets position:
+  // fixed); with a stale or failed styles.css the overlay would otherwise
+  // render as an unstyled block of buttons on top of the page.
+  if (getComputedStyle(bg).position !== "fixed") return;
+  bg.hidden = false;
   // The ?voice=1 deep link already auto-opens the voice flow — don't stack
   // the chooser on top of it.
   try {
