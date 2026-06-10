@@ -1154,7 +1154,6 @@ const ACTIONS = {
   removeExpBullet: (btn) => removeExpBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
   toggleSection: (btn) => toggleSection(btn.dataset.section),
   movePanel: (btn) => movePanel(btn.dataset.section, btn.dataset.dir),
-  copyJSON: () => copyJSON(),
   showCompile: () => showCompile(),
   closeModal: () => closeModal(),
   copyPayloadAndPrompt: () => copyPayloadAndPrompt(),
@@ -1176,7 +1175,6 @@ const ACTIONS = {
   railJumpTop: () => railJumpTo("top"),
   railOpenIntake: () => railOpen("intake"),
   railOpenVoice: () => railOpen("voice"),
-  railOpenMatch: () => railOpenMatch(),
   parseImportText: () => parseImportFromPaste(),
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
@@ -1690,20 +1688,29 @@ function paginatePreview(frameClass) {
   if (!firstFrame) return 0;
 
   // Page content area: aspect-ratio gives us paper-shaped frame height;
-  // subtract vertical padding (22 top + 36 bottom = 58px from .preview-frame).
+  // subtract the frame's actual vertical padding (it varies by breakpoint,
+  // so it must be read from computed style, not hardcoded).
   const paperH = firstFrame.clientHeight;
-  const pageContentH = paperH - 58;
+  const frameCS = getComputedStyle(firstFrame);
+  const pageContentH = paperH
+    - (parseFloat(frameCS.paddingTop) || 0)
+    - (parseFloat(frameCS.paddingBottom) || 0);
   // Guard against pre-layout race (clientHeight 0) — leave as one page.
   if (paperH <= 0 || pageContentH <= 0) return 1;
   if (firstFrame.scrollHeight <= paperH + 1) return 1; // fits on one page
 
-  // Measure each top-level child while still in the live frame.
+  // Measure each top-level child while still in the live frame. Use the
+  // distance between consecutive siblings' rendered tops rather than
+  // offsetHeight + both margins: adjacent vertical margins collapse, so
+  // summing them overestimates total height and breaks pages too early.
   const children = Array.from(firstFrame.children);
-  const measured = children.map(node => {
-    const cs = getComputedStyle(node);
-    const mt = parseFloat(cs.marginTop) || 0;
-    const mb = parseFloat(cs.marginBottom) || 0;
-    return { node, h: node.offsetHeight + mt + mb };
+  const measured = children.map((node, i) => {
+    const rect = node.getBoundingClientRect();
+    const next = children[i + 1];
+    const h = next
+      ? next.getBoundingClientRect().top - rect.top
+      : rect.height + (parseFloat(getComputedStyle(node).marginBottom) || 0);
+    return { node, h };
   });
 
   // Classes that introduce an entry (title row, italic location, demo_2's
@@ -3564,22 +3571,6 @@ function railOpen(card) {
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// Rail "MATCH" jumps to the job-description matcher. On mobile we first
-// bring the preview pane to the front; on desktop the preview is always
-// visible so we just turn match mode on and focus the JD input.
-function railOpenMatch() {
-  const mobile = window.matchMedia("(max-width: 1100px)").matches;
-  if (mobile) {
-    const tab = document.querySelector('.pane-tab[data-pane-target="right"]');
-    if (tab) tab.click();
-  }
-  if (!state.match.on) toggleMatch();
-  setTimeout(() => {
-    const jd = document.getElementById("jd-input");
-    if (jd) { jd.focus(); jd.scrollIntoView({ behavior: "smooth", block: "start" }); }
-  }, 80);
-}
-
 function maybeAutoStartVoiceFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -3728,11 +3719,6 @@ async function copyText(text, successMessage) {
     toast("COPY FAILED — SELECT TEXT MANUALLY");
     return false;
   }
-}
-
-function copyJSON() {
-  const json = JSON.stringify(buildPayload(), null, 2);
-  copyText(json, "JSON COPIED");
 }
 
 function showCompile() {
