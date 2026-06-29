@@ -104,6 +104,10 @@ function replaceStateWith(snapshot) {
   Object.assign(state, JSON.parse(JSON.stringify(snapshot)));
   state.match = { on: false, jd: "" };
   ensureStateDefaults();
+  // Reset the required-field hint baseline for the freshly loaded resume: a
+  // blank/sample resume starts neutral; one that already carries real data
+  // (a restored draft, an import) surfaces its missing required fields.
+  if (typeof setFormTouched === "function") setFormTouched(hasUserData());
 }
 
 // Backfill keys that may be absent in resumes persisted before newer templates
