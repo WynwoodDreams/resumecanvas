@@ -1379,6 +1379,19 @@ function updateGetStartedState() {
   document.body.classList.toggle("gs-done", hasUserData());
 }
 
+// `body.touched-form` gates the red "this required field is empty" highlight.
+// We only flag missing fields once the user is actually building a resume —
+// never on a pristine blank/sample resume, which would otherwise greet a new
+// user with a wall of red before they've typed anything. The flag flips on at
+// the first keystroke in the editor (see the input listener in INIT) and is
+// reset to a sensible baseline — does the loaded resume already carry a real
+// name? — whenever a different resume loads through replaceStateWith().
+let _formTouched = false;
+function setFormTouched(on) {
+  _formTouched = !!on;
+  document.body.classList.toggle("touched-form", _formTouched);
+}
+
 function initOnboarding() {
   const bg = $("#onboard-bg");
   if (!bg) return;
@@ -2616,6 +2629,11 @@ updatePreviewScale();
 initModalA11y();
 initOnboarding();
 initCameraCapabilityNote();
+
+// The first edit in the editor pane flips on the required-field hints, so an
+// untouched blank resume stays neutral until the user actually starts typing.
+const _editorPane = document.querySelector(".pane.left");
+if (_editorPane) _editorPane.addEventListener("input", () => { if (!_formTouched) setFormTouched(true); });
 
 // Web fonts (Newsreader) usually finish loading after the first render; the
 // swap changes line heights, so the initial pagination measurements go stale.

@@ -899,7 +899,12 @@ function applyVoiceIntroDefaultState() {
   if (!isSpeechSupported()) return; // no point promoting a feature they can't use
   const card = $("#voice-card");
   if (!card) return;
-  card.classList.remove("collapsed");
+  // Keep the optional voice card COLLAPSED so the resume form (and the
+  // auto-focused name field on a fresh resume) stays above the fold. The
+  // onboarding overlay already offers "TALK IT OUT" as a top-level choice, so
+  // re-expanding it inside the editor would double-promote it and bury the
+  // actual fields. We only flag it as new with a subtle highlight; the user
+  // opens it from its header, the VOICE rail button, or the gs-mini reopener.
   card.classList.add("voice-fresh");
 }
 

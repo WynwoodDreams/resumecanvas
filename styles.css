@@ -302,8 +302,13 @@
   label { display: block; font-size: 9.5px; letter-spacing: 0.2em; color: var(--text-dim); margin: 0 0 6px 0; text-transform: uppercase; font-weight: 500; }
   input[type="text"], textarea, select { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 8px 10px; font-family: inherit; font-size: 12.5px; transition: border-color 0.12s, background 0.12s; }
   input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--amber); background: #fdf6eb; }
-  input.required:placeholder-shown, textarea.required:placeholder-shown { border-color: var(--red); background: rgba(242,80,66,0.05); }
-  input.required:placeholder-shown:focus, textarea.required:placeholder-shown:focus { border-color: var(--red); background: rgba(242,80,66,0.10); }
+  /* Empty required fields are flagged red only once the user has started
+     filling in the resume (body.touched-form). A pristine blank resume reads
+     as neutral instead of a wall of "errors" before any input happens. */
+  body.touched-form input.required:placeholder-shown,
+  body.touched-form textarea.required:placeholder-shown { border-color: var(--red); background: rgba(242,80,66,0.05); }
+  body.touched-form input.required:placeholder-shown:focus,
+  body.touched-form textarea.required:placeholder-shown:focus { border-color: var(--red); background: rgba(242,80,66,0.10); }
   textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
   .row { display: grid; gap: 10px; margin-bottom: 10px; }
   .row.two { grid-template-columns: 1fr 1fr; }
@@ -415,8 +420,10 @@
   /* Skip link sits to the right of the record button as a low-emphasis escape. */
   .voice-skip { font-size: 10px; letter-spacing: 0.16em; opacity: 0.75; }
   .voice-skip:hover { opacity: 1; }
-  /* First-visit nudge: a subtle amber rule on the left edge of the voice card. */
-  #voice-card.voice-fresh:not(.collapsed) { border-left: 3px solid var(--amber); }
+  /* First-visit nudge: a subtle amber rule on the left edge of the voice card.
+     Shown whether the card is collapsed or open, since it now stays collapsed
+     by default — the highlight is how a new visitor notices the feature. */
+  #voice-card.voice-fresh { border-left: 3px solid var(--amber); }
 
   /* ─────────────────────────────────────────────────────────
      3-BAR INPUT-LEVEL METER
