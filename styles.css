@@ -393,11 +393,20 @@
   .voice-status { font-size: 10.5px; letter-spacing: 0.04em; color: var(--text-dim); }
   .voice-transcript { min-height: 90px; margin-top: 12px; }
   .voice-actions { margin-top: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
-  .voice-analyze-btn { width: auto; margin-top: 0; }
-  .voice-review { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
+  /* The analyze step is the one users miss — render it as a solid primary
+     button, and pulse it (.ready) while a transcript is waiting on it. */
+  .voice-analyze-btn { width: auto; margin-top: 0; border: 1px solid var(--amber); background: var(--amber); color: var(--paper); font-weight: 700; }
+  .voice-analyze-btn:hover { background: var(--amber-soft); border-color: var(--amber-soft); color: var(--paper); }
+  body.theme-dark .voice-analyze-btn { color: var(--bg); }
+  .voice-analyze-btn.ready { animation: analyzeNudge 1.6s ease-in-out infinite; }
+  @keyframes analyzeNudge { 0% { box-shadow: 0 0 0 0 rgba(140,120,81,0.55); } 70% { box-shadow: 0 0 0 8px rgba(140,120,81,0); } 100% { box-shadow: 0 0 0 0 rgba(140,120,81,0); } }
+  /* Suggestions panel — a highlighted card so it reads as the result of the
+     analyze step instead of blending into the rest of the voice card. */
+  .voice-review { margin-top: 16px; padding: 14px 16px 16px 16px; border: 1px solid var(--amber); border-left: 4px solid var(--amber); border-radius: var(--radius-card); background: linear-gradient(180deg, rgba(140,120,81,0.14), rgba(140,120,81,0.05)); box-shadow: var(--shadow-panel); }
+  body.theme-dark .voice-review { background: linear-gradient(180deg, rgba(197,212,159,0.12), rgba(197,212,159,0.04)); }
   .vr-block { margin-bottom: 16px; }
   .vr-block:last-child { margin-bottom: 0; }
-  .vr-label { font-size: 10px; letter-spacing: 0.18em; color: var(--text-dim); margin-bottom: 8px; }
+  .vr-label { font-size: 10px; letter-spacing: 0.18em; color: var(--amber-soft); font-weight: 700; margin-bottom: 8px; }
   .vr-label span { letter-spacing: 0.04em; color: var(--text-mute); text-transform: none; }
   .vr-current { font-size: 10.5px; color: var(--text-mute); line-height: 1.5; margin-bottom: 8px; padding: 8px 10px; background: var(--surface-1); border-left: 2px solid var(--border-strong); }
   .voice-summary-draft { min-height: 84px; }

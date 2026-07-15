@@ -290,6 +290,7 @@ function finalizeDictation() {
     setVoiceButtonState(false);
     const words = (state.voice_profile || "").trim().split(/\s+/).filter(Boolean).length;
     updateVoiceStatus(words ? `Captured ${words} word${words === 1 ? "" : "s"} — edit freely below.` : "");
+    updateVoiceAnalyzeCue();
     return;
   }
   if (targetId) {
@@ -363,6 +364,17 @@ function updateVoiceStatus(msg) {
   if (el) el.textContent = msg || "";
 }
 
+// Pulse the ANALYZE & SUGGEST button while a transcript is waiting on it and
+// no suggestions are showing yet — it's the step users tend to miss.
+function updateVoiceAnalyzeCue() {
+  const btn = $("#voice-analyze-btn");
+  if (!btn) return;
+  const review = $("#voice-review");
+  const reviewOpen = !!(review && !review.classList.contains("hidden"));
+  const hasText = !!(state.voice_profile || "").trim();
+  btn.classList.toggle("ready", hasText && !reviewOpen);
+}
+
 function clearVoice() {
   if (_recordingTarget === "voiceProfile") stopVoiceRecording();
   state.voice_profile = "";
@@ -371,6 +383,7 @@ function clearVoice() {
   updateVoiceStatus("");
   const review = $("#voice-review");
   if (review) review.classList.add("hidden");
+  updateVoiceAnalyzeCue();
 }
 
 // ── Voice analysis → suggested summary + skills (client-side, heuristic) ─────
@@ -744,6 +757,7 @@ function voiceAnalyze() {
   renderVoiceReview();
   const review = $("#voice-review");
   if (review) review.classList.remove("hidden");
+  updateVoiceAnalyzeCue();
   toast("ANALYZED — REVIEW & APPLY BELOW");
 }
 
