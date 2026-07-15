@@ -43,6 +43,16 @@ let state = {
       // Demo 8 extra
       certifications: "",
     },
+    {
+      school: "North Miami Senior High School",
+      city: "North Miami, FL",
+      degree: "High School Diploma",
+      date: "Graduated: June 2023",
+      subline_bold: "",
+      subline_rest: "",
+      coursework: "",
+      certifications: "",
+    },
   ],
   // Demo 4 skills
   skills_categories: [
@@ -103,6 +113,17 @@ let state = {
         "Coordinated with event planning team to deliver customized solutions tailored to client needs and budgets",
       ],
     },
+    {
+      title: "Sunset Groceries — Cashier / Customer Service Associate",
+      date: "June 2021 – July 2022",
+      location: "North Miami, FL",
+      company_city: "",
+      bullets: [
+        "Operated point-of-sale systems and processed cash, card, and mobile payments accurately during high-volume shifts",
+        "Resolved customer questions and concerns with patience, escalating issues to management when appropriate",
+        "Restocked shelves and organized product displays to keep the sales floor clean and shoppable",
+      ],
+    },
   ],
 };
 
@@ -116,7 +137,7 @@ const _DEFAULT_STATE_JSON = JSON.stringify(state);
 // current resume is still an untouched demo swaps in THAT template's demo;
 // once the user imports or types anything, switching only re-lays-out their
 // real data (see the #tpl-dropdown handler). demo_1/2/4/6 share the MDC sample;
-// demo_5 (Mass Communications) and demo_8 (Criminal Justice) carry their own.
+// demo_5 (Business Style Resume) and demo_8 (retired) carry their own.
 // ─────────────────────────────────────────────────────────
 const DEMO_CONTENT_KEYS = [
   "name", "professional_title", "location", "phone", "email", "linkedin", "links",
@@ -247,14 +268,14 @@ const TEMPLATES = {
     layout: "single", header: "structured", headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
     projMode: "dated", expMode: "italic", certs: false,
     namePt: 20, sectionPt: 12, bodyPt: 12,
-    name: "Categorical", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
+    name: "Demo 3", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
     labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_2: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
     projMode: "bullets", expMode: "company", certs: true,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Two-Column Skills", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
+    name: "Demo 2", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
     labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_1: {
@@ -268,14 +289,14 @@ const TEMPLATES = {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo2",
     projMode: "dated", expMode: "company_first", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Mass Communications", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. Good for communications / media / design students.",
+    name: "Demo 1", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. A clean business-style layout that works for most students and career changers.",
     labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "PROFESSIONAL EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_6: {
     layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
     projMode: "none", expMode: "company_first", certs: false,
-    namePt: 22, sectionPt: 11, bodyPt: 10,
-    name: "Sidebar", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
+    namePt: 22, sectionPt: 11, bodyPt: 12,
+    name: "Demo 4", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
     labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
   },
   demo_8: {
@@ -287,7 +308,12 @@ const TEMPLATES = {
   },
 };
 
-const TEMPLATE_ORDER = ["demo_1", "demo_2", "demo_4", "demo_5", "demo_6", "demo_8"];
+// Picker order. Display names are "Demo 1"–"Demo 4" in this order — they do
+// NOT line up with the internal demo_N ids (demo_5 shows as "Demo 1").
+// demo_1 (Highlighted Skills) and demo_8 (Criminal Justice) are retired from
+// the picker but keep their TEMPLATES/DEMO_SEEDS entries so resumes saved
+// under them still render (see syncTemplateUI's legacy option).
+const TEMPLATE_ORDER = ["demo_5", "demo_2", "demo_4", "demo_6"];
 
 // Global typeface choice. `css` is the font stack used in the preview + .doc
 // export; `pdf` is the base-14 family the PDF writer maps Times-* names onto
@@ -917,7 +943,7 @@ $$("[data-family]").forEach(chip => {
 // Voice-profile transcript: editable; mirrors into (session-only) state.
 const _voiceTaEl = $("#voice-transcript");
 if (_voiceTaEl) {
-  _voiceTaEl.addEventListener("input", (ev) => { state.voice_profile = ev.target.value; });
+  _voiceTaEl.addEventListener("input", (ev) => { state.voice_profile = ev.target.value; updateVoiceAnalyzeCue(); });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1275,7 +1301,18 @@ $("#summary").addEventListener("input", (ev) => {
 function syncTemplateUI() {
   const cfg = tcfg();
   const dd = $("#tpl-dropdown");
-  if (dd && dd.value !== state.template) dd.value = state.template;
+  if (dd && dd.value !== state.template) {
+    dd.value = state.template;
+    // Resumes saved under a retired template (no longer in the picker) still
+    // render — add their option back so the dropdown isn't left blank.
+    if (dd.value !== state.template && TEMPLATES[state.template]) {
+      const opt = document.createElement("option");
+      opt.value = state.template;
+      opt.textContent = TEMPLATES[state.template].name;
+      dd.appendChild(opt);
+      dd.value = state.template;
+    }
+  }
   const desc = $("#tpl-desc");
   if (desc) desc.textContent = cfg.desc || "";
   const certsPanel = $("#panel-certs");
@@ -1330,9 +1367,20 @@ function render() {
 // cards compact into two small reopeners on the "Get Started" group line.
 // ─────────────────────────────────────────────────────────
 
+// Scroll the app back to the very top. Desktop scrolls the window; on mobile
+// each pane is its own scroll container, so reset the editor pane too.
+function scrollAppToTop() {
+  window.scrollTo(0, 0);
+  const left = document.querySelector(".pane.left");
+  if (left) left.scrollTop = 0;
+}
+
 function dismissOnboard() {
   const bg = $("#onboard-bg");
   if (bg) bg.classList.add("dismissed");
+  // Whatever path leaves the intro, the editor starts at the top of the
+  // page — not wherever the browser last left the scroll position.
+  scrollAppToTop();
 }
 
 // Re-open the launch chooser on demand (Get Started ↺ button). Purely a
@@ -1342,6 +1390,7 @@ function showOnboard() {
   const bg = $("#onboard-bg");
   if (!bg) return;
   bg.classList.remove("dismissed");
+  scrollAppToTop();
   const first = bg.querySelector(".onboard-choice");
   if (first) first.focus();
 }
@@ -1361,7 +1410,9 @@ function showGetStartedCard(card) {
   el.classList.add("gs-force");
   el.classList.remove("collapsed");
   if (card === "voice") markVoiceIntroSeen();
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Both cards sit right under the template picker, so opening one always
+  // lands the page at the very top with the card in view.
+  scrollAppToTop();
   if (card === "intake") {
     const paste = $("#import-paste");
     if (paste) paste.focus({ preventScroll: true });
@@ -2629,6 +2680,11 @@ updatePreviewScale();
 initModalA11y();
 initOnboarding();
 initCameraCapabilityNote();
+
+// The intro/start screen shows on every launch — always open at the very top
+// instead of a browser-restored mid-page scroll position.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+scrollAppToTop();
 
 // The first edit in the editor pane flips on the required-field hints, so an
 // untouched blank resume stays neutral until the user actually starts typing.
