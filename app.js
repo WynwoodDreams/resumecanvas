@@ -43,6 +43,16 @@ let state = {
       // Demo 8 extra
       certifications: "",
     },
+    {
+      school: "North Miami Senior High School",
+      city: "North Miami, FL",
+      degree: "High School Diploma",
+      date: "Graduated: June 2023",
+      subline_bold: "",
+      subline_rest: "",
+      coursework: "",
+      certifications: "",
+    },
   ],
   // Demo 4 skills
   skills_categories: [
@@ -101,6 +111,17 @@ let state = {
         "Led sales initiatives and client acquisition, consistently meeting and exceeding monthly targets",
         "Managed client relationships from initial consultation through event execution, ensuring high satisfaction",
         "Coordinated with event planning team to deliver customized solutions tailored to client needs and budgets",
+      ],
+    },
+    {
+      title: "Sunset Groceries — Cashier / Customer Service Associate",
+      date: "June 2021 – July 2022",
+      location: "North Miami, FL",
+      company_city: "",
+      bullets: [
+        "Operated point-of-sale systems and processed cash, card, and mobile payments accurately during high-volume shifts",
+        "Resolved customer questions and concerns with patience, escalating issues to management when appropriate",
+        "Restocked shelves and organized product displays to keep the sales floor clean and shoppable",
       ],
     },
   ],
@@ -247,14 +268,14 @@ const TEMPLATES = {
     layout: "single", header: "structured", headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
     projMode: "dated", expMode: "italic", certs: false,
     namePt: 20, sectionPt: 12, bodyPt: 12,
-    name: "Categorical", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
+    name: "Demo 3", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
     labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_2: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
     projMode: "bullets", expMode: "company", certs: true,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Two-Column Skills", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
+    name: "Demo 2", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
     labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_1: {
@@ -268,14 +289,14 @@ const TEMPLATES = {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo2",
     projMode: "dated", expMode: "company_first", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Business Style Resume", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. A clean business-style layout that works for most students and career changers.",
+    name: "Demo 1", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. A clean business-style layout that works for most students and career changers.",
     labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "PROFESSIONAL EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_6: {
     layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
     projMode: "none", expMode: "company_first", certs: false,
-    namePt: 22, sectionPt: 11, bodyPt: 10,
-    name: "Sidebar", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
+    namePt: 22, sectionPt: 11, bodyPt: 12,
+    name: "Demo 4", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
     labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
   },
   demo_8: {
@@ -287,9 +308,11 @@ const TEMPLATES = {
   },
 };
 
-// Picker order. demo_1 (Highlighted Skills) and demo_8 (Criminal Justice) are
-// retired from the picker but keep their TEMPLATES/DEMO_SEEDS entries so
-// resumes saved under them still render (see syncTemplateUI's legacy option).
+// Picker order. Display names are "Demo 1"–"Demo 4" in this order — they do
+// NOT line up with the internal demo_N ids (demo_5 shows as "Demo 1").
+// demo_1 (Highlighted Skills) and demo_8 (Criminal Justice) are retired from
+// the picker but keep their TEMPLATES/DEMO_SEEDS entries so resumes saved
+// under them still render (see syncTemplateUI's legacy option).
 const TEMPLATE_ORDER = ["demo_5", "demo_2", "demo_4", "demo_6"];
 
 // Global typeface choice. `css` is the font stack used in the preview + .doc
