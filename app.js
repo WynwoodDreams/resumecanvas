@@ -820,6 +820,13 @@ const ACTIONS = {
   closeImportModal: () => closeImportModal(),
   closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
   aiPolish: () => aiPolishBullets(),
+  cmdListen: () => cmdListen(),
+  cmdSubmit: () => cmdSubmit(),
+  cmdApply: () => cmdApply(),
+  cmdCancel: () => cmdCancel(false),
+  cmdUndo: () => cmdUndo(),
+  cmdChoose: (btn) => cmdChoose(+btn.dataset.choice),
+  cmdClearContext: () => cmdClearContext(),
   closeAiModal: () => closeAiModal(),
   closeAiModalBackdrop: (el, ev) => { if (ev.target === el) closeAiModal(); },
   applyAiPolish: () => applyAiPolish(),
@@ -2158,6 +2165,9 @@ function applyImport() {
   });
 
   const p = _pendingImport;
+  // The import rewrites whole sections; earlier command undo records would
+  // restore pre-import content, so drop them.
+  if (typeof cmdClearHistory === "function") cmdClearHistory();
   // Importing onto an untouched sample resume: start from a blank resume so
   // sections the import didn't cover (summary, skills, projects, certs, the
   // sample's phone/location) don't survive as fabricated content in the
@@ -3000,6 +3010,7 @@ updatePreviewScale();
 initModalA11y();
 initOnboarding();
 if (typeof aiProbe === "function") aiProbe();
+if (typeof initCommandBar === "function") initCommandBar();
 initCameraCapabilityNote();
 
 // The intro/start screen shows on every launch — always open at the very top

@@ -4,7 +4,7 @@
   "private": true,
   "description": "ResumeCanvas — a free resume builder for job seekers.",
   "scripts": {
-    "test": "node tests/smoke.js",
+    "test": "node tests/smoke.js && node tests/commands.test.js",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

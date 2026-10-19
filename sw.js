@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v25-2026-10-19-phase4-ai";
+const CACHE_VERSION = "rc-v26-2026-10-19-voice-commands";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -17,6 +17,8 @@ const SHELL_URLS = [
   "./js/quality.js",
   "./js/docx.js",
   "./js/ai.js",
+  "./js/commands.js",
+  "./js/command-bar.js",
   "./vendor/fonts/fonts.css",
   "./vendor/fonts/JetBrainsMono-300.woff2",
   "./vendor/fonts/JetBrainsMono-400.woff2",
