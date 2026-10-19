@@ -356,3 +356,108 @@ test.describe("feature-detection fallbacks", () => {
     await expect(page.locator("#camera-note")).toContainText(/can't read text from photos automatically/);
   });
 });
+
+test.describe("command bar", () => {
+  test("a typed command previews first, applies only on confirm, and undoes", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const summaryBefore = await page.evaluate(() => state.summary);
+    await page.locator("#cmd-input").fill("add Python to my skills");
+    await page.locator("#cmd-input").press("Enter");
+    const card = page.locator("#cmd-preview");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("Skills");
+    await expect(card).toContainText("Python");
+    // Nothing changes until confirmed.
+    await expect(page.locator("#preview")).not.toContainText("Python");
+    await card.getByRole("button", { name: /APPLY/ }).click();
+    await expect(page.locator("#preview")).toContainText("Python");
+    expect(await page.evaluate(() => state.summary)).toBe(summaryBefore);
+    await expect(page.locator("#cmd-undo")).toBeEnabled();
+    await page.locator("#cmd-undo").click();
+    await expect(page.locator("#preview")).not.toContainText("Python");
+    await expect(page.locator("#cmd-undo")).toBeDisabled();
+  });
+
+  test("an ambiguous entry asks which one, and only that section changes", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const expBefore = await page.evaluate(() => JSON.stringify(state.experience));
+    await page.locator("#cmd-input").fill("change the date for north miami senior high school to June 2022");
+    await page.locator("#cmd-input").press("Enter");
+    const choices = page.locator("#cmd-preview .cmd-choice");
+    await expect(choices).toHaveCount(2);
+    await choices.filter({ hasText: "Education" }).click();
+    await expect(page.locator("#cmd-preview")).toContainText("June 2022");
+    await page.locator("#cmd-input").press("Enter"); // empty Enter applies the open preview
+    await expect.poll(() => page.evaluate(() => state.education.find((e) => /North Miami/.test(e.school)).date)).toBe("June 2022");
+    expect(await page.evaluate(() => JSON.stringify(state.experience))).toBe(expBefore);
+  });
+
+  test("the field being edited is the default target", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => document.querySelector('.panel[data-section="experience"]').classList.add("open"));
+    await page.locator('input[data-exp="1"][data-field="date"]').focus();
+    await expect(page.locator("#cmd-context")).toBeVisible();
+    await expect(page.locator("#cmd-context")).toContainText("Experience");
+    await page.locator("#cmd-input").fill("change the date to march 2020 to present");
+    await page.locator("#cmd-input").press("Enter");
+    await page.locator("#cmd-preview").getByRole("button", { name: /APPLY/ }).click();
+    expect(await page.evaluate(() => state.experience[1].date)).toBe("March 2020 – Present");
+  });
+
+  test("errors never change anything and keep the text for correction", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const before = await page.evaluate(() => JSON.stringify(state));
+    await page.locator("#cmd-input").fill("delete costco");
+    await page.locator("#cmd-input").press("Enter");
+    await expect(page.locator("#cmd-preview .cmd-error")).toContainText("couldn't find");
+    await expect(page.locator("#cmd-input")).toHaveValue("delete costco");
+    expect(await page.evaluate(() => JSON.stringify(state))).toBe(before);
+  });
+
+  test("undo history is dropped when a different resume loads", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#cmd-input").fill("add Tableau to my skills");
+    await page.locator("#cmd-input").press("Enter");
+    await page.locator("#cmd-input").press("Enter");
+    await expect(page.locator("#cmd-undo")).toBeEnabled();
+    await page.locator("#tpl-dropdown").selectOption("demo_2"); // edited sample → keeps data, no reload
+    await page.evaluate(() => replaceStateWith(blankResumeState()));
+    await expect(page.locator("#cmd-undo")).toBeDisabled();
+  });
+
+  test("spoken loop: say a change, hear it back, say yes", async ({ page }) => {
+    // Scripted microphone: each start() "hears" the next phrase.
+    await page.addInitScript(() => {
+      window.__heard = ["add sql to my skills", "yes"];
+      class FakeRec {
+        start() {
+          const text = window.__heard.shift();
+          if (text == null) throw new Error("no more phrases");
+          setTimeout(() => {
+            const alt = [{ transcript: text }];
+            alt.isFinal = true;
+            this.onresult && this.onresult({ resultIndex: 0, results: [Object.assign(alt, { isFinal: true })] });
+            this.onend && this.onend();
+          }, 30);
+        }
+        stop() { this.onend && this.onend(); }
+      }
+      window.SpeechRecognition = FakeRec;
+      window.webkitSpeechRecognition = FakeRec;
+      // No speech synthesis in the test: the bar listens for the answer right away.
+      try { delete window.speechSynthesis; } catch (_e) { /* ignore */ }
+      Object.defineProperty(window, "speechSynthesis", { value: undefined, configurable: true });
+    });
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#cmd-mic").click();
+    await expect(page.locator("#preview")).toContainText("Sql", { timeout: 5000 });
+    await expect(page.locator("#cmd-preview")).toBeHidden();
+    await expect(page.locator("#cmd-undo")).toBeEnabled();
+  });
+});

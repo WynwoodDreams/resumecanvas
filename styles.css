@@ -1052,3 +1052,41 @@ body.ai-enabled .ai-toggle { display: flex; }
 .ai-owner { font-size: 9.5px; letter-spacing: 0.16em; color: var(--text-dim); font-weight: 700; }
 .ai-before { color: var(--text-dim); text-decoration: line-through; text-decoration-color: rgba(140,120,81,0.5); }
 .ai-after { color: var(--text); }
+
+/* ── Command bar: talk or type a change, preview, confirm, undo ── */
+/* Pinned so the confirmation card stays in view while the resume scrolls to
+   the highlighted target. Desktop scrolls the window (clear the 58px top
+   bar); mobile scrolls each pane, so pin to the pane's top. */
+.cmd-bar { position: sticky; top: 66px; z-index: 30; margin-bottom: 14px; border: 1px solid var(--amber); background: var(--surface-0); padding: 10px; box-shadow: 0 6px 18px rgba(2,8,38,0.10); }
+@media (max-width: 1100px) { .cmd-bar { top: 0; } }
+.cmd-row { display: flex; gap: 8px; align-items: stretch; }
+.cmd-row input { flex: 1; min-width: 0; border: 1px solid var(--border-strong); background: var(--surface-0); color: var(--text); font-family: inherit; font-size: 12px; padding: 9px 11px; }
+.cmd-row input:focus { outline: none; border-color: var(--amber); }
+.cmd-mic { width: 42px; flex: none; border: 1px solid var(--amber); background: rgba(140,120,81,0.12); font-size: 16px; cursor: pointer; }
+.cmd-mic.recording { background: var(--red, #f25042); border-color: var(--red, #f25042); animation: cmd-pulse 1s ease-in-out infinite; }
+@keyframes cmd-pulse { 50% { opacity: 0.6; } }
+.cmd-row .toolbar-chip:disabled { opacity: 0.45; cursor: default; transform: none; }
+.cmd-context { margin-top: 8px; font-size: 10px; letter-spacing: 0.12em; color: var(--text-dim); }
+.cmd-context b { color: var(--amber-soft); font-weight: 700; }
+.cmd-context-x { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 0 4px; }
+.cmd-preview { margin-top: 10px; border-top: 1px dashed var(--border-strong); padding-top: 10px; font-size: 12px; line-height: 1.5; }
+.cmd-preview.hidden { display: none; }
+.cmd-where { font-size: 10px; letter-spacing: 0.16em; font-weight: 700; color: var(--amber-soft); text-transform: uppercase; }
+.cmd-verb { font-weight: 700; margin: 2px 0 6px; color: var(--text); }
+.cmd-before { color: var(--text-dim); text-decoration: line-through; text-decoration-color: rgba(242,80,66,0.6); }
+.cmd-after { color: var(--text); background: rgba(140,120,81,0.10); padding: 2px 6px; margin-top: 3px; }
+.cmd-error { color: var(--red-ink, #b3261e); }
+.cmd-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.cmd-actions .compile-btn, .cmd-actions .copy-btn { padding: 8px 14px; font-size: 10.5px; }
+.cmd-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; }
+.cmd-choices { display: flex; flex-direction: column; gap: 6px; }
+.cmd-choice { text-align: left; background: var(--surface-0); border: 1px solid var(--border-strong); padding: 8px 10px; font-family: inherit; font-size: 11.5px; color: var(--text); cursor: pointer; }
+.cmd-choice:hover, .cmd-choice:focus-visible { border-color: var(--amber); }
+.cmd-history { margin-top: 8px; font-size: 10.5px; color: var(--text-dim); }
+.cmd-history summary { cursor: pointer; letter-spacing: 0.12em; }
+.cmd-history ol { margin: 6px 0 0 18px; padding: 0; }
+/* Target on the live preview: outlined while previewing, flashed after apply. */
+#preview .cmd-target { outline: 2px solid var(--amber); outline-offset: 3px; background: rgba(140,120,81,0.10); transition: background 0.4s; }
+#preview .cmd-target.cmd-flash { animation: cmd-flash 1.6s ease-out; }
+@keyframes cmd-flash { 0% { background: rgba(140,120,81,0.35); } 100% { background: transparent; outline-color: transparent; } }
+@media print { .cmd-bar { display: none !important; } #preview .cmd-target { outline: none; background: none; } }

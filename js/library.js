@@ -100,6 +100,8 @@ function schedulePersist() {
 // Functions/handlers reference `state` by closure, so mutating in place keeps
 // them bound to the live object instead of a stale reference.
 function replaceStateWith(snapshot) {
+  // A different resume is loading: command undo records belong to the old one.
+  if (typeof cmdClearHistory === "function") cmdClearHistory();
   for (const key of Object.keys(state)) delete state[key];
   Object.assign(state, JSON.parse(JSON.stringify(snapshot)));
   state.match = { on: false, jd: "" };

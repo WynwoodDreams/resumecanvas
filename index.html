@@ -333,6 +333,17 @@
 
   <!-- RIGHT: PREVIEW -->
   <div class="pane right">
+    <div class="cmd-bar" id="cmd-bar">
+      <div class="cmd-row">
+        <button class="cmd-mic" id="cmd-mic" type="button" data-action="cmdListen" aria-pressed="false" aria-label="Speak a change" title="Speak a change">🎤</button>
+        <input id="cmd-input" type="text" autocomplete="off" aria-label="Tell the resume what to change" placeholder="Say or type a change — “add Excel to my skills”">
+        <button class="toolbar-chip primary" type="button" data-action="cmdSubmit">GO</button>
+        <button class="toolbar-chip" type="button" id="cmd-undo" data-action="cmdUndo" disabled>↶ UNDO</button>
+      </div>
+      <div class="cmd-context" id="cmd-context" hidden>Working in <b id="cmd-context-label"></b> <button class="cmd-context-x" type="button" data-action="cmdClearContext" aria-label="Clear working section">×</button></div>
+      <div class="cmd-preview hidden" id="cmd-preview" aria-live="polite"></div>
+      <details class="cmd-history" id="cmd-history" hidden><summary>Recent changes</summary><ol id="cmd-history-list"></ol></details>
+    </div>
     <div class="preview-header">
       <div class="label">LIVE PREVIEW <span class="amber">●</span></div>
       <div class="stats" id="preview-stats">— words / — page</div>
@@ -553,6 +564,8 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
 <script src="./js/quality.js" defer></script>
 <script src="./js/docx.js" defer></script>
 <script src="./js/ai.js" defer></script>
+<script src="./js/commands.js" defer></script>
+<script src="./js/command-bar.js" defer></script>
 <script src="./app.js" defer></script>
 
 
