@@ -536,7 +536,7 @@ function renderCerts() {
   body.querySelectorAll("input[data-cert]").forEach(el => {
     el.addEventListener("input", (ev) => {
       state.certifications[+el.dataset.cert] = ev.target.value;
-      render();
+      renderPreview();
     });
   });
 }
@@ -900,7 +900,14 @@ $("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
   // template previews its own sample. Once the user has imported or typed real
   // content, keep it and just re-lay it out in the new template.
   if (currentDemoIsPristine() && DEMO_SEEDS[tpl]) {
-    replaceStateWith(DEMO_SEEDS[tpl]);
+    // Swap in the new template's sample, but keep the choices the user has
+    // already made in this session: typeface, section include/exclude, their
+    // spoken/typed intro, and an open job-description match.
+    replaceStateWith(Object.assign({}, DEMO_SEEDS[tpl], {
+      font_family: state.font_family,
+      section_enabled: JSON.parse(JSON.stringify(state.section_enabled)),
+      voice_profile: state.voice_profile,
+    }));
   } else {
     state.template = tpl;
   }
@@ -1112,6 +1119,13 @@ const PREVIEW_SECTION_RENDERERS = {
 // Two-column sidebar layout (demo_6). Built as an HTML table so the columns
 // survive both the browser preview and the Word (.doc) export, which has poor
 // flex/grid support.
+// Side-column section order for the sidebar template: education and skills in
+// the user's chosen order (experience always lives in the main column).
+function sidebarSideOrder(tpl) {
+  const order = (state.section_order[tpl] || []).filter(s => s === "education" || s === "skills");
+  return order.length === 2 ? order : ["education", "skills"];
+}
+
 function renderSidebarPreviewHtml() {
   const tpl = state.template;
   const c = tcfg(tpl);
@@ -1125,8 +1139,12 @@ function renderSidebarPreviewHtml() {
   if (state.location) contactBits.push(`📍 ${esc(state.location)}`);
   if (state.linkedin) contactBits.push(`🔗 ${linkify(state.linkedin)}`);
   side += contactBits.map(b => `<div class="contact-line">${b}</div>`).join("");
-  side += renderEducationPreviewHtml(tpl);
-  side += renderSkillsPreviewHtml(tpl);
+  // Honour the user's ▲/▼ reorder for the two side-column sections (the
+  // reorder buttons are enabled for this template, so ignoring the order
+  // here made them appear broken).
+  for (const sec of sidebarSideOrder(tpl)) {
+    side += sec === "education" ? renderEducationPreviewHtml(tpl) : renderSkillsPreviewHtml(tpl);
+  }
 
   let main = "";
   if (state.section_enabled.summary !== false) main += renderSummaryPreviewHtml();
@@ -1354,6 +1372,7 @@ function render() {
   recomputeSectionIndices();
   setCaseId();
   renderPreview();
+  syncTransientUI();
   updateLibraryPill();
   hideMicButtonsIfUnsupported();
   initVoiceOnce();
@@ -1749,8 +1768,9 @@ async function extractDocxText(file) {
   const TARGET = "word/document.xml";
   for (let i = 0; i <= u8.length - 30; i++) {
     if (u8[i] !== 0x50 || u8[i+1] !== 0x4b || u8[i+2] !== 0x03 || u8[i+3] !== 0x04) continue;
+    const flags = view.getUint16(i + 6, true);
     const compression = view.getUint16(i + 8, true);
-    const compSize = view.getUint32(i + 18, true);
+    let compSize = view.getUint32(i + 18, true);
     const nameLen = view.getUint16(i + 26, true);
     const extraLen = view.getUint16(i + 28, true);
     const nameStart = i + 30;
@@ -1758,6 +1778,13 @@ async function extractDocxText(file) {
     const name = new TextDecoder().decode(u8.subarray(nameStart, nameStart + nameLen));
     if (name !== TARGET) continue;
     const dataStart = nameStart + nameLen + extraLen;
+    if ((flags & 0x8) && compSize === 0) {
+      // Streamed zips (Google Docs, LibreOffice, most Node/Python writers) set
+      // general-purpose bit 3: sizes are 0 in the local header and live in the
+      // central directory instead.
+      compSize = zipCentralDirectorySize(u8, view, TARGET);
+      if (!compSize) throw new Error("Not a valid .docx (document.xml size missing)");
+    }
     const data = u8.subarray(dataStart, dataStart + compSize);
     let xml;
     if (compression === 0) {
@@ -1773,16 +1800,37 @@ async function extractDocxText(file) {
   throw new Error("Not a valid .docx (document.xml missing)");
 }
 
+// Compressed size of `target` from the zip's central directory (the
+// authoritative copy when the local header carries zeros).
+function zipCentralDirectorySize(u8, view, target) {
+  for (let i = u8.length - 46; i >= 0; i--) {
+    if (u8[i] !== 0x50 || u8[i+1] !== 0x4b || u8[i+2] !== 0x01 || u8[i+3] !== 0x02) continue;
+    const nameLen = view.getUint16(i + 28, true);
+    const nameStart = i + 46;
+    if (nameStart + nameLen > u8.length) continue;
+    const name = new TextDecoder().decode(u8.subarray(nameStart, nameStart + nameLen));
+    if (name === target) return view.getUint32(i + 20, true);
+  }
+  return 0;
+}
+
 function docxXmlToText(xml) {
   const decode = (s) => s
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
   const paragraphs = xml.split(/<w:p[\s>\/]/).slice(1);
   const lines = paragraphs.map(p => {
+    // Walk text runs, tabs and line breaks in document order. Word resumes
+    // commonly separate "Title" and "Dates" with a tab inside one paragraph;
+    // dropping it glues them together and breaks the title/date parser.
     const runs = [];
-    const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    const re = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>|<w:t(?:\s[^>]*)?\/>|<w:(tab|br|cr)\b[^>]*\/?>/g;
     let m;
-    while ((m = re.exec(p))) runs.push(m[1]);
+    while ((m = re.exec(p))) {
+      if (m[2] === "tab") runs.push("  ");
+      else if (m[2]) runs.push("\n");
+      else if (m[1] !== undefined) runs.push(m[1]);
+    }
     return decode(runs.join(""));
   });
   return lines.join("\n");
@@ -1893,6 +1941,18 @@ function applyImport() {
   });
 
   const p = _pendingImport;
+  // Importing onto an untouched sample resume: start from a blank resume so
+  // sections the import didn't cover (summary, skills, projects, certs, the
+  // sample's phone/location) don't survive as fabricated content in the
+  // user's resume. Keep the template and typeface they picked.
+  if (currentDemoIsPristine()) {
+    replaceStateWith(Object.assign(blankResumeState(), {
+      template: state.template,
+      font_family: state.font_family,
+      font_pt: state.font_pt,
+      section_order: JSON.parse(JSON.stringify(state.section_order)),
+    }));
+  }
   if (enabled.name) state.name = edited.name;
   if (enabled.email) state.email = edited.email;
   if (enabled.phone) state.phone = edited.phone;
@@ -2009,6 +2069,7 @@ $("#import-file").addEventListener("change", async (ev) => {
 // inline and telling the user to long-press → copy → paste.
 // ─────────────────────────────────────────────────────────
 
+let _cameraObjectUrl = null; // last blob URL shown in #cp-image, revoked on the next capture
 const cameraInput = $("#camera-input");
 if (cameraInput) {
   cameraInput.addEventListener("change", async (ev) => {
@@ -2033,7 +2094,9 @@ async function handleCameraCapture(file) {
   const help = $("#cp-help");
   if (!preview || !status || !img || !help) return;
 
+  if (_cameraObjectUrl) URL.revokeObjectURL(_cameraObjectUrl);
   const objectUrl = URL.createObjectURL(file);
+  _cameraObjectUrl = objectUrl;
   img.src = objectUrl;
   preview.classList.remove("hidden");
   status.className = "cp-status";
@@ -2475,6 +2538,34 @@ function toggleMatch() {
 }
 
 ACTIONS.toggleMatch = () => toggleMatch();
+
+// Bring the match-mode chrome and the voice-intro textarea back in line with
+// `state` after it was wholesale replaced (template switch on a pristine demo,
+// library open/new/restore, reset). Without this the panel stayed open with a
+// stale score while state.match.on was already false, and the intro textarea
+// kept text that state.voice_profile no longer held.
+function syncTransientUI() {
+  const chip = $("#match-chip");
+  const chipText = $("#match-chip-text");
+  const toolbar = $("#preview-toolbar");
+  const panel = $("#match-panel");
+  const missing = $("#match-missing");
+  const jd = $("#jd-input");
+  const on = !!(state.match && state.match.on);
+  const jdText = (state.match && state.match.jd) || "";
+  if (chip) chip.setAttribute("aria-pressed", on ? "true" : "false");
+  if (chipText) chipText.textContent = on ? "EXIT MATCH MODE" : "MATCH JOB DESCRIPTION";
+  if (toolbar) toolbar.classList.toggle("match-active", on);
+  if (panel) panel.classList.toggle("hidden", !on);
+  if (jd && jd.value !== jdText) jd.value = jdText;
+  if (!on && missing) { missing.classList.add("hidden"); missing.innerHTML = ""; }
+  const ta = $("#voice-transcript");
+  const intro = state.voice_profile || "";
+  if (ta && ta.value !== intro) {
+    ta.value = intro;
+    if (typeof updateVoiceAnalyzeCue === "function") updateVoiceAnalyzeCue();
+  }
+}
 
 let _matchDebounce = null;
 $("#jd-input").addEventListener("input", (ev) => {

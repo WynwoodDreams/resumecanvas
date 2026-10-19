@@ -83,7 +83,7 @@
   // ALL-CAPS / colon-terminated lines count only when the following line is
   // not an entry sub-header (date/location) or a bullet — which would mean
   // this is a job/project title, not a section break.
-  function isUnknownHeading(line, nextLine) {
+  function isUnknownHeading(line, nextLine, lineAfterNext) {
     const l = (line || "").trim();
     if (!l || BULLET_RE.test(l)) return false;
     if (l.length > 45 || l.split(/\s+/).length > 6) return false;
@@ -98,7 +98,22 @@
     if (!isAllCaps && !endsColon) return false;
     const nx = (nextLine || "").trim();
     if (BULLET_RE.test(nx) || DATE_TOKEN_RE.test(nx) || LOCATION_RE.test(nx)) return false;
+    // "SOFTWARE ENGINEER / Acme Corp / June 2020 – Present / • …": the company
+    // sits between the title and the date, so look one line further before
+    // deciding an ALL-CAPS job title is a section heading (which would
+    // quarantine every job after it into an "other" section).
+    const nx2 = (lineAfterNext || "").trim();
+    if (nx && nx2 && !BULLET_RE.test(nx) && (BULLET_RE.test(nx2) || DATE_TOKEN_RE.test(nx2))) return false;
     return true;
+  }
+
+  function nextNonEmptyAfter(lines, i, count) {
+    const out = [];
+    for (let j = i + 1; j < lines.length && out.length < count; j++) {
+      if (lines[j]) out.push(lines[j]);
+    }
+    while (out.length < count) out.push("");
+    return out;
   }
 
   function parseResumeText(text) {
@@ -130,7 +145,8 @@
       }
       // Only quarantine unknown headings once we're past the implicit header
       // block, so an ALL-CAPS name/contact line up top isn't misread.
-      if (enteredBody && isUnknownHeading(line, nextNonEmpty(rawLines, i))) {
+      const ahead = nextNonEmptyAfter(rawLines, i, 2);
+      if (enteredBody && isUnknownHeading(line, ahead[0], ahead[1])) {
         currentOther = { title: line.replace(/:$/, "").trim(), lines: [] };
         other.push(currentOther);
         current = "other";
@@ -204,6 +220,16 @@
       let school = block.find((l) => l !== degree && l !== dateLine) || block[0] || "";
 
       let date = dateLine;
+      if (dateLine && school === dateLine) {
+        // One-line entry ("University of London, BSc Mathematics, 1840"): the
+        // same line was both school and date. Split the date out so the
+        // preview doesn't print the whole line twice.
+        const dm = dateLine.match(DATE_RANGE_RE);
+        if (dm) {
+          date = dm[0].trim();
+          school = dateLine.replace(dm[0], "").replace(/^[\s,;–—\-|]+|[\s,;–—\-|]+$/g, "").trim();
+        }
+      }
       if (!date && GRAD_DATE_RE.test(degree)) {
         // Date lives on the degree line — split it out so each field is clean.
         const dm = degree.match(GRAD_DATE_RE);

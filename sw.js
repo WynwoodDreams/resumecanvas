@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v20-2026-06-10-network-first-shell";
+const CACHE_VERSION = "rc-v21-2026-10-19-review-fixes";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -72,8 +72,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin === self.location.origin) {
     if (req.mode === "navigate") {
       event.respondWith(
+        // Prefer the "./" entry: on Vercel (cleanUrls) "./index.html" is
+        // stored as a *redirected* response, which the browser refuses to
+        // use for a navigation, so falling back to it alone shows the
+        // browser's offline page instead of the app.
         fetch(req).catch(() =>
-          caches.match("./index.html").then((r) => r || Response.error())
+          caches.match("./")
+            .then((r) => r || caches.match("./index.html"))
+            .then((r) => r || Response.error())
         )
       );
       return;

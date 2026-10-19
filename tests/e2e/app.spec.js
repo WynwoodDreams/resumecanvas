@@ -89,6 +89,24 @@ test.describe("editing", () => {
     await page.getByRole("button", { name: "APPLY IMPORT" }).click();
     await expect(page.locator("#preview")).toContainText("Grace Hopper");
     await expect(page.locator("#preview")).toContainText("compiler design");
+    // Importing onto the untouched sample must not keep the sample's other
+    // sections (its projects, phone, summary) as if they were the user's.
+    await expect(page.locator("#preview")).not.toContainText("Shark Cast");
+    await expect(page.locator("#preview")).not.toContainText("786-121-1112");
+  });
+
+  test("typing several characters into a certification keeps focus and text", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#tpl-dropdown").selectOption("demo_2");
+    await page.evaluate(() => document.querySelectorAll(".panel").forEach((p) => p.classList.add("open")));
+    const cert = page.locator('input[data-cert="0"]');
+    await cert.click();
+    await cert.press("End");
+    await page.keyboard.type("XYZ", { delay: 30 });
+    await expect(cert).toBeFocused();
+    await expect(cert).toHaveValue(/XYZ$/);
+    await expect(page.locator("#preview")).toContainText("XYZ");
   });
 });
 

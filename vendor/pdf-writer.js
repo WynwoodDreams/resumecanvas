@@ -121,7 +121,14 @@
   function widthOf(font, charCode) {
     if (charCode >= 32 && charCode <= 126) return WIDTHS[font][charCode - 32];
     const extra = EXTRA[font][charCode];
-    return extra != null ? extra : WIDTHS[font][32 - 32]; // fallback = space width
+    if (extra != null) return extra;
+    if (charCode >= 0xA0 && charCode <= 0xFF) {
+      // Accented Latin-1 letters: approximate with the base letter's width
+      // (é ≈ e, Ñ ≈ N) rather than collapsing to a space width.
+      const base = String.fromCharCode(charCode).normalize("NFD").charCodeAt(0);
+      if (base >= 32 && base <= 126) return WIDTHS[font][base - 32];
+    }
+    return WIDTHS[font][32 - 32]; // fallback = space width
   }
 
   function measure(font, sizePt, str) {
@@ -135,6 +142,9 @@
 
   function encodeChar(code) {
     if (code >= 32 && code <= 126) return code;
+    // The fonts are declared /WinAnsiEncoding, where 0xA0–0xFF are the
+    // Latin-1 code points — so "José", "Müller", "São Paulo" pass through.
+    if (code >= 0xA0 && code <= 0xFF) return code;
     if (UNICODE_MAP[code] != null) return UNICODE_MAP[code];
     return 0x3F; // '?' for anything we can't represent
   }

@@ -114,6 +114,20 @@ function replaceStateWith(snapshot) {
 // existed (e.g. section_order entries for demo_1/demo_5, skills_inline).
 function ensureStateDefaults() {
   const defaults = JSON.parse(_DEFAULT_STATE_JSON);
+  // A restored backup or hand-edited draft may be missing whole keys. Backfill
+  // every list as empty (never with sample content), objects/strings from the
+  // defaults, so render() can't throw on `state.education.filter` etc.
+  for (const key of Object.keys(defaults)) {
+    const d = defaults[key];
+    if (Array.isArray(d)) {
+      if (!Array.isArray(state[key])) state[key] = [];
+    } else if (d && typeof d === "object") {
+      if (!state[key] || typeof state[key] !== "object") state[key] = JSON.parse(JSON.stringify(d));
+    } else if (typeof d === "string") {
+      if (typeof state[key] !== "string") state[key] = key === "template" ? d : "";
+    }
+  }
+  if (typeof TEMPLATES !== "undefined" && !TEMPLATES[state.template]) state.template = defaults.template;
   state.section_order = state.section_order || {};
   for (const tpl of Object.keys(defaults.section_order)) {
     if (!Array.isArray(state.section_order[tpl])) {
@@ -474,7 +488,8 @@ function applyLibraryBackup(text) {
     toast("NOT A VALID BACKUP FILE");
     return;
   }
-  const valid = (r) => r && typeof r === "object" && typeof r.id === "string" && r.state && typeof r.state === "object";
+  const valid = (r) => r && typeof r === "object" && typeof r.id === "string" && typeof r.name === "string"
+    && r.state && typeof r.state === "object" && !Array.isArray(r.state);
   const drafts = Array.isArray(lib && lib.drafts) ? lib.drafts.filter(valid) : [];
   const saved = Array.isArray(lib && lib.saved) ? lib.saved.filter(valid) : [];
   if (drafts.length + saved.length === 0) {
