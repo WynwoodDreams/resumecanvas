@@ -133,6 +133,43 @@ test.describe("editing", () => {
     await expect(page.locator('textarea[data-exp-bullet="0"][data-bullet-i="0"]')).toBeFocused();
   });
 
+  test("template gallery thumbnails switch the template", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const cards = page.locator(".tpl-card");
+    await expect(cards).toHaveCount(4);
+    const initial = await page.locator("#tpl-dropdown").inputValue();
+    await expect(page.locator(".tpl-card.active")).toHaveAttribute("data-tpl", initial);
+    await page.locator('.tpl-card[data-tpl="demo_6"]').click();
+    await expect(page.locator("#tpl-dropdown")).toHaveValue("demo_6");
+    await expect(page.locator(".tpl-card.active")).toHaveAttribute("data-tpl", "demo_6");
+    await expect(page.locator("#preview .sidebar-grid")).toBeVisible();
+  });
+
+  test("an additional section appears in the preview and the PDF", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.evaluate(() => document.querySelector('.panel[data-section="custom"]').classList.add("open"));
+    await page.getByRole("button", { name: "+ ADD SECTION" }).click();
+    await page.locator('input[data-custom="0"]').fill("Volunteer Experience");
+    await page.locator('textarea[data-custom-bullet="0"]').fill("Organized a food drive serving 300 families");
+    await expect(page.locator("#preview")).toContainText("Volunteer Experience");
+    await expect(page.locator("#preview")).toContainText("300 families");
+    const inPdf = await page.evaluate(() => new TextDecoder("latin1").decode(buildResumePdfBytes()).includes("Volunteer Experience"));
+    expect(inPdf).toBe(true);
+  });
+
+  test("the preview page count matches the exported PDF for the sample", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const r = await page.evaluate(() => ({
+      preview: document.querySelectorAll("#preview .preview-frame").length,
+      pdf: (new TextDecoder("latin1").decode(buildResumePdfBytes()).match(/\/Type \/Page\b/g) || []).length,
+    }));
+    expect(r.preview).toBe(r.pdf);
+  });
+
   test("typing several characters into a certification keeps focus and text", async ({ page }) => {
     await page.goto("/");
     await dismissOnboarding(page);

@@ -108,11 +108,12 @@
     <!-- Template selector -->
     <div class="tpl-select">
       <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT</label>
+      <div class="tpl-gallery" id="tpl-gallery" role="radiogroup" aria-label="Template thumbnails"></div>
       <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
-        <option value="demo_5">Demo 1</option>
-        <option value="demo_2">Demo 2</option>
-        <option value="demo_4">Demo 3</option>
-        <option value="demo_6">Demo 4</option>
+        <option value="demo_5">Classic</option>
+        <option value="demo_2">Compact</option>
+        <option value="demo_4">Student</option>
+        <option value="demo_6">Sidebar</option>
       </select>
       <div class="tpl-desc" id="tpl-desc"></div>
     </div>
@@ -312,6 +313,20 @@
       </div>
     </div>
 
+    <div class="panel" data-section="custom">
+      <header>
+        <h2>ADDITIONAL SECTIONS</h2>
+        <div class="header-controls">
+          <span class="caret">▶</span>
+        </div>
+      </header>
+      <div class="body">
+        <div class="help panel-help">Volunteer work, awards, languages, publications, affiliations — anything that doesn't fit above. Each gets its own heading after the main sections.</div>
+        <div id="custom-list"></div>
+        <button class="add-btn" data-action="addCustomSection">+ ADD SECTION</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- RIGHT: PREVIEW -->
@@ -340,6 +355,7 @@
         <button class="toolbar-chip" data-font="12" id="font-chip-12">12pt</button>
         <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
         <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
+        <button class="toolbar-chip fit-chip" data-action="fitOnePage" id="fit-chip" title="Step the body size down until the resume fits one page">FIT 1 PAGE</button>
       </div>
       <div class="toolbar-group export-group hide-in-match">
         <span class="toolbar-label">EXPORT</span>

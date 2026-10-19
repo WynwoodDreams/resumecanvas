@@ -186,7 +186,7 @@
   }
 
   /* Final-pane preview frames mirror the main preview's paper aesthetic */
-  .final-stage .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 30px 30px 30px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 10px 28px rgba(2,8,38,0.12), 0 0 0 1px var(--border-strong); line-height: 1.45; font-size: 11pt; aspect-ratio: 8.5 / 11; overflow: hidden; }
+  .final-stage .preview-frame { box-sizing: border-box; width: 816px; height: 1056px; background: var(--paper); color: var(--ink); padding: 53px 72px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 10px 28px rgba(2,8,38,0.12), 0 0 0 1px var(--border-strong); line-height: 1.22; font-size: 11pt; overflow: hidden; }
   .final-stage .preview-frame.demo_4 { font-size: 11.5pt; }
   .final-stage .preview-frame.demo_2 { font-size: 10.5pt; }
   .final-stage .preview-frame.demo_1 { font-size: 10.5pt; }
@@ -247,7 +247,7 @@
     .final-top { padding: 12px 12px 5px 12px; }
     .final-hint { padding: 8px 12px; font-size: 10px; }
     .final-stage { padding: 12px 6px 8px 6px; }
-    .final-stage .preview-frame { padding: 18px 22px 24px 22px; box-shadow: 0 8px 22px rgba(2,8,38,0.10), 0 0 0 1px var(--border-strong); }
+    .final-stage .preview-frame { box-shadow: 0 8px 22px rgba(2,8,38,0.10), 0 0 0 1px var(--border-strong); }
     .final-actions { grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
     .final-btn { font-size: 10.5px; padding: 12px 8px; min-height: 48px; letter-spacing: 0.14em; }
   }
@@ -536,7 +536,11 @@
   .page-label { font-family: "JetBrains Mono", monospace; font-size: 9.5px; letter-spacing: 0.22em; color: var(--text-mute); font-weight: 700; text-align: center; padding: 4px 0; border-top: 1px dashed var(--border-strong); position: relative; }
   .page-label::before { content: ""; position: absolute; left: 50%; top: -0.5px; transform: translateX(-50%); width: 80px; height: 1px; background: var(--bg); }
   .page-label span { position: relative; background: var(--bg); padding: 0 10px; }
-  .preview-frame { background: var(--paper); color: var(--ink); padding: 22px 44px 36px 44px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 14px 40px rgba(2,8,38,0.14), 0 0 0 1px var(--border-strong); line-height: 1.45; font-size: 11.5pt; aspect-ratio: 8.5 / 11; overflow: hidden; }
+  /* True US-Letter geometry at CSS 96dpi (816×1056px) with the same margins
+     the PDF writer uses (54pt sides, 40pt top/bottom). Text is in pt, so the
+     page capacity is identical to the exported PDF regardless of viewport —
+     the whole wrapper is then zoomed to fit the pane (updatePreviewScale). */
+  .preview-frame { box-sizing: border-box; width: 816px; height: 1056px; background: var(--paper); color: var(--ink); padding: 53px 72px; font-family: "Newsreader", Georgia, serif; box-shadow: 0 14px 40px rgba(2,8,38,0.14), 0 0 0 1px var(--border-strong); line-height: 1.22; font-size: 11.5pt; overflow: hidden; }
 
   /* Preview resume styles — mirrors the master templates */
   .preview-frame.demo_4 { font-size: 12pt; }
@@ -876,10 +880,7 @@
     .match-cta { padding: 11px 14px; font-size: 11px; }
     .view-group { padding-right: 10px; }
 
-    .preview-frame { padding: 18px 22px 24px 22px; font-size: 11pt; box-shadow: 0 8px 22px rgba(2,8,38,0.10), 0 0 0 1px var(--border-strong); }
-    .preview-frame.demo_4 { font-size: 11.5pt; }
-    .preview-frame.demo_2 { font-size: 10.5pt; }
-    .preview-frame.demo_4 .resume-name { font-size: 18pt; }
+    .preview-frame { box-shadow: 0 8px 22px rgba(2,8,38,0.10), 0 0 0 1px var(--border-strong); }
     .preview-frame.demo_2 .resume-name { font-size: 15pt; }
     .preview-pages { gap: 16px; }
 
@@ -916,20 +917,19 @@
 
   /* Very narrow */
   @media (max-width: 380px) {
-    .preview-frame { padding: 14px 16px 20px 16px; }
-    .preview-frame.demo_4 { font-size: 10.5pt; }
-    .preview-frame.demo_2 { font-size: 10pt; }
+
     .preview-frame.demo_4 .resume-name { font-size: 16pt; }
     .preview-frame.demo_2 .resume-name { font-size: 14pt; }
   }
 
   @media print {
-    @page { size: Letter; margin: 0.5in; }
+    @page { size: Letter; margin: 0.55in 0.75in; }
+    .preview-wrap { zoom: 1 !important; }
     body { background: #fff !important; }
     body * { visibility: hidden; }
     #preview, #preview * { visibility: visible; }
     #preview { position: absolute; left: 0; top: 0; width: 100%; gap: 0; }
-    #preview .preview-frame { background: #fff; color: #000; padding: 0; box-shadow: none; aspect-ratio: auto; overflow: visible; page-break-after: always; }
+    #preview .preview-frame { background: #fff; color: #000; width: 672px; height: 950px; padding: 0; box-shadow: none; overflow: hidden; page-break-after: always; }
     #preview .preview-frame:last-child { page-break-after: auto; }
     #preview .page-label { display: none; }
   }
@@ -1011,3 +1011,25 @@
 .qp-item:hover:not(:disabled), .qp-item:focus-visible { background: var(--accent-tint, rgba(140,120,81,0.07)); }
 .qp-item:disabled { cursor: default; color: var(--text-dim); }
 @media print { .quality-panel { display: none !important; } }
+
+/* ── Template gallery (Phase 2) ── */
+.tpl-gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.tpl-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 4px 7px; background: var(--surface-0); border: 1px solid var(--border-strong); cursor: pointer; font-family: inherit; transition: border-color 0.12s, transform 0.12s; }
+.tpl-card:hover, .tpl-card:focus-visible { border-color: var(--amber); transform: translateY(-1px); outline: none; }
+.tpl-card.active { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+.tpl-card-name { font-size: 9px; letter-spacing: 0.16em; font-weight: 700; color: var(--text-dim); }
+.tpl-card.active .tpl-card-name { color: var(--amber-soft); }
+/* Thumbnail: a real preview-frame scaled down. Width is fixed so the scale is
+   predictable; height follows the 8.5×11 aspect ratio. */
+.tpl-thumb { display: block; width: 100%; aspect-ratio: 8.5 / 11; overflow: hidden; position: relative; background: var(--paper); border: 1px solid var(--border); }
+.tpl-thumb .preview-frame { position: absolute; top: 0; left: 0; width: 816px; height: 1056px; transform-origin: top left; transform: scale(var(--thumb-scale, 0.12)); box-shadow: none; pointer-events: none; }
+.tpl-thumb .preview-frame * { animation: none !important; }
+@media (max-width: 760px) { .tpl-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
+
+/* ── Fit-to-one-page chip + page-count colour in stats ── */
+.preview-stats .ok { color: var(--green, #3a7d44); }
+.preview-stats .warn { color: var(--amber-soft); }
+.fit-chip { border-style: dashed; }
+
+/* ── Additional (custom) sections panel ── */
+.panel-help { margin-bottom: 10px; }

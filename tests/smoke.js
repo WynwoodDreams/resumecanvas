@@ -277,7 +277,7 @@ assert(RcParse.suggestDestination('Volunteer Experience') === 'experience', 'vol
 assert(RcParse.suggestDestination('Languages') === 'skills', 'languages should default to skills');
 assert(RcParse.suggestDestination('Awards & Honors') === 'certifications', 'awards should default to certifications');
 assert(RcParse.suggestDestination('Publications') === 'projects', 'publications should default to projects');
-assert(RcParse.suggestDestination('Hobbies') === 'skip', 'unrecognized sections should default to skip');
+assert(RcParse.suggestDestination('Hobbies') === 'custom', 'unrecognized sections should keep their own heading (custom)');
 assert(typeof RcParse.parseSkills === 'function' && typeof RcParse.parseEntryBlocks === 'function', 'RcParse must expose parseSkills + parseEntryBlocks for routing');
 assert(app.includes('data-other-idx'), 'import modal must render a destination dropdown per other-section');
 assert(app.includes('select[data-other-idx]'), 'applyImport must read the routing dropdowns');
