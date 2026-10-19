@@ -95,6 +95,44 @@ test.describe("editing", () => {
     await expect(page.locator("#preview")).not.toContainText("786-121-1112");
   });
 
+  test("a PDF resume imports through the confirm modal", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
+    // Build a real PDF with the app's own writer so the test needs no fixture.
+    const bytes = await page.evaluate(() => {
+      const d = new window.RcPdf.Doc();
+      d.setFont("Times-Bold", 14); d.text("Alan Turing", 72, 720);
+      d.setFont("Times-Roman", 11); d.text("alan@example.com | (555) 010-2020 | Manchester, NH", 72, 702);
+      d.setFont("Times-Bold", 11); d.text("SUMMARY", 72, 672);
+      d.setFont("Times-Roman", 11); d.text("Mathematician and founder of theoretical computer science.", 72, 656);
+      d.setFont("Times-Bold", 11); d.text("SKILLS", 72, 626);
+      d.setFont("Times-Roman", 11); d.text("Cryptanalysis, Logic, Morphogenesis", 72, 610);
+      return Array.from(d.build({ title: "t" }));
+    });
+    await page.locator("#import-file").setInputFiles({ name: "turing.pdf", mimeType: "application/pdf", buffer: Buffer.from(bytes) });
+    await expect(page.locator("#import-modal-bg")).toHaveClass(/show/, { timeout: 15000 });
+    await page.getByRole("button", { name: "APPLY IMPORT" }).click();
+    await expect(page.locator("#preview")).toContainText("Alan Turing");
+    await expect(page.locator("#preview")).toContainText("theoretical computer science");
+    await expect(page.locator("#preview")).toContainText("Cryptanalysis");
+  });
+
+  test("content suggestions flag weak bullets and focus the field", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.evaluate(() => {
+      state.experience = [{ title: "Analyst", date: "", location: "", company_city: "Babbage & Co", bullets: ["Responsible for the engine", "Built the first algorithm"] }];
+      render();
+    });
+    const panel = page.locator("#quality-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText(/action verb/);
+    await expect(panel).toContainText(/Missing dates/);
+    await panel.getByRole("button", { name: /action verb/ }).first().click();
+    await expect(page.locator('textarea[data-exp-bullet="0"][data-bullet-i="0"]')).toBeFocused();
+  });
+
   test("typing several characters into a certification keeps focus and text", async ({ page }) => {
     await page.goto("/");
     await dismissOnboarding(page);
