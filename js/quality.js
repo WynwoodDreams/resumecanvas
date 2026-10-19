@@ -129,13 +129,19 @@ function renderQualityPanel() {
   const panel = document.getElementById("quality-panel");
   if (!panel) return;
   const findings = computeQualityChecks(state);
-  if (!findings.length) {
+  // Optional AI polish button: only when the deployment has AI configured and
+  // the resume has real bullets to work on.
+  const aiOn = typeof aiIsEnabled === "function" && aiIsEnabled() && typeof hasUserData === "function" && hasUserData()
+    && typeof collectResumeBullets === "function" && collectResumeBullets().length > 0;
+  const aiBtn = aiOn ? `<button class="icon-btn qp-ai" type="button" id="ai-polish-btn" data-action="aiPolish">✦ POLISH BULLETS WITH AI</button>` : "";
+  if (!findings.length && !aiBtn) {
     panel.classList.add("hidden");
     panel.innerHTML = "";
     return;
   }
   const warns = findings.filter((f) => f.level === "warn").length;
-  const head = `<div class="qp-head"><span class="qp-title">${warns ? "✦ " : "✓ "}${findings.length} suggestion${findings.length === 1 ? "" : "s"}</span><button class="icon-btn qp-toggle" type="button" data-action="toggleQuality" aria-expanded="true">HIDE</button></div>`;
+  const title = findings.length ? `${warns ? "✦ " : "✓ "}${findings.length} suggestion${findings.length === 1 ? "" : "s"}` : "✓ No suggestions";
+  const head = `<div class="qp-head"><span class="qp-title">${title}</span><span class="qp-actions">${aiBtn}${findings.length ? `<button class="icon-btn qp-toggle" type="button" data-action="toggleQuality" aria-expanded="true">HIDE</button>` : ""}</span></div>`;
   const items = findings.map((f, i) =>
     `<button class="qp-item ${f.level}" type="button" data-action="qualityFocus" data-qc="${i}"${f.focus ? "" : " disabled"}>${esc(f.text)}</button>`
   ).join("");

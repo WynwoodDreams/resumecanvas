@@ -819,6 +819,10 @@ const ACTIONS = {
   applyImport: () => applyImport(),
   closeImportModal: () => closeImportModal(),
   closeImportModalBackdrop: (el, ev) => { if (ev.target === el) closeImportModal(); },
+  aiPolish: () => aiPolishBullets(),
+  closeAiModal: () => closeAiModal(),
+  closeAiModalBackdrop: (el, ev) => { if (ev.target === el) closeAiModal(); },
+  applyAiPolish: () => applyAiPolish(),
   resetState: () => resetState(),
   openLibrary: () => openLibrary(),
   closeLibrary: () => closeLibrary(),
@@ -1946,17 +1950,32 @@ async function handleImportFile(file) {
       toast("FILE WAS EMPTY");
       return;
     }
-    showImportConfirm(RcParse.parseResumeText(text), file.name);
+    showImportConfirm(await parseImportTextMaybeAi(text), file.name);
   } catch (err) {
     console.error("Import failed", err);
     toast("IMPORT FAILED — try pasting text instead");
   }
 }
 
-function parseImportFromPaste() {
+async function parseImportFromPaste() {
   const text = $("#import-paste").value;
   if (!text.trim()) { toast("PASTE SOME TEXT FIRST"); return; }
-  showImportConfirm(RcParse.parseResumeText(text), "(pasted)");
+  showImportConfirm(await parseImportTextMaybeAi(text), "(pasted)");
+}
+
+// Local heuristic parser by default; the AI parser when the deployment has
+// it configured and the user ticked the box. AI failures fall back locally.
+async function parseImportTextMaybeAi(text) {
+  if (typeof aiParseWanted === "function" && aiParseWanted()) {
+    toast("READING YOUR RESUME WITH AI…");
+    try {
+      return await aiParseResume(text);
+    } catch (err) {
+      console.error("AI parse failed, using local parser", err);
+      toast("AI READ FAILED — USING THE BUILT-IN PARSER");
+    }
+  }
+  return RcParse.parseResumeText(text);
 }
 
 async function extractDocxText(file) {
@@ -2980,6 +2999,7 @@ render();
 updatePreviewScale();
 initModalA11y();
 initOnboarding();
+if (typeof aiProbe === "function") aiProbe();
 initCameraCapabilityNote();
 
 // The intro/start screen shows on every launch — always open at the very top
