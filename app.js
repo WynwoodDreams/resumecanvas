@@ -18,6 +18,7 @@ let state = {
   },
   match: { on: false, jd: "" },
   ats_safe: false, // single-column, table-free rendering for applicant tracking systems
+  qc_no_number: [], // bullets the person said have no real number to add (suggestion dismissed)
   // Demo 4 header
   name: "Jane Doe",
   professional_title: "Business Administration Student",
@@ -860,6 +861,7 @@ const ACTIONS = {
   gsShowVoice: () => showGetStartedCard("voice"),
   showOnboarding: () => showOnboard(),
   qualityFocus: (el) => qualityFocus(el),
+  qualityDismiss: (el) => qualityDismiss(el),
   addCustomSection: () => addCustomSection(),
   removeCustomSection: (btn) => removeCustomSection(+btn.dataset.index),
   addCustomBullet: (btn) => addCustomBullet(+btn.dataset.index),
@@ -2060,6 +2062,24 @@ function docxXmlToText(xml) {
   return lines.join("\n");
 }
 
+// Lines the AI produced that add facts not in the uploaded file (see
+// holdBackUnsupported in js/ai.js). Listed unchecked; kept only if ticked.
+function flaggedImportHtml(parsed) {
+  const list = parsed._flagged || [];
+  if (!list.length) return "";
+  return `
+    <div class="import-flagged">
+      <div class="import-other-h">⚠ CHECK THESE BEFORE KEEPING</div>
+      <div class="import-other-note">These lines contain details that aren't in your file. They're left out unless you tick them, so only tick ones that are true.</div>
+      ${list.map((f, i) => `
+        <label class="ir-flag-row">
+          <input type="checkbox" data-flag-idx="${i}">
+          <span><span class="ir-flag-where">${esc(f.where)}</span> ${esc(f.text)}
+          <span class="fact-flag">${esc(RcFactCheck.describeFlags(f.flags))}</span></span>
+        </label>`).join("")}
+    </div>`;
+}
+
 function showImportConfirm(parsed, sourceName) {
   _pendingImport = parsed;
   const h = parsed.header;
@@ -2143,6 +2163,7 @@ function showImportConfirm(parsed, sourceName) {
     ${sectionRow("projects", "PROJECTS", parsed.projects.length, parsed.projects.length === 1 ? "block" : "blocks", entryHtml(parsed.projects))}
     ${sectionRow("experience", "WORK EXPERIENCE", parsed.experience.length, parsed.experience.length === 1 ? "position" : "positions", entryHtml(parsed.experience))}
     ${sectionRow("certifications", "CERTIFICATIONS", parsed.certifications.length, "items", certHtml)}
+    ${flaggedImportHtml(parsed)}
     ${otherHtml}
   `;
   $("#import-modal-bg").classList.add("show");
@@ -2165,6 +2186,15 @@ function applyImport() {
   });
 
   const p = _pendingImport;
+  // Put back any held-back AI lines the person confirmed are true.
+  $$("#import-preview input[data-flag-idx]").forEach((cb) => {
+    const f = cb.checked && p._flagged && p._flagged[+cb.dataset.flagIdx];
+    if (!f) return;
+    if (f.kind === "summary") { edited.summary = edited.summary || f.text; enabled.summary = true; }
+    else if (f.kind === "skill") { p.skills.push(f.text); enabled.skills = true; }
+    else if (f.kind === "cert") { p.certifications.push(f.text); enabled.certifications = true; }
+    else if (f.kind === "bullet" && p[f.section] && p[f.section][f.entry]) p[f.section][f.entry].bullets.push(f.text);
+  });
   // The import rewrites whole sections; earlier command undo records would
   // restore pre-import content, so drop them.
   if (typeof cmdClearHistory === "function") cmdClearHistory();

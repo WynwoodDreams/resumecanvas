@@ -553,7 +553,12 @@ function voiceMatchTerms(lower, terms) {
 }
 
 function analyzeVoiceProfile(text) {
-  const lower = ` ${String(text || "").toLowerCase()} `;
+  // Everything below describes who the person IS, so it is read from the
+  // intro with their stated goal removed: wanting a marketing internship
+  // does not make marketing their field or a skill they have.
+  const goal = extractVoiceGoal(text);
+  const full = ` ${String(text || "").toLowerCase()} `;
+  const lower = goal ? full.replace(goal.text.toLowerCase(), " ") : full;
   const traits = voiceMatchTerms(lower, VOICE_TRAITS);
   for (const [alias, canon] of Object.entries(VOICE_TRAIT_ALIASES)) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !traits.includes(canon)) traits.push(canon);
@@ -562,18 +567,45 @@ function analyzeVoiceProfile(text) {
   for (const [alias, canon] of Object.entries(VOICE_SKILL_ALIASES)) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(lower) && !skills.includes(canon)) skills.push(canon);
   }
-  // Verb-driven skills: pick up things the user *did* without naming them.
+  const dedupe = (arr) => arr.filter(t => !arr.some(o => o !== t && o.toLowerCase().includes(t.toLowerCase())));
+  // Skills the user actually named (or an alias of one) — the only skills the
+  // drafted summary may mention.
+  const stated = dedupe(skills.slice());
+  // Verb-driven skills ("I helped customers" → Customer Service) are our
+  // inference, not the user's words: offered as unselected chips only.
+  const implied = [];
   for (const v of VOICE_VERB_SKILLS) {
-    if (v.re.test(lower) && !skills.includes(v.skill)) skills.push(v.skill);
+    if (v.re.test(lower) && !stated.includes(v.skill) && !implied.includes(v.skill)) implied.push(v.skill);
   }
-  // Re-apply substring de-dupe now that aliases may have added longer canon forms.
-  const dedupedSkills = skills.filter(t =>
-    !skills.some(o => o !== t && o.toLowerCase().includes(t.toLowerCase()))
-  );
+  // No field in what they said about themselves → use their education entry.
   let field = voiceMatchTerms(lower, VOICE_FIELDS)[0] || "";
   if (!field) field = fieldFromEducation();
   const isStudent = /\bstudent\b/.test(lower) || educationLooksCurrent();
-  return { traits, skills: dedupedSkills, field, status: isStudent ? "student" : "professional" };
+  return {
+    traits, skills: stated, implied: dedupe(implied).filter(t => !stated.some(s => s.toLowerCase().includes(t.toLowerCase()))),
+    field, status: isStudent ? "student" : "professional", goal,
+  };
+}
+
+// What the person said they want, in their own words:
+//   "I'm looking for a marketing internship"  → { kind: "seek", text: "a marketing internship" }
+//   "I want to work in healthcare"            → { kind: "aim", text: "work in healthcare" }
+//   "I'm really interested in graphic design" → { kind: "interest", text: "graphic design" }
+function extractVoiceGoal(text) {
+  const t = ` ${String(text || "").replace(/\s+/g, " ")} `;
+  const patterns = [
+    ["seek", /\b(?:looking for|searching for|seeking|hoping for|hoping to (?:find|get|land)|want to (?:find|get|land)|trying to (?:find|get|land)|would like to (?:find|get)|i'd like to (?:find|get))\s+(.+)/i],
+    ["aim", /\b(?:i want to|i'd like to|i would like to|i hope to|i'm hoping to|i am hoping to|hoping to|i plan to|my goal is to|my dream is to|i'm trying to|i am trying to)\s+(.+)/i],
+    ["interest", /\b(?:interested in|passionate about|excited about)\s+(.+)/i],
+  ];
+  for (const [kind, re] of patterns) {
+    const m = t.match(re);
+    if (!m) continue;
+    let g = m[1].split(/[.!?;]|\s(?:because|since|so that|so i|and i|but|where i|which)\s/i)[0].trim();
+    g = g.split(/\s+/).slice(0, 12).join(" ").replace(/[,\s]+$/, "");
+    if (g && g.split(/\s+/).length >= 1) return { kind, text: lc(g) };
+  }
+  return null;
 }
 
 function fieldFromEducation() {
@@ -628,148 +660,87 @@ document.addEventListener("input", (ev) => {
   try { el.setSelectionRange(start, end); } catch (_err) { /* ignore */ }
 }, true);
 
-// Expand whatever signal we have (often just a sentence or two) into a full,
-// standard-form professional summary: identity → work-style / strengths →
-// goal. Varies with `variant` so it never reads identically twice, and the
-// `tone` picker swaps the phrase bank so the same facts can land formal,
-// direct, warm, or concise. We add legitimate professional framing (work
-// ethic, collaboration, eagerness to learn) but never invent hard facts —
-// employers, titles, dates, or skills.
+// Draft a summary ONLY from what the person told us: their own trait words,
+// skills they named, their field / student status (also from their education
+// entry), and the goal they stated. No stock strengths ("works well under
+// pressure", "proven track record"): if they didn't say it, the draft doesn't
+// claim it. Tones change the wording, never the facts.
 function buildVoiceCtx(a) {
   const field = a.field ? a.field.toLowerCase() : "";
   const traits = (a.traits || []).slice(0, 2).map(lc);
-  const traitStr = joinList(traits);
-  const firstTrait = traits[0] || "";
   const skills = (a.skills || []).filter(s => s.toLowerCase() !== field).slice(0, 4);
-  const skillStr = joinList(skills);
   const status = a.status || "professional";
-  const subject = field ? `${field} ${status}` : status;
-  return { field, traits, traitStr, firstTrait, skills, skillStr, status, subject };
+  return {
+    field, traits, T: joinList(traits), skills, S: joinList(skills),
+    subject: field ? `${field} ${status}` : status, goal: a.goal || null,
+  };
 }
 
+function aOrAn(phrase) { return /^[aeiou]/i.test(phrase) ? `an ${phrase}` : `a ${phrase}`; }
+
+// Each tone: opener(ctx, v) → identity phrase; skills connector; goal
+// sentences by goal kind; and a fallback when no goal was stated.
 const VOICE_TONE_PRESETS = {
   standard: {
-    format: "full",
-    opener: [
-      (c) => c.traitStr ? `${cap(c.traitStr.split(" and ")[0])}${c.traits[1] ? `, ${c.traits[1]}` : ""} ${c.subject}` : `Motivated ${c.subject}`,
-      (c) => `${cap(c.subject)}${c.traitStr ? ` known for being ${c.traitStr}` : ""}`,
-      (c) => `Dedicated ${c.subject}${c.traitStr ? ` who is ${c.traitStr}` : ""}`,
-    ],
-    middle: [
-      (c) => c.skillStr ? `with hands-on strengths in ${c.skillStr}` : `with a genuine drive to learn and contribute`,
-      (c) => c.skillStr ? `bringing practical experience with ${c.skillStr}` : `eager to take on responsibility and grow`,
-      (c) => c.skillStr ? `comfortable applying ${c.skillStr}` : `ready to add value from day one`,
-    ],
-    strength: [
-      (c) => `Known for ${c.traitStr ? `being ${c.traitStr} and consistently ` : ""}following through on commitments, with a steady focus on quality and getting things done.`,
-      (c) => `Brings ${c.firstTrait ? `a ${c.firstTrait}, ` : "a positive, "}team-oriented approach and picks up new tools and processes quickly.`,
-      (_c) => `Communicates clearly, takes initiative, and stays composed under pressure and tight deadlines.`,
-      (c) => `Balances independent work with strong collaboration, and approaches every task with ${c.traitStr ? `${c.firstTrait} energy` : "reliability and care"}.`,
-    ],
-    closer: [
-      (c) => `Seeking ${c.field ? `${c.field} ` : ""}opportunities to apply these strengths and continue growing professionally.`,
-      (_c) => `Looking to contribute to a collaborative team and deliver dependable, high-quality results.`,
-      (c) => `Eager to step into a ${c.field ? `${c.field} ` : ""}role where reliability and initiative make a real difference.`,
-    ],
+    opener: [(c) => c.T ? `${c.T} ${c.subject}` : c.subject, (c) => c.T ? `${c.subject} who is ${c.T}` : c.subject],
+    skills: ["with skills in", "who works with"],
+    goal: { seek: ["Seeking %s.", "Looking for %s."], aim: ["Hoping to %s.", "Aiming to %s."], interest: ["Interested in %s.", "Especially interested in %s."] },
+    fallback: [(c) => `Seeking ${c.field ? `${c.field} ` : "new "}opportunities.`, (c) => `Looking for ${c.field ? `${aOrAn(c.field)} ` : "a new "}role.`],
   },
   formal: {
-    format: "full",
-    opener: [
-      (c) => `${cap(c.subject)} with demonstrated capability${c.skillStr ? ` across ${c.skillStr}` : " in core professional disciplines"}`,
-      (c) => `A ${c.traitStr ? `${c.traitStr} ` : ""}${c.subject} with a record of consistent performance`,
-      (c) => `${cap(c.subject)} who upholds professional standards${c.traitStr ? ` and brings ${c.traitStr} attributes` : ""}`,
-    ],
-    middle: [
-      (c) => c.skillStr ? `supported by hands-on proficiency in ${c.skillStr}` : `supported by a methodical approach to every assignment`,
-      (_c) => `with an emphasis on accuracy, accountability, and follow-through`,
-      (_c) => `drawing on disciplined work habits and structured execution`,
-    ],
-    strength: [
-      (_c) => `Maintains rigorous attention to detail across all responsibilities and communicates progress with clarity and professionalism.`,
-      (_c) => `Approaches every assignment with diligence and a commitment to delivering high-caliber outcomes.`,
-      (_c) => `Sustains composure under pressure and consistently meets project commitments on schedule.`,
-    ],
-    closer: [
-      (c) => `Seeking a ${c.field ? `${c.field} ` : ""}position in which these capabilities can contribute meaningfully to organisational objectives.`,
-      (_c) => `Open to opportunities that require reliability, precision, and continued professional development.`,
-      (c) => `Pursuing a role within ${c.field || "a results-driven environment"} that values discipline and sustained performance.`,
-    ],
+    opener: [(c) => c.T ? `${aOrAn(c.T)} ${c.subject}` : aOrAn(c.subject), (c) => c.T ? `${c.subject}, ${c.T}` : c.subject],
+    skills: ["with skills in", "who uses"],
+    goal: { seek: ["Pursuing %s.", "Seeking %s."], aim: ["Aiming to %s.", "Seeking to %s."], interest: ["Particularly interested in %s.", "Interested in %s."] },
+    fallback: [(c) => `Seeking a position${c.field ? ` in ${c.field}` : ""}.`, (c) => `Pursuing ${c.field ? `${c.field} ` : "professional "}opportunities.`],
   },
   direct: {
-    format: "full",
-    opener: [
-      (c) => `${c.traitStr ? cap(c.firstTrait) + " " : ""}${c.subject}${c.skillStr ? ` who works with ${c.skillStr}` : ""}`,
-      (c) => `${cap(c.subject)}. ${c.skillStr ? `Builds with ${c.skillStr}` : "Picks up new tools fast"}`,
-      (c) => `${cap(c.subject)} focused on shipping`,
-    ],
-    middle: [
-      (_c) => `hits deadlines and asks the right questions`,
-      (_c) => `owns problems end-to-end and follows through`,
-      (c) => c.skillStr ? `comfortable across ${c.skillStr}` : `learns by doing and moves fast`,
-    ],
-    strength: [
-      (_c) => `Low-maintenance, decision-ready, and clear in communication.`,
-      (_c) => `Strong on follow-up. Comfortable making calls and adjusting on the fly.`,
-      (_c) => `Cuts to the point, shares progress honestly, and finishes what I start.`,
-    ],
-    closer: [
-      (c) => `Looking for a ${c.field ? `${c.field} ` : ""}role where I can add value fast.`,
-      (_c) => `Open to roles that put initiative and judgment to work.`,
-      (c) => `Want to join a ${c.field ? `${c.field} team` : "team"} that ships and learns quickly.`,
-    ],
+    opener: [(c) => c.T ? `${c.T} ${c.subject}` : c.subject, (c) => c.subject],
+    skills: ["who works with", "using"],
+    goal: { seek: ["Looking for %s.", "After %s."], aim: ["Wants to %s.", "Ready to %s."], interest: ["Into %s.", "Focused on %s."] },
+    fallback: [(c) => `Looking for ${c.field ? `${aOrAn(c.field)} ` : "a "}role.`, (c) => `Open to ${c.field ? `${c.field} ` : ""}roles.`],
   },
   warm: {
-    format: "full",
-    opener: [
-      (c) => `${cap(c.subject)} who genuinely enjoys ${c.field ? `the ${c.field} world` : "helping teams do their best work"}`,
-      (c) => `Friendly, ${c.traitStr || "reliable"} ${c.subject} happy to roll up sleeves and pitch in`,
-      (c) => `${cap(c.subject)} with a warm, ${c.traitStr || "collaborative"} approach to the work`,
-    ],
-    middle: [
-      (c) => c.skillStr ? `with a real love for ${c.skillStr}` : `with a real love for learning new things together`,
-      (c) => c.skillStr ? `bringing positive energy to ${c.skillStr}` : `bringing positive energy to every project`,
-      (_c) => `always ready to support teammates, clients, and the people around me`,
-    ],
-    strength: [
-      (_c) => `Easy to work with, patient with the messy parts, and quick to celebrate other people's wins.`,
-      (_c) => `Believes in the long game: listening first, asking thoughtful questions, and showing up consistently.`,
-      (_c) => `Builds trust through kindness, follow-through, and clear, honest communication.`,
-    ],
-    closer: [
-      (c) => `Looking for a ${c.field ? `${c.field} ` : ""}team where I can grow alongside people who care about the work.`,
-      (_c) => `Hoping to join a place that values heart as much as hustle.`,
-      (c) => `Excited to find a ${c.field ? `${c.field} team` : "team"} where good people and good work go together.`,
-    ],
+    opener: [(c) => c.T ? `${c.T} ${c.subject}` : c.subject, (c) => c.T ? `${c.subject} who is ${c.T}` : c.subject],
+    skills: ["with skills in", "who brings skills in"],
+    goal: { seek: ["Hoping to find %s.", "Excited to find %s."], aim: ["Hoping to %s.", "Excited to %s."], interest: ["Excited about %s.", "Drawn to %s."] },
+    fallback: [(c) => `Hoping to join ${c.field ? `${aOrAn(c.field)} ` : "a "}team.`, (c) => `Excited about ${c.field ? `${c.field} ` : "new "}opportunities.`],
   },
   concise: {
-    format: "compact",
-    opener: [
-      (c) => `${c.traitStr ? cap(c.firstTrait) + " " : ""}${c.subject}${c.skillStr ? ` with strengths in ${c.skillStr}` : ""}`,
-      (c) => `${cap(c.subject)}${c.skillStr ? ` skilled in ${c.skillStr}` : ""}`,
-      (c) => `${cap(c.traitStr || "Motivated")} ${c.subject}${c.skillStr ? ` (${c.skillStr})` : ""}`,
-    ],
-    closer: [
-      (c) => `Seeking ${c.field ? `${c.field} ` : ""}opportunities to contribute and grow.`,
-      (_c) => `Open to roles that put these strengths to work.`,
-      (c) => `Looking for a ${c.field ? `${c.field} role` : "team"} where I can add value quickly.`,
-    ],
+    opener: [(c) => c.T ? `${c.T} ${c.subject}` : c.subject, (c) => c.subject],
+    skills: ["skilled in", "with"],
+    goal: { seek: ["Seeking %s.", "Seeking %s."], aim: ["Aiming to %s.", "Aiming to %s."], interest: ["Interested in %s.", "Interested in %s."] },
+    fallback: [(c) => `Seeking ${c.field ? `${c.field} ` : ""}roles.`, (c) => `Seeking ${c.field ? `${c.field} ` : ""}roles.`],
   },
 };
 
 function composeVoiceSummary(a, variant, tone) {
-  const ctx = buildVoiceCtx(a);
-  const preset = VOICE_TONE_PRESETS[tone] || VOICE_TONE_PRESETS.standard;
+  const c = buildVoiceCtx(a);
+  const p = VOICE_TONE_PRESETS[tone] || VOICE_TONE_PRESETS.standard;
   const v = Math.abs(variant | 0);
-  const pick = (arr, off) => arr[(v + off) % arr.length](ctx);
-  if (preset.format === "compact") {
-    const s1 = pick(preset.opener, 0);
-    const s2 = pick(preset.closer, 2);
-    return stripEmDashes(tidy(`${cap(s1)}. ${s2}`));
-  }
-  const s1 = `${pick(preset.opener, 0)}, ${pick(preset.middle, 1)}.`;
-  const s2 = pick(preset.strength, 0);
-  const s3 = pick(preset.closer, 2);
-  return stripEmDashes(tidy(`${cap(s1)} ${cap(s2)} ${s3}`));
+  const pick = (arr, off = 0) => arr[(v + off) % arr.length];
+  let first = pick(p.opener)(c);
+  if (c.S) first += ` ${pick(p.skills, 1)} ${c.S}`;
+  const second = c.goal && p.goal[c.goal.kind]
+    ? pick(p.goal[c.goal.kind]).replace("%s", c.goal.text)
+    : pick(p.fallback)(c);
+  return stripEmDashes(tidy(`${cap(first)}. ${second}`));
+}
+
+// The source the drafted summary is checked against: what the user said plus
+// the education facts we are allowed to borrow (field, student status).
+function voiceSummarySource() {
+  const edu = (state.education || []).map(e => [e.school, e.degree, e.date].join(" ")).join(" ");
+  return `${state.voice_profile || ""} ${edu}`;
+}
+
+function renderVoiceSummaryFlags() {
+  const draft = $("#voice-summary-draft");
+  const box = $("#voice-summary-flags");
+  if (!draft || !box || typeof RcFactCheck === "undefined") return [];
+  const flags = RcFactCheck.checkClaims(draft.value, voiceSummarySource());
+  box.textContent = flags.length ? `⚠ ${RcFactCheck.describeFlags(flags)}. Make sure it's true before you apply it.` : "";
+  box.classList.toggle("hidden", !flags.length);
+  return flags;
 }
 
 let _voiceAnalysis = null;
@@ -794,6 +765,7 @@ function renderVoiceReview() {
   syncVoiceToneButtons();
   const draft = $("#voice-summary-draft");
   if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
+  renderVoiceSummaryFlags();
   // Show the current summary for comparison if one exists.
   const cur = $("#voice-current-summary");
   if (cur) {
@@ -804,9 +776,11 @@ function renderVoiceReview() {
   // Skill chips = detected hard skills + trait words; all selected by default.
   const chipBox = $("#voice-skill-chips");
   if (chipBox) {
-    const items = [...(_voiceAnalysis.skills || []), ..._voiceAnalysis.traits || []];
-    chipBox.innerHTML = items.length
-      ? items.map(s => `<button type="button" class="voice-chip selected" data-action="voiceToggleChip" role="checkbox" aria-checked="true">${esc(s)}</button>`).join("")
+    const said = [...(_voiceAnalysis.skills || []), ...(_voiceAnalysis.traits || [])];
+    const implied = _voiceAnalysis.implied || [];
+    const chip = (s, on, extra) => `<button type="button" class="voice-chip${on ? " selected" : ""}${extra ? " implied" : ""}" data-action="voiceToggleChip" data-skill="${esc(s)}" role="checkbox" aria-checked="${on}"${extra ? ` title="We inferred this from what you described. Only keep it if it's true."` : ""}>${esc(s)}${extra ? `<span class="voice-chip-tag"> · implied</span>` : ""}</button>`;
+    chipBox.innerHTML = (said.length || implied.length)
+      ? said.map(s => chip(s, true, false)).join("") + implied.map(s => chip(s, false, true)).join("")
       : `<div class="vr-empty">No clear skills detected — add them in the Skills section, or reword and try again.</div>`;
   }
 }
@@ -816,6 +790,7 @@ function voiceRegenSummary() {
   _voiceVariant += 1;
   const draft = $("#voice-summary-draft");
   if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
+  renderVoiceSummaryFlags();
 }
 
 function voiceSetTone(btn) {
@@ -826,6 +801,7 @@ function voiceSetTone(btn) {
   if (!_voiceAnalysis) return;
   const draft = $("#voice-summary-draft");
   if (draft) draft.value = composeVoiceSummary(_voiceAnalysis, _voiceVariant, _voiceTone);
+  renderVoiceSummaryFlags();
 }
 
 function syncVoiceToneButtons() {
@@ -845,6 +821,8 @@ function voiceApplySummary() {
   const draft = $("#voice-summary-draft");
   const text = draft ? stripEmDashes(draft.value.trim()) : "";
   if (!text) { toast("NOTHING TO APPLY"); return; }
+  const flags = renderVoiceSummaryFlags();
+  if (flags.length && !confirm(`${RcFactCheck.describeFlags(flags)}.\n\nOnly keep these if they're true. Apply the summary anyway?`)) return;
   state.summary = text;
   state.section_enabled.summary = true;
   renderSummary();
@@ -855,7 +833,7 @@ function voiceApplySummary() {
 }
 
 function voiceApplySkills() {
-  const chips = $$("#voice-skill-chips .voice-chip.selected").map(c => c.textContent.trim()).filter(Boolean);
+  const chips = $$("#voice-skill-chips .voice-chip.selected").map(c => (c.dataset.skill || c.textContent).trim()).filter(Boolean);
   if (!chips.length) { toast("SELECT AT LEAST ONE SKILL"); return; }
   const added = addSkillsToState(chips);
   if (!added) { toast("THOSE SKILLS ARE ALREADY LISTED"); return; }
@@ -1072,3 +1050,8 @@ function initVoiceOnce() {
   maybeAutoStartVoiceFromUrl();
 }
 
+
+// Re-check the drafted summary as the person edits it.
+document.addEventListener("input", (ev) => {
+  if (ev.target && ev.target.id === "voice-summary-draft" && typeof renderVoiceSummaryFlags === "function") renderVoiceSummaryFlags();
+});

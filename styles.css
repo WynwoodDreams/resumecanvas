@@ -1090,3 +1090,20 @@ body.ai-enabled .ai-toggle { display: flex; }
 #preview .cmd-target.cmd-flash { animation: cmd-flash 1.6s ease-out; }
 @keyframes cmd-flash { 0% { background: rgba(140,120,81,0.35); } 100% { background: transparent; outline-color: transparent; } }
 @media print { .cmd-bar { display: none !important; } #preview .cmd-target { outline: none; background: none; } }
+
+/* ── "Not in your own words" flags ── */
+.fact-flag { display: block; margin-top: 3px; font-size: 10.5px; color: #8a5a00; }
+body.theme-dark .fact-flag { color: #e0b25c; }
+.ai-row.ai-flagged .ai-after { background: rgba(224,178,92,0.14); }
+.vr-flags { margin-top: 6px; font-size: 10.5px; line-height: 1.5; color: #8a5a00; }
+.vr-flags.hidden { display: none; }
+.voice-chip.implied { border-style: dashed; }
+.voice-chip-tag { opacity: 0.65; font-weight: 400; }
+.import-flagged { margin-top: 14px; padding: 10px 12px; border: 1px dashed #c9a24e; background: rgba(224,178,92,0.08); }
+.ir-flag-row { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 6px 0; font-size: 11.5px; cursor: pointer; }
+.ir-flag-where { font-size: 9.5px; letter-spacing: 0.14em; font-weight: 700; color: var(--text-dim); margin-right: 6px; text-transform: uppercase; }
+.qp-pair { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
+.qp-pair:first-child { border-top: none; }
+.qp-pair .qp-item { border-top: none; flex: 1; }
+.qp-dismiss { flex: none; background: none; border: none; border-left: 1px solid var(--border); color: var(--text-dim); font-family: inherit; font-size: 10px; letter-spacing: 0.06em; padding: 0 12px; cursor: pointer; }
+.qp-dismiss:hover { color: var(--text); background: rgba(140,120,81,0.07); }

@@ -228,14 +228,15 @@ test.describe("editing", () => {
         } }) });
       }
       if (body.op === "polish") {
-        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ bullets: body.bullets.map((b) => ({ id: b.id, text: "Led the development of COBOL" })) }) });
+        // An honest tightening: same facts, no added scope.
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ bullets: body.bullets.map((b) => ({ id: b.id, text: "Developed COBOL" })) }) });
       }
       return route.fulfill({ status: 400, body: "{}" });
     });
     await page.goto("/");
     await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
     await expect(page.locator("#ai-parse-row")).toBeVisible();
-    await page.locator("#import-paste").fill("Grace Hopper\nanything — the mocked endpoint decides");
+    await page.locator("#import-paste").fill("Grace Hopper, Arlington VA, grace@example.com\nPioneer of compiler design. COBOL, Compilers\nRear Admiral, US Navy, 1943 to 1986\n- responsible for the development of COBOL");
     await page.getByRole("button", { name: /PARSE PASTED TEXT/ }).click();
     await expect(page.locator("#import-modal-bg")).toHaveClass(/show/);
     await page.getByRole("button", { name: "APPLY IMPORT" }).click();
@@ -243,9 +244,10 @@ test.describe("editing", () => {
     // Polish: the quality panel offers the AI button once there are bullets.
     await page.locator("#ai-polish-btn").click();
     await expect(page.locator("#ai-modal-bg")).toHaveClass(/show/);
-    await expect(page.locator("#ai-polish-list")).toContainText("Led the development of COBOL");
+    await expect(page.locator("#ai-polish-list")).toContainText("Developed COBOL");
+    await expect(page.locator("#ai-polish-list input").first()).toBeChecked();
     await page.getByRole("button", { name: "APPLY SELECTED" }).click();
-    await expect(page.locator("#preview")).toContainText("Led the development of COBOL");
+    await expect(page.locator("#preview")).toContainText("Developed COBOL");
     await expect(page.locator("#preview")).not.toContainText("Responsible for");
   });
 
@@ -459,5 +461,119 @@ test.describe("command bar", () => {
     await expect(page.locator("#preview")).toContainText("Sql", { timeout: 5000 });
     await expect(page.locator("#cmd-preview")).toBeHidden();
     await expect(page.locator("#cmd-undo")).toBeEnabled();
+  });
+});
+
+test.describe("no exaggeration", () => {
+  test("the voice summary uses only what was said, and flags added claims", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => showGetStartedCard("voice"));
+    await page.locator("#voice-transcript").fill("I'm an organized and dependable student. I use Excel and Canva every week. I'm looking for a marketing internship because I love campaigns.");
+    await page.locator("#voice-analyze-btn").click();
+    const draft = page.locator("#voice-summary-draft");
+    const text = await draft.inputValue();
+    expect(text).toContain("Excel");
+    expect(text).toContain("a marketing internship");
+    expect(text).toMatch(/organized/i);
+    // Wanting a marketing internship doesn't make them a marketing student:
+    // the field comes from their education entry (Business).
+    expect(text).not.toMatch(/marketing student/i);
+    expect(text).toMatch(/business student/i);
+    expect(text).not.toMatch(/(with|uses|using) [^.]*Marketing/); // the goal is not a skill
+    // None of the old stock claims.
+    expect(text).not.toMatch(/pressure|initiative|demonstrated|proven|day one|track record/i);
+    await expect(page.locator("#voice-summary-flags")).toBeHidden();
+    // Every tone stays within the facts.
+    for (const tone of ["formal", "direct", "warm", "concise"]) {
+      await page.locator(`.voice-tone-btn[data-tone="${tone}"]`).click();
+      await expect(page.locator("#voice-summary-flags")).toBeHidden();
+    }
+    // An edit that adds a claim is flagged live.
+    await draft.fill(text + " Increased engagement by 40%.");
+    await expect(page.locator("#voice-summary-flags")).toBeVisible();
+    await expect(page.locator("#voice-summary-flags")).toContainText("40%");
+    await expect(page.locator("#voice-summary-flags")).toContainText("increased");
+  });
+
+  test("skills we only inferred start unselected and are labelled", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => showGetStartedCard("voice"));
+    await page.locator("#voice-transcript").fill("I answered phone calls and handled cash at the front desk. I know Excel.");
+    await page.locator("#voice-analyze-btn").click();
+    await expect(page.locator('.voice-chip[data-skill="Excel"]')).toHaveClass(/selected/);
+    const implied = page.locator(".voice-chip.implied");
+    expect(await implied.count()).toBeGreaterThan(0);
+    for (const chip of await implied.all()) {
+      await expect(chip).not.toHaveClass(/selected/);
+      await expect(chip).toContainText("implied");
+    }
+  });
+
+  test("AI polish: a rewrite that adds a claim starts unchecked and is not applied", async ({ page }) => {
+    await page.route("**/api/ai", async (route) => {
+      const req = route.request();
+      if (req.method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: true }) });
+      const body = req.postDataJSON();
+      // First bullet: honest tightening. Second: invented metric.
+      const out = body.bullets.map((b, i) => ({ id: b.id, text: i === 0 ? "Rang up cash and card payments" : "Increased store sales by 25%" }));
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ bullets: out }) });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.evaluate(() => {
+      state.experience = [{ title: "Cashier", date: "2022", location: "", company_city: "", bullets: ["Was responsible for ringing up cash and card payments", "Helped with sales"] }];
+      render();
+    });
+    await page.locator("#ai-polish-btn").click();
+    const rows = page.locator("#ai-polish-list .ai-row");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).locator("input")).toBeChecked();
+    await expect(rows.nth(1).locator("input")).not.toBeChecked();
+    await expect(rows.nth(1)).toContainText("25%");
+    await page.getByRole("button", { name: "APPLY SELECTED" }).click();
+    await expect(page.locator("#preview")).toContainText("Rang up cash and card payments");
+    await expect(page.locator("#preview")).not.toContainText("25%");
+    await expect(page.locator("#preview")).toContainText("Helped with sales");
+  });
+
+  test("AI import: lines with facts not in the file are held back unless ticked", async ({ page }) => {
+    await page.route("**/api/ai", async (route) => {
+      const req = route.request();
+      if (req.method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: true }) });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ parsed: {
+        header: { name: "Grace Hopper", email: "", phone: "", linkedin: "", location: "" },
+        summary: "", skills: ["COBOL"], education: [], projects: [], certifications: [], other: [],
+        experience: [{ title: "Programmer, Navy", date: "1943", location: "", bullets: ["Wrote compilers", "Led a team of 40 engineers"] }],
+      } }) });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
+    await page.locator("#import-paste").fill("Grace Hopper\nEXPERIENCE\nProgrammer, Navy 1943\n- wrote compilers\nSKILLS\nCOBOL");
+    await page.getByRole("button", { name: /PARSE PASTED TEXT/ }).click();
+    await expect(page.locator(".import-flagged")).toContainText("Led a team of 40 engineers");
+    await expect(page.locator(".import-flagged input")).not.toBeChecked();
+    await page.getByRole("button", { name: "APPLY IMPORT" }).click();
+    await expect(page.locator("#preview")).toContainText("Wrote compilers");
+    await expect(page.locator("#preview")).not.toContainText("40 engineers");
+  });
+
+  test("the numbers suggestion asks about one bullet and can be dismissed for good", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.evaluate(() => {
+      state.experience = [{ title: "Clerk", date: "2022", location: "", company_city: "", bullets: ["Filed records", "Answered phones", "Sorted mail"] }];
+      render();
+    });
+    const panel = page.locator("#quality-panel");
+    await expect(panel).toContainText("Do you know a real number for “Filed records”");
+    await expect(panel).not.toContainText("add results");
+    await panel.getByRole("button", { name: "No number for this one" }).click();
+    await expect(panel).not.toContainText("“Filed records”");
+    await expect(panel).toContainText("“Answered phones”");
+    expect(await page.evaluate(() => state.qc_no_number)).toContain("filed records");
   });
 });

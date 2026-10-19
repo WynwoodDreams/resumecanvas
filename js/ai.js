@@ -48,7 +48,33 @@ async function aiPost(payload) {
 async function aiParseResume(text) {
   const j = await aiPost({ op: "parse", text });
   if (!j || !j.parsed || !j.parsed.header) throw new Error("AI returned no resume");
-  return j.parsed;
+  return holdBackUnsupported(j.parsed, text);
+}
+
+// The AI was told to copy the user's words, but we verify it: any line that
+// adds a number, scope word, or name the uploaded text doesn't contain is
+// pulled out of the import and listed separately, unchecked, so it only goes
+// in if the person confirms it's true.
+function holdBackUnsupported(parsed, source) {
+  if (typeof RcFactCheck === "undefined") return parsed;
+  const flagged = [];
+  const check = (text) => RcFactCheck.checkClaims(text, source);
+  const keep = (text, meta) => {
+    const flags = check(text);
+    if (!flags.length) return true;
+    flagged.push(Object.assign({ text, flags }, meta));
+    return false;
+  };
+  if (parsed.summary && !keep(parsed.summary, { kind: "summary", where: "Summary" })) parsed.summary = "";
+  parsed.skills = (parsed.skills || []).filter((s) => keep(s, { kind: "skill", where: "Skills" }));
+  parsed.certifications = (parsed.certifications || []).filter((c) => keep(c, { kind: "cert", where: "Certifications" }));
+  ["experience", "projects"].forEach((section) => {
+    (parsed[section] || []).forEach((e, entry) => {
+      e.bullets = (e.bullets || []).filter((b) => keep(b, { kind: "bullet", section, entry, where: e.title || section }));
+    });
+  });
+  parsed._flagged = flagged;
+  return parsed;
 }
 
 // Gather every non-empty bullet in the resume with a stable id and a setter.
@@ -98,15 +124,21 @@ function showAiPolishModal(changed) {
   const list = document.getElementById("ai-polish-list");
   const bg = document.getElementById("ai-modal-bg");
   if (!list || !bg) return;
-  list.innerHTML = changed.map((c, i) => `
-    <label class="ai-row">
-      <input type="checkbox" data-ai-idx="${i}" checked>
+  // Rewrites that add a claim the original bullet didn't make start
+  // unchecked, with the new words named.
+  list.innerHTML = changed.map((c, i) => {
+    const flags = typeof RcFactCheck !== "undefined" ? RcFactCheck.checkClaims(c.after, c.text) : [];
+    return `
+    <label class="ai-row${flags.length ? " ai-flagged" : ""}">
+      <input type="checkbox" data-ai-idx="${i}"${flags.length ? "" : " checked"}>
       <span class="ai-row-body">
         <span class="ai-owner">${esc(c.owner)}</span>
         <span class="ai-before">${esc(c.text)}</span>
         <span class="ai-after">${esc(c.after)}</span>
+        ${flags.length ? `<span class="fact-flag">⚠ ${esc(RcFactCheck.describeFlags(flags))}. Only keep it if it's true.</span>` : ""}
       </span>
-    </label>`).join("");
+    </label>`;
+  }).join("");
   bg.classList.add("show");
   const dlg = bg.querySelector(".modal");
   if (dlg) dlg.focus();

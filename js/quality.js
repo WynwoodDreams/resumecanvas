@@ -41,6 +41,18 @@ function qcWordCount(text) {
   return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
+function qcBulletKey(text) { return String(text || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 120); }
+function qcSnippet(text) { const t = String(text || "").trim(); return t.length > 48 ? t.slice(0, 46).trim() + "…" : t; }
+
+// "No number for this one": remember it on the resume so it isn't asked again.
+function qualityDismiss(el) {
+  const panel = document.getElementById("quality-panel");
+  const f = panel && panel._findings && panel._findings[+el.dataset.qc];
+  if (!f || !f.dismissKey) return;
+  state.qc_no_number = Array.from(new Set([...(state.qc_no_number || []), f.dismissKey]));
+  renderPreview();
+}
+
 function qcHasNumber(text) {
   return /\d|%|\$/.test(String(text || ""));
 }
@@ -94,11 +106,21 @@ function computeQualityChecks(st) {
     out.push({ level: "info", text: `Bullet is ${qcWordCount(b.text)} words — trim to one or two lines (${b.owner}).`, focus: b.sel, panel: b.panel });
   });
 
+  // Numbers make bullets concrete, but only real ones. Ask about one bullet
+  // at a time instead of demanding "add results", and let the person say
+  // there isn't a number for it — that answer is remembered per bullet.
   if (bullets.length >= 3) {
     const withNum = bullets.filter((b) => qcHasNumber(b.text)).length;
+    const dismissed = new Set(st.qc_no_number || []);
     if (withNum / bullets.length < 0.34) {
-      const first = bullets.find((b) => !qcHasNumber(b.text));
-      out.push({ level: "info", text: `Only ${withNum} of ${bullets.length} bullets include a number — add results (%, $, counts, time saved).`, focus: first ? first.sel : null, panel: first ? first.panel : "experience" });
+      const ask = bullets.find((b) => !qcHasNumber(b.text) && !dismissed.has(qcBulletKey(b.text)));
+      if (ask) {
+        out.push({
+          level: "info",
+          text: `Do you know a real number for “${qcSnippet(ask.text)}”? e.g. people served per day, items handled, hours, team size. Only if it's true.`,
+          focus: ask.sel, panel: ask.panel, dismissKey: qcBulletKey(ask.text), dismissLabel: "No number for this one",
+        });
+      }
     }
   }
 
@@ -142,9 +164,11 @@ function renderQualityPanel() {
   const warns = findings.filter((f) => f.level === "warn").length;
   const title = findings.length ? `${warns ? "✦ " : "✓ "}${findings.length} suggestion${findings.length === 1 ? "" : "s"}` : "✓ No suggestions";
   const head = `<div class="qp-head"><span class="qp-title">${title}</span><span class="qp-actions">${aiBtn}${findings.length ? `<button class="icon-btn qp-toggle" type="button" data-action="toggleQuality" aria-expanded="true">HIDE</button>` : ""}</span></div>`;
-  const items = findings.map((f, i) =>
-    `<button class="qp-item ${f.level}" type="button" data-action="qualityFocus" data-qc="${i}"${f.focus ? "" : " disabled"}>${esc(f.text)}</button>`
-  ).join("");
+  const items = findings.map((f, i) => {
+    const main = `<button class="qp-item ${f.level}" type="button" data-action="qualityFocus" data-qc="${i}"${f.focus ? "" : " disabled"}>${esc(f.text)}</button>`;
+    if (!f.dismissKey) return main;
+    return `<div class="qp-pair">${main}<button class="qp-dismiss" type="button" data-action="qualityDismiss" data-qc="${i}">${esc(f.dismissLabel)}</button></div>`;
+  }).join("");
   panel.innerHTML = head + `<div class="qp-list">${items}</div>`;
   panel.classList.remove("hidden");
   panel._findings = findings;
