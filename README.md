@@ -20,7 +20,11 @@ npm test
 
 ## Deploy
 
-Static site. Vercel auto-detects it. No configuration needed beyond the included `vercel.json`.
+Static site plus one optional serverless function. Vercel auto-detects it; the included `vercel.json` sets the headers and CSP.
+
+### Optional AI assist
+
+`api/ai.js` is a Vercel function that uses the Claude API for two things: reading a messy resume into structured fields ("Read it with AI" in the import card) and tightening bullet wording ("Polish bullets with AI" above the preview). It is off until you set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Without the key the endpoint reports `enabled: false` and the UI hides every AI control, so the app keeps working fully offline. Text is sent only when the user picks an AI action and is never stored. The function uses `claude-opus-5-5` with structured outputs so the response always matches the app's import schema.
 
 ## Export options
 

@@ -1038,3 +1038,17 @@
    strip decorative glyphs so nothing but text reaches a parser. ── */
 .preview-frame.ats .contact-line::before { content: none; }
 #ats-chip.active { border-style: solid; }
+
+/* ── Optional AI assist (Phase 4): controls appear only when /api/ai is configured ── */
+.ai-toggle { display: none; align-items: flex-start; gap: 8px; margin-top: 10px; font-size: 10.5px; color: var(--text-dim); cursor: pointer; line-height: 1.5; }
+.ai-toggle em { font-style: normal; color: var(--text-mute, var(--text-dim)); }
+body.ai-enabled .ai-toggle { display: flex; }
+.qp-actions { display: inline-flex; gap: 6px; align-items: center; }
+.qp-ai { color: var(--amber-soft); border-color: var(--amber); }
+.qp-ai:disabled { opacity: 0.6; cursor: wait; }
+.ai-row { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.ai-row:first-child { border-top: none; }
+.ai-row-body { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; line-height: 1.45; }
+.ai-owner { font-size: 9.5px; letter-spacing: 0.16em; color: var(--text-dim); font-weight: 700; }
+.ai-before { color: var(--text-dim); text-decoration: line-through; text-decoration-color: rgba(140,120,81,0.5); }
+.ai-after { color: var(--text); }

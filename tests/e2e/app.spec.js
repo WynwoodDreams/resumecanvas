@@ -206,6 +206,49 @@ test.describe("editing", () => {
     await expect(page.locator("#preview")).toContainText("Ada Lovelace");
   });
 
+  test("AI controls stay hidden when /api/ai is not configured", async ({ page }) => {
+    await page.route("**/api/ai", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: false }) }));
+    await page.goto("/");
+    await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
+    await expect(page.locator("#ai-parse-row")).toBeHidden();
+    await expect(page.locator("#ai-polish-btn")).toHaveCount(0);
+  });
+
+  test("with AI configured, import reads through the endpoint and polish applies bullets", async ({ page }) => {
+    await page.route("**/api/ai", async (route) => {
+      const req = route.request();
+      if (req.method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: true }) });
+      const body = req.postDataJSON();
+      if (body.op === "parse") {
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ parsed: {
+          header: { name: "Grace Hopper", email: "grace@example.com", phone: "", linkedin: "", location: "Arlington, VA" },
+          summary: "Pioneer of compiler design.", skills: ["COBOL", "Compilers"],
+          education: [], projects: [], certifications: [], other: [],
+          experience: [{ title: "Rear Admiral, US Navy", date: "1943 – 1986", location: "", bullets: ["Responsible for the development of COBOL"] }],
+        } }) });
+      }
+      if (body.op === "polish") {
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ bullets: body.bullets.map((b) => ({ id: b.id, text: "Led the development of COBOL" })) }) });
+      }
+      return route.fulfill({ status: 400, body: "{}" });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
+    await expect(page.locator("#ai-parse-row")).toBeVisible();
+    await page.locator("#import-paste").fill("Grace Hopper\nanything — the mocked endpoint decides");
+    await page.getByRole("button", { name: /PARSE PASTED TEXT/ }).click();
+    await expect(page.locator("#import-modal-bg")).toHaveClass(/show/);
+    await page.getByRole("button", { name: "APPLY IMPORT" }).click();
+    await expect(page.locator("#preview")).toContainText("Rear Admiral, US Navy");
+    // Polish: the quality panel offers the AI button once there are bullets.
+    await page.locator("#ai-polish-btn").click();
+    await expect(page.locator("#ai-modal-bg")).toHaveClass(/show/);
+    await expect(page.locator("#ai-polish-list")).toContainText("Led the development of COBOL");
+    await page.getByRole("button", { name: "APPLY SELECTED" }).click();
+    await expect(page.locator("#preview")).toContainText("Led the development of COBOL");
+    await expect(page.locator("#preview")).not.toContainText("Responsible for");
+  });
+
   test("typing several characters into a certification keeps focus and text", async ({ page }) => {
     await page.goto("/");
     await dismissOnboarding(page);
