@@ -121,7 +121,7 @@ function buildResumePdfBytes() {
   const xLeft = doc.marginL;
   const xRight = doc.pageW - doc.marginR;
 
-  if (cfg.layout === "sidebar") {
+  if (usesSidebarLayout(tpl)) {
     pdfBuildSidebar(doc, cfg, BODY_PT, SECTION_PT, contentW, xLeft, xRight);
     return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
   }
@@ -134,7 +134,7 @@ function buildResumePdfBytes() {
   doc.advance(NAME_PT * 0.55);
 
   doc.setFont("Times-Roman", CONTACT_PT);
-  if (tpl === "demo_4") {
+  if (cfg.header === "structured") {
     const extraLinks = (state.links || []).filter(Boolean).join(" | ");
     const parts = [state.location, state.phone, state.email, state.linkedin, extraLinks].filter(Boolean);
     pdfWrapCentered(doc, parts.join("  |  "), contentW);

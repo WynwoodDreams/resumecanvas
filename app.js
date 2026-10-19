@@ -17,6 +17,7 @@ let state = {
     demo_8: ["skills", "education", "projects", "experience"],
   },
   match: { on: false, jd: "" },
+  ats_safe: false, // single-column, table-free rendering for applicant tracking systems
   // Demo 4 header
   name: "Jane Doe",
   professional_title: "Business Administration Student",
@@ -328,6 +329,9 @@ const FONT_FAMILIES = {
 function fontFamilyKey() { return FONT_FAMILIES[state.font_family] ? state.font_family : "times"; }
 
 function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
+// The sidebar layout is the only non-linear one; ATS-safe mode renders every
+// template as a single column instead.
+function usesSidebarLayout(tpl) { return tcfg(tpl).layout === "sidebar" && !state.ats_safe; }
 function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
 
 // ─────────────────────────────────────────────────────────
@@ -851,6 +855,9 @@ const ACTIONS = {
   removeCustomBullet: (btn) => removeCustomBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
   pickTemplate: (btn) => pickTemplate(btn.dataset.tpl),
   fitOnePage: () => fitOnePage(),
+  toggleAts: () => { state.ats_safe = !state.ats_safe; syncTemplateUI(); renderPreview(); toast(state.ats_safe ? "ATS-SAFE LAYOUT ON — SINGLE COLUMN, NO TABLES" : "ATS-SAFE LAYOUT OFF"); },
+  downloadDocx: () => downloadDocx(),
+  copyPlainText: () => copyPlainText(),
   toggleQuality: (el) => toggleQualityPanel(el),
 };
 
@@ -988,9 +995,9 @@ function previewHtmlForTemplate(tpl) {
   const saved = state.template;
   state.template = tpl;
   try {
-    if (tcfg(tpl).layout === "sidebar") return renderSidebarPreviewHtml();
+    if (usesSidebarLayout(tpl)) return renderSidebarPreviewHtml();
     let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-    if (tpl === "demo_4") {
+    if (tcfg(tpl).header === "structured") {
       const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin)].filter(Boolean);
       html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
     } else {
@@ -1332,11 +1339,11 @@ function renderPreview() {
   const tpl = state.template;
   const f = $("#preview");
   let html;
-  if (tcfg(tpl).layout === "sidebar") {
+  if (usesSidebarLayout(tpl)) {
     html = renderSidebarPreviewHtml();
   } else {
     html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-    if (tpl === "demo_4") {
+    if (tcfg(tpl).header === "structured") {
       const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
       const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
       html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
@@ -1363,7 +1370,7 @@ function renderPreview() {
   state._appliedFontPt = fontPt;
 
   // Render content into a single frame, then paginate by measuring children.
-  const frameClass = `preview-frame ${tpl} font-${fontPt} family-${fontFamilyKey()}`;
+  const frameClass = `preview-frame ${tpl} font-${fontPt} family-${fontFamilyKey()}${state.ats_safe ? " ats" : ""}`;
   f.innerHTML = `<div class="${frameClass}">${html}</div>`;
   const pageCount = paginatePreview(frameClass);
   state._lastPageCount = pageCount;
@@ -1516,6 +1523,8 @@ function syncTemplateUI() {
   // Reflect the active typeface + size chips.
   const fam = fontFamilyKey();
   $$("[data-family]").forEach(c => c.classList.toggle("active", c.dataset.family === fam));
+  const ats = $("#ats-chip");
+  if (ats) { ats.classList.toggle("active", !!state.ats_safe); ats.setAttribute("aria-pressed", state.ats_safe ? "true" : "false"); }
   $$("[data-font]").forEach(c => {
     const isActive = c.dataset.font === "default"
       ? state.font_pt == null
@@ -1642,6 +1651,13 @@ function initOnboarding() {
   // render as an unstyled block of buttons on top of the page.
   if (getComputedStyle(bg).position !== "fixed") return;
   bg.hidden = false;
+  // A draft with real data was restored from the last session: go straight
+  // to it instead of asking how to start. START SCREEN reopens the chooser.
+  if (typeof _restoredDraft !== "undefined" && _restoredDraft) {
+    bg.classList.add("dismissed");
+    toast("WELCOME BACK — YOUR DRAFT WAS RESTORED");
+    return;
+  }
   // The ?voice=1 deep link already auto-opens the voice flow — don't stack
   // the chooser on top of it.
   try {

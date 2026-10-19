@@ -1033,3 +1033,8 @@
 
 /* ── Additional (custom) sections panel ── */
 .panel-help { margin-bottom: 10px; }
+
+/* ── ATS-safe mode (Phase 3): single column is enforced in JS; here we just
+   strip decorative glyphs so nothing but text reaches a parser. ── */
+.preview-frame.ats .contact-line::before { content: none; }
+#ats-chip.active { border-style: solid; }

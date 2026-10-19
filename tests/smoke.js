@@ -13,7 +13,7 @@ const assert = (condition, message) => {
 const html = read('index.html');
 // The app ships as classic scripts sharing one global scope: app.js plus the
 // js/ modules. Assertions on "the app" apply to the combined source.
-const APP_FILES = ['js/library.js', 'js/pagination.js', 'js/export.js', 'js/voice.js', 'js/import-pdf.js', 'js/quality.js', 'app.js'];
+const APP_FILES = ['js/library.js', 'js/pagination.js', 'js/export.js', 'js/voice.js', 'js/import-pdf.js', 'js/quality.js', 'js/docx.js', 'app.js'];
 const app = APP_FILES.map(read).join('\n');
 for (const file of APP_FILES) {
   assert(html.includes(`<script src="./${file}" defer></script>`), `index.html must load deferred ${file}`);
@@ -37,14 +37,18 @@ const cspHeader = vercel.headers?.[0]?.headers?.find((header) => header.key === 
 assert(cspHeader, 'vercel.json must define a Content-Security-Policy header');
 assert(!cspHeader.value.includes("'unsafe-inline'"), 'CSP must not allow unsafe-inline');
 assert(cspHeader.value.includes("script-src 'self'"), 'CSP must restrict scripts to self');
-assert(cspHeader.value.includes("style-src 'self' https://fonts.googleapis.com"), 'CSP must allow local CSS and Google Fonts CSS only');
+assert(cspHeader.value.includes("style-src 'self';"), 'CSP must allow local CSS only (fonts are self-hosted)');
+assert(!/fonts\.googleapis|fonts\.gstatic/.test(html), 'index.html must not load third-party fonts');
+assert(fs.existsSync(path.join(root, 'vendor/fonts/fonts.css')), 'self-hosted fonts.css must exist');
 assert(css.includes('.hidden'), 'styles.css must include reusable hidden class');
 assert(css.includes('.preview-frame.font-10'), 'styles.css must include preview font sizing classes');
 
-assert(html.includes('data-action="downloadDoc"'), 'toolbar must include a DOC download action');
+assert(html.includes('data-action="downloadDocx"'), 'toolbar must include a Word (.docx) download action');
+assert(html.includes('data-action="copyPlainText"'), 'toolbar must include a copy-as-text action');
+assert(html.includes('data-action="toggleAts"'), 'toolbar must include the ATS-safe toggle');
 assert(html.includes('data-action="printPDF"'), 'toolbar must include a PDF/print action');
-assert(app.includes('function downloadDoc()'), 'app.js must implement DOC downloads');
-assert(app.includes('application/msword'), 'DOC export must use a Word-compatible MIME type');
+assert(app.includes('function downloadDocx()') && app.includes('function buildZipStored('), 'app must implement real .docx export');
+assert(app.includes('wordprocessingml.document'), 'DOCX export must use the OOXML MIME type');
 assert(app.includes('window.print()'), 'PDF export must open the browser print/save-PDF flow');
 assert(css.includes('.preview-toolbar'), 'styles.css must include visible toolbar styling');
 assert(css.includes('@media print'), 'styles.css must include print/PDF styles');

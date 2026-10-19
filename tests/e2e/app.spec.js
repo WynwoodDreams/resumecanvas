@@ -170,6 +170,42 @@ test.describe("editing", () => {
     expect(r.preview).toBe(r.pdf);
   });
 
+  test("WORD export downloads a valid .docx and COPY TEXT yields plain text", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const dl = page.waitForEvent("download");
+    await page.getByRole("button", { name: "WORD (.DOCX)" }).click();
+    const download = await dl;
+    expect(download.suggestedFilename()).toMatch(/\.docx$/);
+    const buf = require("fs").readFileSync(await download.path());
+    expect(buf.subarray(0, 2).toString()).toBe("PK"); // zip signature
+    const text = await page.evaluate(() => buildPlainText());
+    expect(text).toContain("Jane Doe");
+    expect(text).toMatch(/\n-{4,}\n/); // section rule
+  });
+
+  test("ATS SAFE renders the sidebar template as a single column", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#tpl-dropdown").selectOption("demo_6");
+    await expect(page.locator("#preview .sidebar-grid")).toHaveCount(1);
+    await page.locator("#ats-chip").click();
+    await expect(page.locator("#preview .sidebar-grid")).toHaveCount(0);
+    await expect(page.locator("#ats-chip")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#preview")).toContainText("Jane Doe");
+  });
+
+  test("a draft with real data survives a reload and skips the chooser", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.waitForTimeout(500); // debounced persist
+    await page.reload();
+    await expect(page.locator("#onboard-bg")).toBeHidden();
+    await expect(page.locator('[data-bind="name"]')).toHaveValue("Ada Lovelace");
+    await expect(page.locator("#preview")).toContainText("Ada Lovelace");
+  });
+
   test("typing several characters into a certification keeps focus and text", async ({ page }) => {
     await page.goto("/");
     await dismissOnboarding(page);

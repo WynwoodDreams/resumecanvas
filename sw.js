@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v23-2026-10-19-phase2-templates";
+const CACHE_VERSION = "rc-v24-2026-10-19-phase3-export";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -15,6 +15,17 @@ const SHELL_URLS = [
   "./js/voice.js",
   "./js/import-pdf.js",
   "./js/quality.js",
+  "./js/docx.js",
+  "./vendor/fonts/fonts.css",
+  "./vendor/fonts/JetBrainsMono-300.woff2",
+  "./vendor/fonts/JetBrainsMono-400.woff2",
+  "./vendor/fonts/JetBrainsMono-500.woff2",
+  "./vendor/fonts/JetBrainsMono-600.woff2",
+  "./vendor/fonts/JetBrainsMono-700.woff2",
+  "./vendor/fonts/JetBrainsMono-800.woff2",
+  "./vendor/fonts/Newsreader-400.woff2",
+  "./vendor/fonts/Newsreader-400i.woff2",
+  "./vendor/fonts/Newsreader-600.woff2",
   "./vendor/pdf-writer.js",
   "./vendor/qr.js",
   "./vendor/resume-parse.js",

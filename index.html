@@ -14,9 +14,7 @@
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <link rel="apple-touch-icon" href="./apple-touch-icon.svg">
 <title>ResumeCanvas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./vendor/fonts/fonts.css">
 <link rel="stylesheet" href="./styles.css">
 
 </head>
@@ -342,6 +340,7 @@
           <span class="match-cta-icon" aria-hidden="true">▶</span>
           <span class="match-cta-text" id="match-chip-text">MATCH JOB DESCRIPTION</span>
         </button>
+        <button class="toolbar-chip" data-action="toggleAts" id="ats-chip" aria-pressed="false" title="Single column, no tables or icons — safest for applicant tracking systems">ATS SAFE</button>
       </div>
       <div class="toolbar-group hide-in-match" id="font-family-chips">
         <span class="toolbar-label" title="Applies to the whole resume">TYPEFACE</span>
@@ -361,9 +360,9 @@
         <span class="toolbar-label">EXPORT</span>
         <button class="toolbar-chip primary" data-action="downloadPdf">DOWNLOAD PDF</button>
         <button class="toolbar-chip" data-action="openShareModal">↗ SHARE</button>
-        <button class="toolbar-chip" data-action="downloadDoc">.DOC</button>
+        <button class="toolbar-chip" data-action="downloadDocx">WORD (.DOCX)</button>
+        <button class="toolbar-chip" data-action="copyPlainText" title="Copy as plain text for online application forms">COPY TEXT</button>
         <button class="toolbar-chip" data-action="printPDF">PRINT</button>
-        <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
       </div>
     </div>
 
@@ -531,6 +530,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
 <script src="./js/voice.js" defer></script>
 <script src="./js/import-pdf.js" defer></script>
 <script src="./js/quality.js" defer></script>
+<script src="./js/docx.js" defer></script>
 <script src="./app.js" defer></script>
 
 
