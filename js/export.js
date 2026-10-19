@@ -209,6 +209,10 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
   const sideX = xLeft;
   const mainX = xLeft + sideW + colGap;
   const topY = doc._cur.y;
+  // Both columns start on this page. wrap()/bullet() may open new pages while
+  // laying out a column (replacing doc._cur), so remember the page object to
+  // rewind to before the main column and to draw the divider on.
+  const startPage = doc._cur;
 
   // ── Side column: contact, education, key skills ──
   doc._cur.y = topY;
@@ -219,8 +223,9 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
     doc.wrap(line, sideX, doc._cur.y, sideW);
   });
 
-  const eduItems = (state.education || []).filter(e => e.school || e.degree);
-  if (eduItems.length) {
+  const renderSideEducation = () => {
+    const eduItems = (state.education || []).filter(e => e.school || e.degree);
+    if (!eduItems.length) return;
     pdfColHeader(doc, cfg.labels.education, sectionPt, sideX, sideW);
     doc.setFont("Times-Roman", bodyPt);
     eduItems.forEach((e, i) => {
@@ -229,19 +234,39 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
       const full = head + (e.degree ? ` — ${e.degree}` : "");
       doc.wrap(full, sideX, doc._cur.y, sideW);
     });
-  }
-
-  const skillItems = [];
-  (state.skills_two_column || []).forEach(r => { if (r.left) skillItems.push(r.left); if (r.right) skillItems.push(r.right); });
-  if (skillItems.length) {
+  };
+  const renderSideSkills = () => {
+    const skillItems = [];
+    (state.skills_two_column || []).forEach(r => { if (r.left) skillItems.push(r.left); if (r.right) skillItems.push(r.right); });
+    if (!skillItems.length) return;
     pdfColHeader(doc, cfg.labels.skills, sectionPt, sideX, sideW);
     doc.setFont("Times-Roman", bodyPt);
     skillItems.forEach(s => doc.bullet(s, sideX, sideW));
-  }
+  };
+  // Same order as the on-screen preview (user's ▲/▼ choice).
+  const sideOrder = (typeof sidebarSideOrder === "function") ? sidebarSideOrder(state.template) : ["education", "skills"];
+  for (const sec of sideOrder) (sec === "education" ? renderSideEducation : renderSideSkills)();
+  const sideEndPage = doc._cur;
   const sideEndY = doc._cur.y;
 
   // ── Main column: about me, career highlights ──
+  // Rewind to the first page: if the side column spilled onto a new page, the
+  // main column must still start beside it, not below it on page 2.
+  doc._cur = startPage;
   doc._cur.y = topY;
+  // While laying out the main column, an overflow continues onto a page the
+  // side column already opened (the columns never overlap horizontally)
+  // instead of appending yet another page.
+  const origNewPage = doc._newPage;
+  doc._newPage = function () {
+    const idx = this.pages.indexOf(this._cur);
+    if (idx >= 0 && idx + 1 < this.pages.length) {
+      this._cur = this.pages[idx + 1];
+      this._cur.y = this.pageH - this.marginT;
+      return this._cur;
+    }
+    return origNewPage.call(this);
+  };
   if (state.section_enabled.summary !== false && (state.summary || "").trim()) {
     pdfColHeader(doc, cfg.labels.summary, sectionPt, mainX, mainW);
     doc.setFont("Times-Roman", bodyPt);
@@ -268,12 +293,21 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
       (e.bullets || []).filter(Boolean).forEach(b => doc.bullet(b, mainX, mainW));
     });
   }
+  const mainEndPage = doc._cur;
   const mainEndY = doc._cur.y;
+  doc._newPage = origNewPage;
+  // Leave the cursor on the last page that has content so anything drawn
+  // afterwards lands after both columns.
+  doc._cur = doc.pages[Math.max(doc.pages.indexOf(sideEndPage), doc.pages.indexOf(mainEndPage))];
 
   // ── Vertical divider between the two columns ──
+  // Drawn on the first page, from the top of the columns down to where the
+  // shorter column ends on that page (or the bottom margin if it continues).
   const divX = xLeft + sideW + colGap / 2;
-  const botY = Math.min(sideEndY, mainEndY);
-  if (botY < topY) doc._cur.ops.push(`q 0.5 w ${divX} ${topY} m ${divX} ${botY} l S Q`);
+  const sideBot = sideEndPage === startPage ? sideEndY : doc.marginB;
+  const mainBot = mainEndPage === startPage ? mainEndY : doc.marginB;
+  const botY = Math.min(sideBot, mainBot);
+  if (botY < topY) startPage.ops.push(`q 0.5 w ${divX} ${topY} m ${divX} ${botY} l S Q`);
 }
 
 function global_RcPdf() {
@@ -451,27 +485,31 @@ function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
   }
 }
 
-function truncateToWidth(doc, str, width) {
-  if (!str) return "";
-  if (global_RcPdf().measure(doc.font, doc.size, str) <= width) return str;
-  // Walk words until adding the next would overflow.
-  const words = str.split(/\s+/);
+// Fit as many whole words of `str` as `width` allows. Returns the fitted line
+// and the untouched remainder, both rebuilt from the same word list so
+// irregular whitespace in the source (double spaces, pasted newlines) can't
+// desync the two and reprint a word fragment on the continuation line.
+function fitWords(doc, str, width) {
+  if (!str) return { line: "", rest: "" };
+  const words = str.trim().split(/\s+/);
+  const measure = (s) => global_RcPdf().measure(doc.font, doc.size, s);
   let line = "";
+  let used = 0;
   for (let i = 0; i < words.length; i++) {
     const next = line ? line + " " + words[i] : words[i];
-    if (global_RcPdf().measure(doc.font, doc.size, next) > width) break;
+    if (line && measure(next) > width) break;
     line = next;
+    used = i + 1;
   }
-  return line;
+  return { line, rest: words.slice(used).join(" ") };
+}
+
+function truncateToWidth(doc, str, width) {
+  return fitWords(doc, str, width).line;
 }
 
 function remainderAfterFit(doc, str, width) {
-  const head = truncateToWidth(doc, str, width);
-  if (head === str) return "";
-  // Slice off the leading text + the joining whitespace.
-  let rest = str.slice(head.length);
-  while (rest.length && /\s/.test(rest[0])) rest = rest.slice(1);
-  return rest;
+  return fitWords(doc, str, width).rest;
 }
 
 function pdfRenderCerts(doc, bodyPt, sectionPt, tpl, contentW, xLeft) {

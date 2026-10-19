@@ -10,6 +10,7 @@
 
 let _recognition = null;
 let _recordingTarget = null;
+let _pendingDictationTarget = null; // field to start once the engine's onend fires
 let _baseValue = "";
 // Snapshot of _baseValue from before the last appended chunk so "scratch that"
 // can undo the most recent thing the user dictated.
@@ -65,6 +66,13 @@ function ensureRecognition() {
   r.onend = () => {
     // If we ended without an explicit stop, surface the change anyway.
     if (_recordingTarget) finalizeDictation();
+    // A mic tap on another field while this one was live is parked here,
+    // because start() throws until the engine has fully stopped.
+    if (_pendingDictationTarget) {
+      const next = _pendingDictationTarget;
+      _pendingDictationTarget = null;
+      startDictation(next);
+    }
   };
   _recognition = r;
   return r;
@@ -249,7 +257,22 @@ function startDictation(targetId) {
     toast("VOICE INPUT NOT SUPPORTED ON THIS BROWSER");
     return;
   }
-  if (_recordingTarget) stopDictation();
+  if (_recordingTarget) {
+    // Switching fields mid-dictation: recognition.stop() is asynchronous and
+    // start() throws InvalidStateError until onend fires. Park the new target
+    // and let onend start it, instead of racing (which left the mic live with
+    // no target, or threw out of a timer).
+    _pendingDictationTarget = targetId;
+    stopDictation();
+    // Safety net in case onend never arrives (engine already dead).
+    setTimeout(() => {
+      if (_pendingDictationTarget === targetId && !_recordingTarget) {
+        _pendingDictationTarget = null;
+        startDictation(targetId);
+      }
+    }, 600);
+    return;
+  }
   const r = ensureRecognition();
   if (!r) return;
   const field = findMicField(targetId);
@@ -261,7 +284,12 @@ function startDictation(targetId) {
     r.start();
   } catch (_err) {
     // start() while already started throws InvalidStateError — best-effort restart.
-    try { r.stop(); setTimeout(() => r.start(), 50); } catch (_e) { /* give up */ }
+    try {
+      r.stop();
+      setTimeout(() => {
+        try { r.start(); } catch (_e2) { if (_recordingTarget === targetId) finalizeDictation(); }
+      }, 50);
+    } catch (_e) { /* give up */ }
   }
   const btn = findMicButton(targetId);
   if (btn) { btn.classList.add("recording"); btn.setAttribute("aria-pressed", "true"); }
@@ -945,9 +973,11 @@ function collectMeterBars() {
   return Array.from(document.querySelectorAll("#voice-meter-card .vm-bar"));
 }
 
+let _meterGen = 0; // bumped by stopLevelMeter so an in-flight start() knows it is stale
 async function startLevelMeter() {
   if (_meterStream) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  const gen = ++_meterGen;
   // Don't trigger an extra permission prompt — only run if mic is already granted.
   try {
     if (navigator.permissions && navigator.permissions.query) {
@@ -955,10 +985,17 @@ async function startLevelMeter() {
       if (p && p.state !== "granted") return;
     }
   } catch (_e) { /* permissions API may not support "microphone" — fall through */ }
+  if (gen !== _meterGen) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (gen !== _meterGen) {
+      // Dictation stopped while the mic was being opened — release it instead
+      // of leaving the tab's recording indicator on.
+      try { stream.getTracks().forEach((t) => t.stop()); } catch (_e) { /* ignore */ }
+      return;
+    }
     _meterStream = stream;
     _meterAudioCtx = new Ctx();
     const src = _meterAudioCtx.createMediaStreamSource(stream);
@@ -1012,6 +1049,7 @@ function paintMeter(bars, levels) {
 }
 
 function stopLevelMeter() {
+  _meterGen++;
   if (_meterRaf) { cancelAnimationFrame(_meterRaf); _meterRaf = null; }
   if (_meterStream) {
     try { _meterStream.getTracks().forEach((t) => t.stop()); } catch (_e) { /* ignore */ }
