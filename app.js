@@ -799,6 +799,8 @@ const ACTIONS = {
   gsShowImport: () => showGetStartedCard("intake"),
   gsShowVoice: () => showGetStartedCard("voice"),
   showOnboarding: () => showOnboard(),
+  qualityFocus: (el) => qualityFocus(el),
+  toggleQuality: (el) => toggleQualityPanel(el),
 };
 
 document.addEventListener("click", (ev) => {
@@ -1219,6 +1221,7 @@ function renderPreview() {
 
   $("#overflow-banner").className = "overflow-banner";
   $("#overflow-banner").innerHTML = "";
+  if (typeof renderQualityPanel === "function") renderQualityPanel();
 
   mirrorPreviewToFinal();
   updateFinalActionState();
@@ -1736,7 +1739,18 @@ let _pendingImport = null;
 async function handleImportFile(file) {
   try {
     let text;
-    if (/\.docx$/i.test(file.name)) {
+    if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+      toast("READING PDF…");
+      try {
+        text = await extractPdfText(file);
+      } catch (err) {
+        if (err && err.message === "PDF_NO_TEXT") {
+          toast("THIS PDF HAS NO TEXT LAYER — scan it with the camera or paste text");
+          return;
+        }
+        throw err;
+      }
+    } else if (/\.docx$/i.test(file.name)) {
       text = await extractDocxText(file);
     } else if (/\.txt$/i.test(file.name) || /^text\//.test(file.type) || !file.type) {
       text = await file.text();

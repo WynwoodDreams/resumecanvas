@@ -13,7 +13,7 @@ const assert = (condition, message) => {
 const html = read('index.html');
 // The app ships as classic scripts sharing one global scope: app.js plus the
 // js/ modules. Assertions on "the app" apply to the combined source.
-const APP_FILES = ['js/library.js', 'js/pagination.js', 'js/export.js', 'js/voice.js', 'app.js'];
+const APP_FILES = ['js/library.js', 'js/pagination.js', 'js/export.js', 'js/voice.js', 'js/import-pdf.js', 'js/quality.js', 'app.js'];
 const app = APP_FILES.map(read).join('\n');
 for (const file of APP_FILES) {
   assert(html.includes(`<script src="./${file}" defer></script>`), `index.html must load deferred ${file}`);
