@@ -188,18 +188,36 @@ function seedLibrary() {
   return { drafts: [{ id, name: "Sample Resume", createdAt: now, updatedAt: now, state: seed }], saved: [], activeId: id };
 }
 
+// True when the last session's library was brought back on this launch.
+let _restoredDraft = false;
+
+// Does a persisted resume carry real user content (not an untouched sample)?
+function resumeHasUserData(r) {
+  const n = r && r.state && typeof r.state.name === "string" ? r.state.name.trim() : "";
+  return n !== "" && n.toLowerCase() !== "jane doe";
+}
+
 function restoreState() {
-  // Meeting-room workflow: every launch starts fresh from the original demo
-  // sample, so the six layouts always present the John/Jane Doe placeholder
-  // content. Anything imported or typed during a session overwrites the visible
-  // resume — exactly what you want while building a student's resume to export —
-  // but is intentionally NOT carried across launches. Reopening the app always
-  // returns to a clean set of demos. To keep a finished resume, export it
-  // (PDF / DOC / print); in-app library entries are session-only by design.
-  //
-  // (loadLibrary / migrateLegacyLibrary / migrateLegacyState remain available
-  // for the in-session multi-resume library, but are no longer used to seed the
-  // baseline — the baseline is always the demos.)
+  // Bring back the library from the previous launch when it holds real work;
+  // otherwise start from the sample. Closing the tab must not lose a resume
+  // someone spent twenty minutes on. The library is still local-only: it
+  // lives in this browser's localStorage and nowhere else.
+  const lib = loadLibrary() || migrateLegacyLibrary();
+  const valid = (r) => r && typeof r === "object" && typeof r.id === "string" && typeof r.name === "string" && r.state && typeof r.state === "object";
+  if (lib) {
+    const drafts = (lib.drafts || []).filter(valid);
+    const saved = (lib.saved || []).filter(valid);
+    const all = drafts.concat(saved);
+    if (all.some(resumeHasUserData)) {
+      let active = all.find((r) => r.id === lib.activeId);
+      if (!active || !resumeHasUserData(active)) active = all.find(resumeHasUserData);
+      _library = { drafts, saved, activeId: active.id };
+      replaceStateWith(active.state);
+      _restoredDraft = true;
+      writeLibrary();
+      return;
+    }
+  }
   replaceStateWith(JSON.parse(_DEFAULT_STATE_JSON));
   _library = seedLibrary();
   writeLibrary();

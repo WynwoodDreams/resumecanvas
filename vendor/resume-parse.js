@@ -50,7 +50,8 @@
     if (/(language|tool|technolog|proficienc|competenc|software|framework)/.test(t)) return "skills";
     if (/(award|honou?r|achievement|accomplishment|recognition|scholarship)/.test(t)) return "certifications";
     if (/(publication|research|presentation|patent|portfolio|project)/.test(t)) return "projects";
-    return "skip";
+    // Anything else keeps its own heading rather than being dropped.
+    return "custom";
   }
 
   // Recognize an "inline" section heading where the label and its content share

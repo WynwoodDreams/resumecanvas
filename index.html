@@ -14,9 +14,7 @@
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <link rel="apple-touch-icon" href="./apple-touch-icon.svg">
 <title>ResumeCanvas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./vendor/fonts/fonts.css">
 <link rel="stylesheet" href="./styles.css">
 
 </head>
@@ -108,11 +106,12 @@
     <!-- Template selector -->
     <div class="tpl-select">
       <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT</label>
+      <div class="tpl-gallery" id="tpl-gallery" role="radiogroup" aria-label="Template thumbnails"></div>
       <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
-        <option value="demo_5">Demo 1</option>
-        <option value="demo_2">Demo 2</option>
-        <option value="demo_4">Demo 3</option>
-        <option value="demo_6">Demo 4</option>
+        <option value="demo_5">Classic</option>
+        <option value="demo_2">Compact</option>
+        <option value="demo_4">Student</option>
+        <option value="demo_6">Sidebar</option>
       </select>
       <div class="tpl-desc" id="tpl-desc"></div>
     </div>
@@ -312,6 +311,20 @@
       </div>
     </div>
 
+    <div class="panel" data-section="custom">
+      <header>
+        <h2>ADDITIONAL SECTIONS</h2>
+        <div class="header-controls">
+          <span class="caret">▶</span>
+        </div>
+      </header>
+      <div class="body">
+        <div class="help panel-help">Volunteer work, awards, languages, publications, affiliations — anything that doesn't fit above. Each gets its own heading after the main sections.</div>
+        <div id="custom-list"></div>
+        <button class="add-btn" data-action="addCustomSection">+ ADD SECTION</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- RIGHT: PREVIEW -->
@@ -327,6 +340,7 @@
           <span class="match-cta-icon" aria-hidden="true">▶</span>
           <span class="match-cta-text" id="match-chip-text">MATCH JOB DESCRIPTION</span>
         </button>
+        <button class="toolbar-chip" data-action="toggleAts" id="ats-chip" aria-pressed="false" title="Single column, no tables or icons — safest for applicant tracking systems">ATS SAFE</button>
       </div>
       <div class="toolbar-group hide-in-match" id="font-family-chips">
         <span class="toolbar-label" title="Applies to the whole resume">TYPEFACE</span>
@@ -340,14 +354,15 @@
         <button class="toolbar-chip" data-font="12" id="font-chip-12">12pt</button>
         <button class="toolbar-chip" data-font="11" id="font-chip-11">11pt</button>
         <button class="toolbar-chip" data-font="10" id="font-chip-10">10pt</button>
+        <button class="toolbar-chip fit-chip" data-action="fitOnePage" id="fit-chip" title="Step the body size down until the resume fits one page">FIT 1 PAGE</button>
       </div>
       <div class="toolbar-group export-group hide-in-match">
         <span class="toolbar-label">EXPORT</span>
         <button class="toolbar-chip primary" data-action="downloadPdf">DOWNLOAD PDF</button>
         <button class="toolbar-chip" data-action="openShareModal">↗ SHARE</button>
-        <button class="toolbar-chip" data-action="downloadDoc">.DOC</button>
+        <button class="toolbar-chip" data-action="downloadDocx">WORD (.DOCX)</button>
+        <button class="toolbar-chip" data-action="copyPlainText" title="Copy as plain text for online application forms">COPY TEXT</button>
         <button class="toolbar-chip" data-action="printPDF">PRINT</button>
-        <button class="toolbar-chip" data-action="showCompile">PAYLOAD</button>
       </div>
     </div>
 
@@ -515,6 +530,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
 <script src="./js/voice.js" defer></script>
 <script src="./js/import-pdf.js" defer></script>
 <script src="./js/quality.js" defer></script>
+<script src="./js/docx.js" defer></script>
 <script src="./app.js" defer></script>
 
 

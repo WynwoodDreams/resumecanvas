@@ -121,7 +121,7 @@ function buildResumePdfBytes() {
   const xLeft = doc.marginL;
   const xRight = doc.pageW - doc.marginR;
 
-  if (cfg.layout === "sidebar") {
+  if (usesSidebarLayout(tpl)) {
     pdfBuildSidebar(doc, cfg, BODY_PT, SECTION_PT, contentW, xLeft, xRight);
     return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
   }
@@ -134,7 +134,7 @@ function buildResumePdfBytes() {
   doc.advance(NAME_PT * 0.55);
 
   doc.setFont("Times-Roman", CONTACT_PT);
-  if (tpl === "demo_4") {
+  if (cfg.header === "structured") {
     const extraLinks = (state.links || []).filter(Boolean).join(" | ");
     const parts = [state.location, state.phone, state.email, state.linkedin, extraLinks].filter(Boolean);
     pdfWrapCentered(doc, parts.join("  |  "), contentW);
@@ -170,6 +170,7 @@ function buildResumePdfBytes() {
     const fn = renderers[sec];
     if (fn) fn();
   }
+  pdfRenderCustom(doc, BODY_PT, SECTION_PT, tpl, contentW, xLeft);
 
   return doc.build({ title: `${state.name || "Resume"} — Resume`, author: state.name || "" });
 }
@@ -293,6 +294,7 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
       (e.bullets || []).filter(Boolean).forEach(b => doc.bullet(b, mainX, mainW));
     });
   }
+  pdfRenderCustom(doc, bodyPt, sectionPt, state.template, mainW, mainX, mainX, mainW);
   const mainEndPage = doc._cur;
   const mainEndY = doc._cur.y;
   doc._newPage = origNewPage;
@@ -510,6 +512,20 @@ function truncateToWidth(doc, str, width) {
 
 function remainderAfterFit(doc, str, width) {
   return fitWords(doc, str, width).rest;
+}
+
+// Free-form extra sections (Volunteer, Awards, ...). `colX`/`colW` let the
+// sidebar layout place them in its main column; otherwise full width.
+function pdfRenderCustom(doc, bodyPt, sectionPt, tpl, contentW, xLeft, colX, colW) {
+  (state.custom_sections || []).forEach(sec => {
+    const lines = (sec.bullets || []).filter(b => b && b.trim());
+    if (!(sec.title || "").trim() && !lines.length) return;
+    const title = (sec.title || "ADDITIONAL").trim();
+    if (colX != null) pdfColHeader(doc, title, sectionPt, colX, colW);
+    else pdfSectionHeader(doc, title, sectionPt, tpl);
+    doc.setFont("Times-Roman", bodyPt);
+    lines.forEach(b => doc.bullet(b, colX != null ? colX : xLeft, colX != null ? colW : contentW));
+  });
 }
 
 function pdfRenderCerts(doc, bodyPt, sectionPt, tpl, contentW, xLeft) {

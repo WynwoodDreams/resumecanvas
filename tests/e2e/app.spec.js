@@ -133,6 +133,79 @@ test.describe("editing", () => {
     await expect(page.locator('textarea[data-exp-bullet="0"][data-bullet-i="0"]')).toBeFocused();
   });
 
+  test("template gallery thumbnails switch the template", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const cards = page.locator(".tpl-card");
+    await expect(cards).toHaveCount(4);
+    const initial = await page.locator("#tpl-dropdown").inputValue();
+    await expect(page.locator(".tpl-card.active")).toHaveAttribute("data-tpl", initial);
+    await page.locator('.tpl-card[data-tpl="demo_6"]').click();
+    await expect(page.locator("#tpl-dropdown")).toHaveValue("demo_6");
+    await expect(page.locator(".tpl-card.active")).toHaveAttribute("data-tpl", "demo_6");
+    await expect(page.locator("#preview .sidebar-grid")).toBeVisible();
+  });
+
+  test("an additional section appears in the preview and the PDF", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.evaluate(() => document.querySelector('.panel[data-section="custom"]').classList.add("open"));
+    await page.getByRole("button", { name: "+ ADD SECTION" }).click();
+    await page.locator('input[data-custom="0"]').fill("Volunteer Experience");
+    await page.locator('textarea[data-custom-bullet="0"]').fill("Organized a food drive serving 300 families");
+    await expect(page.locator("#preview")).toContainText("Volunteer Experience");
+    await expect(page.locator("#preview")).toContainText("300 families");
+    const inPdf = await page.evaluate(() => new TextDecoder("latin1").decode(buildResumePdfBytes()).includes("Volunteer Experience"));
+    expect(inPdf).toBe(true);
+  });
+
+  test("the preview page count matches the exported PDF for the sample", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const r = await page.evaluate(() => ({
+      preview: document.querySelectorAll("#preview .preview-frame").length,
+      pdf: (new TextDecoder("latin1").decode(buildResumePdfBytes()).match(/\/Type \/Page\b/g) || []).length,
+    }));
+    expect(r.preview).toBe(r.pdf);
+  });
+
+  test("WORD export downloads a valid .docx and COPY TEXT yields plain text", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const dl = page.waitForEvent("download");
+    await page.getByRole("button", { name: "WORD (.DOCX)" }).click();
+    const download = await dl;
+    expect(download.suggestedFilename()).toMatch(/\.docx$/);
+    const buf = require("fs").readFileSync(await download.path());
+    expect(buf.subarray(0, 2).toString()).toBe("PK"); // zip signature
+    const text = await page.evaluate(() => buildPlainText());
+    expect(text).toContain("Jane Doe");
+    expect(text).toMatch(/\n-{4,}\n/); // section rule
+  });
+
+  test("ATS SAFE renders the sidebar template as a single column", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#tpl-dropdown").selectOption("demo_6");
+    await expect(page.locator("#preview .sidebar-grid")).toHaveCount(1);
+    await page.locator("#ats-chip").click();
+    await expect(page.locator("#preview .sidebar-grid")).toHaveCount(0);
+    await expect(page.locator("#ats-chip")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#preview")).toContainText("Jane Doe");
+  });
+
+  test("a draft with real data survives a reload and skips the chooser", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('[data-bind="name"]').fill("Ada Lovelace");
+    await page.waitForTimeout(500); // debounced persist
+    await page.reload();
+    await expect(page.locator("#onboard-bg")).toBeHidden();
+    await expect(page.locator('[data-bind="name"]')).toHaveValue("Ada Lovelace");
+    await expect(page.locator("#preview")).toContainText("Ada Lovelace");
+  });
+
   test("typing several characters into a certification keeps focus and text", async ({ page }) => {
     await page.goto("/");
     await dismissOnboarding(page);

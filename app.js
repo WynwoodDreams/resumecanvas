@@ -17,6 +17,7 @@ let state = {
     demo_8: ["skills", "education", "projects", "experience"],
   },
   match: { on: false, jd: "" },
+  ats_safe: false, // single-column, table-free rendering for applicant tracking systems
   // Demo 4 header
   name: "Jane Doe",
   professional_title: "Business Administration Student",
@@ -75,6 +76,8 @@ let state = {
     "Google Digital Marketing & E-commerce Certificate (In Progress) — Coursera",
     "Microsoft Office Specialist: Excel Associate — Certiport (2024)",
   ],
+  // Free-form extra sections (Volunteer, Awards, Languages, ...): { title, bullets[] }
+  custom_sections: [],
   // Both
   projects: [
     {
@@ -142,7 +145,7 @@ const _DEFAULT_STATE_JSON = JSON.stringify(state);
 const DEMO_CONTENT_KEYS = [
   "name", "professional_title", "location", "phone", "email", "linkedin", "links",
   "contact_line1", "contact_line2", "summary", "education", "skills_categories",
-  "skills_two_column", "skills_inline", "certifications", "projects", "experience",
+  "skills_two_column", "skills_inline", "certifications", "projects", "experience", "custom_sections",
 ];
 
 // A stable fingerprint of just the resume *content* (ignores template, fonts,
@@ -268,14 +271,14 @@ const TEMPLATES = {
     layout: "single", header: "structured", headerCase: "plain", skillsMode: "categories", eduMode: "demo4",
     projMode: "dated", expMode: "italic", certs: false,
     namePt: 20, sectionPt: 12, bodyPt: 12,
-    name: "Demo 3", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
+    name: "Student", desc: "Single column · 12pt body · skills as labeled categories. Good for broad skill profiles.",
     labels: { summary: "PROFILE SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_2: {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "two_column", eduMode: "demo2",
     projMode: "bullets", expMode: "company", certs: true,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Demo 2", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
+    name: "Compact", desc: "Single column · smallCaps headers · two-column skill grid · certifications. Dense layout for technical hires.",
     labels: { summary: "PROFILE SUMMARY", skills: "HIGHLIGHTED SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "WORK EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_1: {
@@ -289,14 +292,14 @@ const TEMPLATES = {
     layout: "single", header: "lines", headerCase: "smallcaps", skillsMode: "categories", eduMode: "demo2",
     projMode: "dated", expMode: "company_first", certs: false,
     namePt: 16, sectionPt: 11, bodyPt: 11,
-    name: "Demo 1", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. A clean business-style layout that works for most students and career changers.",
+    name: "Classic", desc: "Single column · smallCaps headers · summary, education, company-led experience, then categorized skills. A clean business-style layout that works for most students and career changers.",
     labels: { summary: "SUMMARY", skills: "SKILLS", education: "EDUCATION", projects: "PROJECTS", experience: "PROFESSIONAL EXPERIENCE", certs: "CERTIFICATIONS" },
   },
   demo_6: {
     layout: "sidebar", header: "structured", headerCase: "smallcaps", skillsMode: "list", eduMode: "demo6",
     projMode: "none", expMode: "company_first", certs: false,
     namePt: 22, sectionPt: 11, bodyPt: 12,
-    name: "Demo 4", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
+    name: "Sidebar", desc: "Two columns · left sidebar holds contact, education, key skills · main column for about me and career highlights. Modern, design-forward.",
     labels: { summary: "ABOUT ME", skills: "KEY SKILLS", education: "EDUCATION", experience: "CAREER HIGHLIGHTS", contact: "CONTACT", certs: "CERTIFICATIONS" },
   },
   demo_8: {
@@ -308,8 +311,8 @@ const TEMPLATES = {
   },
 };
 
-// Picker order. Display names are "Demo 1"–"Demo 4" in this order — they do
-// NOT line up with the internal demo_N ids (demo_5 shows as "Demo 1").
+// Picker order. Display names (Classic, Compact, Student, Sidebar) describe
+// intent; the internal demo_N ids are historical and do not line up.
 // demo_1 (Highlighted Skills) and demo_8 (Criminal Justice) are retired from
 // the picker but keep their TEMPLATES/DEMO_SEEDS entries so resumes saved
 // under them still render (see syncTemplateUI's legacy option).
@@ -326,6 +329,9 @@ const FONT_FAMILIES = {
 function fontFamilyKey() { return FONT_FAMILIES[state.font_family] ? state.font_family : "times"; }
 
 function tcfg(tpl) { return TEMPLATES[tpl || state.template] || TEMPLATES.demo_4; }
+// The sidebar layout is the only non-linear one; ATS-safe mode renders every
+// template as a single column instead.
+function usesSidebarLayout(tpl) { return tcfg(tpl).layout === "sidebar" && !state.ats_safe; }
 function tplBodyDefault(tpl) { return tcfg(tpl).bodyPt; }
 
 // ─────────────────────────────────────────────────────────
@@ -665,6 +671,45 @@ function bindProjects(container) {
     });
   });
 }
+// Free-form extra sections: a title plus bullets. Rendered after the ordered
+// template sections in every layout.
+function renderCustom() {
+  const body = $("#custom-list");
+  if (!body) return;
+  body.innerHTML = (state.custom_sections || []).map((sec, i) => `
+      <div class="item">
+        <div class="item-head">
+          <div class="lbl"><span class="n">${String(i+1).padStart(2,'0')}</span> SECTION</div>
+          <button class="icon-btn" data-action="removeCustomSection" data-index="${i}">REMOVE</button>
+        </div>
+        <div class="row"><label>SECTION TITLE</label><input type="text" data-custom="${i}" data-field="title" value="${esc(sec.title || "")}" placeholder="Volunteer Experience, Awards, Languages, Publications…"></div>
+        <div class="row"><label>LINES</label>
+          <div class="bullets">
+            ${(sec.bullets || []).map((b, bi) => `
+              <div class="bullet-row">
+                <textarea data-custom-bullet="${i}" data-bullet-i="${bi}">${esc(b)}</textarea>
+                <button class="icon-btn" data-action="removeCustomBullet" data-index="${i}" data-bullet-index="${bi}">×</button>
+              </div>
+            `).join("")}
+          </div>
+          <button class="add-btn" data-action="addCustomBullet" data-index="${i}">+ ADD LINE</button>
+        </div>
+      </div>
+  `).join("");
+  body.querySelectorAll("[data-custom]").forEach(el => {
+    el.addEventListener("input", (ev) => {
+      state.custom_sections[+el.dataset.custom][el.dataset.field] = ev.target.value;
+      renderPreview();
+    });
+  });
+  body.querySelectorAll("[data-custom-bullet]").forEach(el => {
+    el.addEventListener("input", (ev) => {
+      state.custom_sections[+el.dataset.customBullet].bullets[+el.dataset.bulletI] = ev.target.value;
+      renderPreview();
+    });
+  });
+}
+
 function bindExperience(container) {
   container.querySelectorAll("[data-exp]").forEach(el => {
     el.addEventListener("input", (ev) => {
@@ -698,6 +743,10 @@ function addProject() { state.projects.push({ title: "", date: "", location: "",
 function removeProject(i) { state.projects.splice(i, 1); render(); }
 function addProjBullet(i) { state.projects[i].bullets.push(""); render(); }
 function removeProjBullet(i, bi) { state.projects[i].bullets.splice(bi, 1); render(); }
+function addCustomSection() { state.custom_sections.push({ title: "", bullets: [""] }); render(); }
+function removeCustomSection(i) { state.custom_sections.splice(i, 1); render(); }
+function addCustomBullet(i) { state.custom_sections[i].bullets.push(""); render(); }
+function removeCustomBullet(i, bi) { state.custom_sections[i].bullets.splice(bi, 1); render(); }
 function addExperience() { state.experience.push({ title: "", date: "", location: "", company_city: "", bullets: [""] }); render(); }
 function removeExp(i) { state.experience.splice(i, 1); render(); }
 function addExpBullet(i) { state.experience[i].bullets.push(""); render(); }
@@ -800,6 +849,15 @@ const ACTIONS = {
   gsShowVoice: () => showGetStartedCard("voice"),
   showOnboarding: () => showOnboard(),
   qualityFocus: (el) => qualityFocus(el),
+  addCustomSection: () => addCustomSection(),
+  removeCustomSection: (btn) => removeCustomSection(+btn.dataset.index),
+  addCustomBullet: (btn) => addCustomBullet(+btn.dataset.index),
+  removeCustomBullet: (btn) => removeCustomBullet(+btn.dataset.index, +btn.dataset.bulletIndex),
+  pickTemplate: (btn) => pickTemplate(btn.dataset.tpl),
+  fitOnePage: () => fitOnePage(),
+  toggleAts: () => { state.ats_safe = !state.ats_safe; syncTemplateUI(); renderPreview(); toast(state.ats_safe ? "ATS-SAFE LAYOUT ON — SINGLE COLUMN, NO TABLES" : "ATS-SAFE LAYOUT OFF"); },
+  downloadDocx: () => downloadDocx(),
+  copyPlainText: () => copyPlainText(),
   toggleQuality: (el) => toggleQualityPanel(el),
 };
 
@@ -920,6 +978,103 @@ $("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
   setCaseId();
   render();
 });
+
+// ─────────────────────────────────────────────────────────
+// TEMPLATE GALLERY — live thumbnails of every template rendered with the
+// user's own data (or the sample when pristine). Thumbnails rebuild on a
+// short debounce after each preview render; clicking one drives the
+// existing <select> change handler so all template-switch logic stays in
+// one place.
+// ─────────────────────────────────────────────────────────
+const GALLERY_TEMPLATES = ["demo_5", "demo_2", "demo_4", "demo_6"];
+let _galleryTimer = null;
+
+// Build the preview HTML for `tpl` using the current data without touching
+// the live preview: every renderer reads state.template, so swap it briefly.
+function previewHtmlForTemplate(tpl) {
+  const saved = state.template;
+  state.template = tpl;
+  try {
+    if (usesSidebarLayout(tpl)) return renderSidebarPreviewHtml();
+    let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
+    if (tcfg(tpl).header === "structured") {
+      const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin)].filter(Boolean);
+      html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
+    } else {
+      const line2 = (state.contact_line2 || "").trim();
+      html += `<div class="resume-contact">${linkify(state.contact_line1)}${line2 ? "<br>" + linkify(line2) : ""}</div><div class="resume-contact-divider"></div>`;
+    }
+    if (state.section_enabled.summary !== false) html += renderSummaryPreviewHtml();
+    for (const sec of (state.section_order[tpl] || [])) {
+      const fn = PREVIEW_SECTION_RENDERERS[sec];
+      if (fn) html += fn(tpl);
+    }
+    return html + renderCustomPreviewHtml();
+  } finally {
+    state.template = saved;
+  }
+}
+
+function renderTemplateGallery() {
+  const gal = $("#tpl-gallery");
+  if (!gal) return;
+  // When the user is still on the untouched sample, show each template's OWN
+  // sample (as switching would); once they have real data, show their data.
+  const pristine = currentDemoIsPristine();
+  const fam = fontFamilyKey();
+  const cards = GALLERY_TEMPLATES.map(tpl => {
+    let html;
+    if (pristine && DEMO_SEEDS[tpl]) {
+      const live = JSON.parse(JSON.stringify(state));
+      const seed = DEMO_SEEDS[tpl];
+      for (const k of DEMO_CONTENT_KEYS) state[k] = JSON.parse(JSON.stringify(seed[k]));
+      try { html = previewHtmlForTemplate(tpl); } finally { for (const k of DEMO_CONTENT_KEYS) state[k] = live[k]; }
+    } else {
+      html = previewHtmlForTemplate(tpl);
+    }
+    const active = tpl === state.template;
+    return `<button type="button" class="tpl-card${active ? " active" : ""}" data-action="pickTemplate" data-tpl="${tpl}" role="radio" aria-checked="${active}" aria-label="${esc(TEMPLATES[tpl].name)} template">
+      <span class="tpl-thumb" aria-hidden="true"><span class="preview-frame ${tpl} font-${tcfg(tpl).bodyPt} family-${fam}">${html}</span></span>
+      <span class="tpl-card-name">${esc(TEMPLATES[tpl].name).toUpperCase()}</span>
+    </button>`;
+  });
+  gal.innerHTML = cards.join("");
+  // Scale each 816px-wide frame down to its card's width (CSSOM write, CSP-safe).
+  gal.querySelectorAll(".tpl-thumb").forEach(t => {
+    const w = t.clientWidth;
+    if (w) t.style.setProperty("--thumb-scale", (w / 816).toFixed(4));
+  });
+}
+
+function scheduleGalleryRefresh() {
+  clearTimeout(_galleryTimer);
+  _galleryTimer = setTimeout(renderTemplateGallery, 220);
+}
+
+function pickTemplate(tpl) {
+  const dd = $("#tpl-dropdown");
+  if (!dd || !TEMPLATES[tpl] || dd.value === tpl) return;
+  dd.value = tpl;
+  dd.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+// ─────────────────────────────────────────────────────────
+// FIT TO ONE PAGE — step the body size down (default → 11 → 10pt) until the
+// paginated preview fits a single page. Stops at the 10pt floor and says so.
+// ─────────────────────────────────────────────────────────
+function fitOnePage() {
+  const def = tcfg(state.template).bodyPt;
+  const steps = [null, 11, 10].filter((pt, i, arr) => (pt === null || pt < def) && arr.indexOf(pt) === i);
+  let fitted = false;
+  for (const pt of steps) {
+    state.font_pt = pt;
+    renderPreview();
+    if (state._lastPageCount === 1) { fitted = true; break; }
+  }
+  syncTemplateUI();
+  if (fitted) toast(`✓ FITS ON ONE PAGE AT ${state._appliedFontPt}PT`);
+  else toast(`STILL ${state._lastPageCount} PAGES AT 10PT — TRIM A FEW BULLETS`);
+}
 
 // Window resize re-paginates the preview at the new width.
 let _resizeTimer = null;
@@ -1110,6 +1265,21 @@ function renderExperiencePreviewHtml(tpl) {
   return html;
 }
 
+function renderCustomPreviewHtml() {
+  let html = "";
+  (state.custom_sections || []).forEach(sec => {
+    const lines = (sec.bullets || []).filter(b => b && b.trim());
+    if (!(sec.title || "").trim() && !lines.length) return;
+    html += `<div class="resume-section-h">${esc(sec.title || "ADDITIONAL")}</div>`;
+    if (lines.length) {
+      html += `<ul class="bullets-list">`;
+      lines.forEach(b => { html += `<li>${linkify(b)}</li>`; });
+      html += `</ul>`;
+    }
+  });
+  return html;
+}
+
 const PREVIEW_SECTION_RENDERERS = {
   education: (tpl) => renderEducationPreviewHtml(tpl),
   skills: (tpl) => renderSkillsPreviewHtml(tpl),
@@ -1153,6 +1323,7 @@ function renderSidebarPreviewHtml() {
   if (state.section_enabled.experience !== false && state.experience.length) {
     main += renderExperiencePreviewHtml(tpl);
   }
+  main += renderCustomPreviewHtml();
 
   return head +
     `<table class="sidebar-grid"><tbody><tr>` +
@@ -1168,11 +1339,11 @@ function renderPreview() {
   const tpl = state.template;
   const f = $("#preview");
   let html;
-  if (tcfg(tpl).layout === "sidebar") {
+  if (usesSidebarLayout(tpl)) {
     html = renderSidebarPreviewHtml();
   } else {
     html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
-    if (tpl === "demo_4") {
+    if (tcfg(tpl).header === "structured") {
       const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
       const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
       html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
@@ -1191,6 +1362,7 @@ function renderPreview() {
       const fn = PREVIEW_SECTION_RENDERERS[sec];
       if (fn) html += fn(tpl);
     }
+    html += renderCustomPreviewHtml();
   }
 
   const defaultFontPt = tcfg(tpl).bodyPt;
@@ -1198,9 +1370,11 @@ function renderPreview() {
   state._appliedFontPt = fontPt;
 
   // Render content into a single frame, then paginate by measuring children.
-  const frameClass = `preview-frame ${tpl} font-${fontPt} family-${fontFamilyKey()}`;
+  const frameClass = `preview-frame ${tpl} font-${fontPt} family-${fontFamilyKey()}${state.ats_safe ? " ats" : ""}`;
   f.innerHTML = `<div class="${frameClass}">${html}</div>`;
   const pageCount = paginatePreview(frameClass);
+  state._lastPageCount = pageCount;
+  scheduleGalleryRefresh();
   runMatch();
 
   // Stats: words + content density (entries + bullets) + active font + page count
@@ -1215,7 +1389,7 @@ function renderPreview() {
     state.experience.reduce((n, e) => n + (e.bullets || []).filter(Boolean).length, 0);
   const isDefault = fontPt === defaultFontPt;
   const fontClass = isDefault ? "ok" : "warn";
-  const pageLabel = pageCount === 1 ? "1 page" : `${pageCount} pages`;
+  const pageLabel = pageCount === 1 ? `<span class="ok">1 page</span>` : `<span class="warn">${pageCount} pages</span>`;
   $("#preview-stats").innerHTML =
     `${words} words &nbsp;·&nbsp; ${totalEntries} entries &nbsp;·&nbsp; ${totalBullets} bullets &nbsp;·&nbsp; <span class="${fontClass}">${fontPt}pt body</span> &nbsp;·&nbsp; ${pageLabel}`;
 
@@ -1349,6 +1523,8 @@ function syncTemplateUI() {
   // Reflect the active typeface + size chips.
   const fam = fontFamilyKey();
   $$("[data-family]").forEach(c => c.classList.toggle("active", c.dataset.family === fam));
+  const ats = $("#ats-chip");
+  if (ats) { ats.classList.toggle("active", !!state.ats_safe); ats.setAttribute("aria-pressed", state.ats_safe ? "true" : "false"); }
   $$("[data-font]").forEach(c => {
     const isActive = c.dataset.font === "default"
       ? state.font_pt == null
@@ -1370,6 +1546,7 @@ function render() {
   if (tcfg().certs) renderCerts();
   renderProjects();
   renderExperience();
+  renderCustom();
   applySectionToggleStates();
   reorderPanels();
   recomputeSectionIndices();
@@ -1474,6 +1651,13 @@ function initOnboarding() {
   // render as an unstyled block of buttons on top of the page.
   if (getComputedStyle(bg).position !== "fixed") return;
   bg.hidden = false;
+  // A draft with real data was restored from the last session: go straight
+  // to it instead of asking how to start. START SCREEN reopens the chooser.
+  if (typeof _restoredDraft !== "undefined" && _restoredDraft) {
+    bg.classList.add("dismissed");
+    toast("WELCOME BACK — YOUR DRAFT WAS RESTORED");
+    return;
+  }
   // The ?voice=1 deep link already auto-opens the voice flow — don't stack
   // the chooser on top of it.
   try {
@@ -1901,7 +2085,7 @@ function showImportConfirm(parsed, sourceName) {
   // Surface sections we detected but have no standard home for, so nothing is
   // lost silently. Each gets a destination dropdown (pre-set to a smart guess)
   // so its content can be routed into a real section or skipped.
-  const DEST_OPTIONS = [["skip", "Skip"], ["skills", "Skills"], ["experience", "Experience"], ["projects", "Projects"], ["certifications", "Certifications"]];
+  const DEST_OPTIONS = [["custom", "Its own section"], ["skills", "Skills"], ["experience", "Experience"], ["projects", "Projects"], ["certifications", "Certifications"], ["skip", "Skip"]];
   const otherHtml = (parsed.other && parsed.other.length) ? `
     <div class="import-other">
       <div class="import-other-h">OTHER SECTIONS WE FOUND</div>
@@ -2002,10 +2186,14 @@ function applyImport() {
   const experienceList = enabled.experience ? p.experience.slice() : [];
   const projectsList = enabled.projects ? p.projects.slice() : [];
   const certList = enabled.certifications ? p.certifications.slice() : [];
+  const customList = [];
   $$("#import-preview select[data-other-idx]").forEach(sel => {
     const o = p.other && p.other[+sel.dataset.otherIdx];
     if (!o) return;
     switch (sel.value) {
+      case "custom":
+        customList.push({ title: o.title, bullets: o.lines.map(l => l.replace(RcParse.BULLET_RE, "").trim()).filter(Boolean) });
+        break;
       case "skills": skillsList.push(...RcParse.parseSkills(o.lines)); break;
       case "experience": experienceList.push(...RcParse.parseEntryBlocks(o.lines)); break;
       case "projects": projectsList.push(...RcParse.parseEntryBlocks(o.lines)); break;
@@ -2050,6 +2238,9 @@ function applyImport() {
 
   if (certList.length) {
     state.certifications = certList;
+  }
+  if (customList.length) {
+    state.custom_sections = customList;
   }
 
   _pendingImport = null;
@@ -2654,19 +2845,24 @@ $("#jd-input").addEventListener("input", (ev) => {
 // desktop nominal width (612px) so the layout — title/date alignment,
 // pagination, wrapping — matches the desktop view exactly; we just zoom
 // the visual size to fit the phone.
-const PREVIEW_NOMINAL_WIDTH = 612;
+const PREVIEW_NOMINAL_WIDTH = 816; // CSS px of a US-Letter page at 96dpi
 function updatePreviewScale() {
-  const wrap = document.querySelector(".pane.right .preview-wrap");
-  if (!wrap) return;
-  const isMobile = window.matchMedia("(max-width: 1100px)").matches;
-  if (!isMobile) { wrap.style.zoom = ""; return; }
-  const pane = wrap.closest(".pane.right");
-  const cs = pane ? getComputedStyle(pane) : null;
-  const padL = cs ? parseFloat(cs.paddingLeft) : 0;
-  const padR = cs ? parseFloat(cs.paddingRight) : 0;
-  const available = (pane ? pane.clientWidth : window.innerWidth) - padL - padR;
-  const scale = Math.min(1, available / PREVIEW_NOMINAL_WIDTH);
-  wrap.style.zoom = String(scale);
+  // The preview frames are laid out at true paper size (816px wide) so the
+  // page count matches the PDF; zoom the wrapper down to whatever width the
+  // pane offers. Pagination neutralises this zoom while it measures.
+  const fit = (el, maxWidth) => {
+    if (!el) return;
+    const host = el.parentElement;
+    const cs = host ? getComputedStyle(host) : null;
+    const padL = cs ? parseFloat(cs.paddingLeft) || 0 : 0;
+    const padR = cs ? parseFloat(cs.paddingRight) || 0 : 0;
+    let available = (host ? host.clientWidth : window.innerWidth) - padL - padR;
+    if (maxWidth) available = Math.min(available, maxWidth);
+    const scale = Math.min(1, available / PREVIEW_NOMINAL_WIDTH);
+    el.style.zoom = scale >= 0.999 ? "" : String(scale);
+  };
+  fit(document.querySelector(".pane.right .preview-wrap"));
+  fit($("#final-preview"), 560);
 }
 window.addEventListener("resize", updatePreviewScale);
 window.addEventListener("load", updatePreviewScale);
