@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v26-2026-10-19-voice-commands";
+const CACHE_VERSION = "rc-v27-2026-11-01-voice-first";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 

@@ -461,3 +461,87 @@ test.describe("command bar", () => {
     await expect(page.locator("#cmd-undo")).toBeEnabled();
   });
 });
+
+test.describe("voice-first layout", () => {
+  test("the command bar is the hero: above both panes, with suggestions and key + say pairs", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const hero = page.locator("#hero");
+    await expect(hero).toBeVisible();
+    await expect(page.locator("#hero #cmd-input")).toBeVisible();
+    const heroBox = await hero.boundingBox();
+    const shellBox = await page.locator("#shell").boundingBox();
+    expect(heroBox.y + heroBox.height).toBeLessThanOrEqual(shellBox.y + 1);
+    // Suggestions are real commands; a blank chip fills the bar and selects the blank.
+    const chips = page.locator("#cmd-suggest .hero-chip");
+    await expect(chips.first()).toBeVisible();
+    await chips.filter({ hasText: "to my skills" }).first().click();
+    await expect(page.locator("#cmd-input")).toBeFocused();
+    await expect(page.locator("#cmd-input")).toHaveValue(/add … to my skills/);
+    // Every trigger shows a shortcut and a spoken phrase together.
+    const triggers = page.locator(".hero-trigger");
+    for (let i = 0; i < await triggers.count(); i++) {
+      const t = triggers.nth(i);
+      expect((await t.locator("kbd").textContent()).trim().length).toBeGreaterThan(0);
+      await expect(t.locator(".say")).toHaveText(/“.+”/);
+    }
+  });
+
+  test("suggestions follow the field being edited", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => document.querySelector('.panel[data-section="experience"]').classList.add("open"));
+    await page.locator('input[data-exp="1"][data-field="date"]').focus();
+    await expect(page.locator("#cmd-suggest")).toContainText("remove the last bullet");
+    await expect(page.locator("#cmd-suggest")).toContainText("change the date to");
+  });
+
+  test("keyboard shortcuts and spoken app commands do the same things", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    // The page picks ⌘ on Apple user agents (the iPhone viewport project is one) and Ctrl elsewhere.
+    const mod = await page.evaluate(() => (cmdIsMac() ? "Meta" : "Control"));
+    // Mod+K focuses the bar; "/" does too.
+    await page.locator('[data-bind="name"]').focus();
+    await page.keyboard.press(`${mod}+k`);
+    await expect(page.locator("#cmd-input")).toBeFocused();
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await page.locator('#tpl-dropdown').focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("/");
+    await expect(page.locator("#cmd-input")).toBeFocused();
+    // Mod+I opens the import card; the spoken twin does the same.
+    await page.keyboard.press(`${mod}+i`);
+    await expect(page.locator("#intake-card")).not.toHaveClass(/collapsed/);
+    await page.evaluate(() => document.getElementById("intake-card").classList.add("collapsed"));
+    await page.locator("#cmd-input").fill("open import");
+    await page.locator("#cmd-input").press("Enter");
+    await expect(page.locator("#intake-card")).not.toHaveClass(/collapsed/);
+    // A spoken template switch runs at once, without a preview card.
+    await page.locator("#cmd-input").fill("use the compact template");
+    await page.locator("#cmd-input").press("Enter");
+    await expect(page.locator("#tpl-dropdown")).toHaveValue("demo_2");
+    await expect(page.locator("#cmd-preview")).toBeHidden();
+    // "?" opens the help card listing keys next to phrases.
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("Shift+?");
+    await expect(page.locator("#cmd-preview .cmd-help")).toBeVisible();
+    await expect(page.locator("#cmd-preview .cmd-help")).toContainText("dictate my summary");
+  });
+
+  test("listening lights up the waveform and Esc stops it", async ({ page }) => {
+    await page.addInitScript(() => {
+      class HangingRec { start() { this.onstart && this.onstart(); } stop() { this.onend && this.onend(); } }
+      window.SpeechRecognition = HangingRec;
+      window.webkitSpeechRecognition = HangingRec;
+    });
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#cmd-mic").click();
+    await expect(page.locator("body")).toHaveClass(/cmd-listening/);
+    await expect(page.locator("#cmd-status")).toContainText("LISTENING");
+    await expect(page.locator("#cmd-wave-left .vm-bar")).toHaveCount(14);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("body")).not.toHaveClass(/cmd-listening/);
+  });
+});

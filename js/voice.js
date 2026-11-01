@@ -904,6 +904,7 @@ function micToggle(btn) {
 // don't see an affordance they can't use.
 function hideMicButtonsIfUnsupported() {
   if (isSpeechSupported()) return;
+  document.body.classList.add("no-speech");
   document.querySelectorAll(".mic-btn").forEach((el) => el.classList.add("hidden"));
   // The voice recorder falls back to typing — hide its record button and say so.
   const vbtn = $("#voice-rec-btn");
@@ -963,20 +964,39 @@ function skipVoiceIntro() {
 // Strictly cosmetic: if the browser declines or the API isn't there, the
 // bars just stay flat. We only attempt this when mic permission is already
 // "granted" to avoid double-prompting the user alongside SpeechRecognition.
+// The same analyser also drives the hero's waveform (.voice-wave, one group
+// of bars on each side of the command bar; see meterWaves()).
 let _meterStream = null;
 let _meterAudioCtx = null;
 let _meterAnalyser = null;
 let _meterRaf = null;
 let _meterBars = null;
+let _meterWaves = null;
+let _meterStarting = false;
 
 function collectMeterBars() {
   return Array.from(document.querySelectorAll("#voice-meter-card .vm-bar"));
 }
 
+// Each waveform is painted from the centre outwards: the bar nearest the
+// input shows the lowest frequencies, the farthest the highest, so the two
+// sides mirror each other.
+function meterWaves() {
+  return Array.from(document.querySelectorAll(".voice-wave")).map((wave) => {
+    const bars = Array.from(wave.querySelectorAll(".vm-bar"));
+    return { bars: wave.classList.contains("left") ? bars.reverse() : bars };
+  });
+}
+
 let _meterGen = 0; // bumped by stopLevelMeter so an in-flight start() knows it is stale
 async function startLevelMeter() {
-  if (_meterStream) return;
+  if (_meterStream || _meterStarting) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  _meterStarting = true;
+  try { await startLevelMeterInner(); } finally { _meterStarting = false; }
+}
+
+async function startLevelMeterInner() {
   const gen = ++_meterGen;
   // Don't trigger an extra permission prompt — only run if mic is already granted.
   try {
@@ -1000,10 +1020,12 @@ async function startLevelMeter() {
     _meterAudioCtx = new Ctx();
     const src = _meterAudioCtx.createMediaStreamSource(stream);
     _meterAnalyser = _meterAudioCtx.createAnalyser();
-    _meterAnalyser.fftSize = 64;
+    _meterAnalyser.fftSize = 128;
     _meterAnalyser.smoothingTimeConstant = 0.6;
     src.connect(_meterAnalyser);
     _meterBars = collectMeterBars();
+    _meterWaves = meterWaves();
+    document.body.classList.add("meter-live");
     tickLevelMeter();
   } catch (_err) {
     // Optional feature — fail silently and leave recording running.
@@ -1022,7 +1044,24 @@ function tickLevelMeter() {
   const hi = meterBandAvg(buf, third * 2, n);
   const levels = [bandToLevel(lo), bandToLevel(mid), bandToLevel(hi)];
   paintMeter(_meterBars, levels);
+  paintWaves(_meterWaves, buf);
   _meterRaf = requestAnimationFrame(tickLevelMeter);
+}
+
+// Spread the frequency bins across each waveform's bars. Speech lives in the
+// lower bins, so only the lower ~70% of the spectrum is used; the top bins
+// would sit flat the whole time.
+function paintWaves(waves, buf) {
+  if (!waves || !waves.length) return;
+  const usable = Math.max(1, Math.floor(buf.length * 0.7));
+  for (const w of waves) {
+    const n = w.bars.length;
+    for (let i = 0; i < n; i++) {
+      const from = Math.floor((i / n) * usable);
+      const to = Math.max(from + 1, Math.floor(((i + 1) / n) * usable));
+      w.bars[i].setAttribute("data-level", String(bandToLevel(meterBandAvg(buf, from, to))));
+    }
+  }
 }
 
 function meterBandAvg(buf, lo, hi) {
@@ -1060,8 +1099,10 @@ function stopLevelMeter() {
     _meterAudioCtx = null;
   }
   _meterAnalyser = null;
+  _meterWaves = null;
+  document.body.classList.remove("meter-live");
   // Reset all bars to 0 so the meter doesn't freeze on its last frame.
-  document.querySelectorAll(".voice-meter .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
+  document.querySelectorAll(".voice-meter .vm-bar, .voice-wave .vm-bar").forEach((b) => b.setAttribute("data-level", "0"));
 }
 
 let _voiceInitialized = false;

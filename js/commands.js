@@ -417,6 +417,57 @@
     return err("I didn't catch which part to change. Try “add Excel to my skills” or “change the date for Sunset Groceries to 2021 to 2022”.");
   }
 
+  // ── App commands: navigation and tools, not resume edits ─────────────────
+  // These are the spoken twins of the keyboard shortcuts and the rail/hero
+  // buttons. They never touch resume content, so the UI runs them straight
+  // away (no preview/confirm step). parseAppCommand() returns null for
+  // anything that is not one of them, and is tried BEFORE parseCommand().
+  //
+  // Every entry carries its phrases for the help card, so the list the user
+  // sees is the list the parser accepts.
+  const APP_COMMANDS = [
+    { action: "help", say: ["help", "what can I say"], key: "?", re: /^(?:help|what can i say|what can i do|show (?:me )?(?:the )?(?:commands|shortcuts)|list (?:the )?commands)$/ },
+    { action: "listen", say: ["listen", "start listening"], key: "mod+shift+k", re: /^(?:listen|start listening|speak|talk|voice|microphone|mic)$/ },
+    { action: "focus_command", say: ["type a command"], key: "mod+k", re: /^(?:type a command|focus (?:the )?command bar|command bar)$/ },
+    { action: "dictate_summary", say: ["dictate my summary"], key: "mod+shift+s", re: /^(?:dictate(?: my| the)?(?: summary| profile)?|start (?:the )?dictation|write my summary by voice)$/ },
+    { action: "voice_intro", say: ["talk it out", "start my intro"], key: "mod+shift+u", re: /^(?:talk it out|(?:start|open|record|begin) (?:my |the )?(?:voice )?intro(?:duction)?|add my voice|tell you about myself|let me talk about myself)$/ },
+    { action: "import", say: ["import my resume", "open import"], key: "mod+i", re: /^(?:(?:open|show|start) (?:the )?import|import(?: my| a| an| the)?(?: old| existing)? (?:resume|file|cv)|upload (?:my |a |an )?(?:resume|file|cv)|intake)$/ },
+    { action: "pane_edit", say: ["show the editor"], key: null, re: /^(?:show|open|go to|switch to|back to)(?: the)? (?:editor|edit|form|fields)$/ },
+    { action: "pane_preview", say: ["show the preview"], key: null, re: /^(?:show|open|go to|switch to)(?: the| my)?(?: live)? preview$/ },
+    { action: "pane_final", say: ["show the final review"], key: null, re: /^(?:show|open|go to|switch to)(?: the| my)? final(?: review| view| page)?$/ },
+    { action: "top", say: ["go to the top"], key: null, re: /^(?:go to|scroll to|jump to|back to)(?: the)? top$/ },
+    { action: "template", say: ["use the compact template"], key: null, re: /^(?:use|pick|switch to|select|choose|try|apply|show)(?: the)? (classic|compact|student|sidebar)(?: template| layout| style)?$/ },
+    { action: "download_pdf", say: ["download the PDF"], key: null, re: /^(?:download|export|save|make|get)(?: the| my| a| as)?(?: resume)?(?: as)? pdf$/ },
+    { action: "download_docx", say: ["download the Word document"], key: null, re: /^(?:download|export|save|make|get)(?: the| my| a| as| to)?(?: resume)?(?: as)? (?:word(?: document| doc| file)?|docx|doc)$/ },
+    { action: "copy_text", say: ["copy as plain text"], key: null, re: /^(?:copy(?: the| my| it)?(?: resume)?(?: as| to)?(?: plain)? text|copy (?:the )?plain text)$/ },
+    { action: "print", say: ["print"], key: null, re: /^(?:print|print (?:it|the resume|my resume))$/ },
+    { action: "share", say: ["share my resume"], key: null, re: /^(?:share(?: it| my resume| the resume| pdf)?|open (?:the )?share(?: sheet| menu)?|show (?:the )?qr code)$/ },
+    { action: "library", say: ["open my library"], key: null, re: /^(?:open|show|go to)(?: my| the)? (?:library|resumes|saved resumes)$/ },
+    { action: "match", say: ["match a job description"], key: null, re: /^(?:match(?: a| the| this)? job(?: description| posting)?|(?:open|show|start|toggle)(?: the)? (?:match|job match)(?: mode| panel)?|compare (?:to|with|against) (?:a|the) job(?: description)?)$/ },
+    { action: "ats_on", say: ["turn on ATS safe"], key: null, re: /^(?:turn on|enable|use|switch to|make it)(?: the)? ats(?: safe| friendly)?(?: mode| layout| view)?$/ },
+    { action: "ats_off", say: ["turn off ATS safe"], key: null, re: /^(?:turn off|disable|stop|exit|leave)(?: the)? ats(?: safe| friendly)?(?: mode| layout| view)?$/ },
+    { action: "fit_one_page", say: ["fit it on one page"], key: null, re: /^(?:fit(?: it| the resume| everything)?(?: to| on| onto)? one page|make it (?:fit(?: on)? )?one page|one page)$/ },
+    { action: "theme_dark", say: ["dark mode"], key: null, re: /^(?:(?:switch to|turn on|use|go|enable)(?: the)? )?dark(?: mode| theme)?$/ },
+    { action: "theme_light", say: ["light mode"], key: null, re: /^(?:(?:switch to|turn on|use|go|enable)(?: the)? )?light(?: mode| theme)?$/ },
+    { action: "start_screen", say: ["start screen"], key: null, re: /^(?:(?:show|open|go to|back to)(?: the)? )?start screen$/ },
+  ];
+  const TEMPLATE_BY_NAME = { classic: "demo_5", compact: "demo_2", student: "demo_4", sidebar: "demo_6" };
+
+  function parseAppCommand(input) {
+    let t = normalize(input).toLowerCase();
+    if (!t) return null;
+    // Politeness and filler wrappers that speech brings along.
+    t = t.replace(/^(?:please|can you|could you|would you|hey|ok|okay|now|just)\s+/g, "").replace(/\s+(?:please|now|for me)$/g, "").trim();
+    t = t.replace(/^(?:please|can you|could you)\s+/g, "").trim();
+    for (const c of APP_COMMANDS) {
+      const m = t.match(c.re);
+      if (!m) continue;
+      if (c.action === "template") return { action: "template", arg: TEMPLATE_BY_NAME[m[1]], label: m[1] };
+      return { action: c.action, arg: null };
+    }
+    return null;
+  }
+
   // ── Preview text ─────────────────────────────────────────────────────────
   const FIELD_LABEL = { date: "date", title: "title", location: "location", company_city: "company", school: "school", degree: "degree", city: "city", coursework: "coursework", name: "name", professional_title: "title", phone: "phone", email: "email", linkedin: "LinkedIn" };
 
@@ -549,5 +600,5 @@
     return { state: next, undo: { section: cmd.section, before } };
   }
 
-  return { parseCommand, describeCommand, applyCommand, SECTION_KEYS, SECTION_LABEL, normalize, findEntries };
+  return { parseCommand, parseAppCommand, describeCommand, applyCommand, SECTION_KEYS, SECTION_LABEL, APP_COMMANDS, normalize, findEntries };
 });

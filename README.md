@@ -6,6 +6,31 @@ Static HTML/CSS/JS app with a live preview and four layouts: Classic, Compact, S
 
 Extras: import an existing resume (.txt/.docx, paste, or phone-camera scan), browser-only voice dictation to shape the summary tone, a local "match against a job description" heat-map, a multi-resume library (drafts + saved) that survives reloads in this browser, and export via real PDF, .doc, print, native share, or a QR contact card.
 
+## Voice-first layout
+
+The page is built around one command bar. It sits centered above the editor and the preview, with a live waveform on each side that moves while a microphone is open. Under it: suggestion chips with real commands for the section being edited (a blank marked `…` drops the phrase into the bar with the blank selected), then the voice triggers (dictate summary, talk it out, import a resume, match a job). On desktop the hero sticks to the top and shrinks to the bar plus suggestions once the page scrolls; on phones it is a compact strip above the swipe panes.
+
+Keyboard shortcuts and spoken phrases are shown together everywhere one appears: on the rail, on the triggers, on the summary field and on the intake cards. Neither is the advanced path. `mod` is ⌘ on Apple platforms and Ctrl elsewhere.
+
+| Do this | Key | Or say |
+|---|---|---|
+| Type a command | `mod+K` or `/` | “type a command” |
+| Start or stop listening | `mod+Shift+K` (Esc stops) | “listen” / “cancel” |
+| Dictate the summary | `mod+Shift+S` | “dictate my summary” |
+| Voice intro (talk it out) | `mod+Shift+U` | “talk it out” |
+| Import a resume | `mod+I` | “import my resume” |
+| Match a job description | `mod+Shift+M` | “match a job description” |
+| Apply a previewed change | `Enter` | “yes” |
+| Undo the last command | `mod+Z` in an empty bar | “undo” |
+| What can I say? | `?` | “help” |
+
+Two kinds of command go through the bar (`js/commands.js`):
+
+- **Resume edits** (“add Excel to my skills”, “change the date for my cashier job to 2021 to 2022”) always preview first, read back when spoken, and apply only on “yes” or Enter. Undo is scoped to the section the command touched.
+- **App commands** (`parseAppCommand`: “show the preview”, “use the compact template”, “download the PDF”, “dark mode”, “fit it on one page”, “open my library”, …) never touch resume content, so they run at once. The help card lists every phrase next to its key.
+
+Voice is feature-detected: without the Web Speech API the mic buttons, the SPEAK rail button and the dictation trigger hide, the status line says so, and every command still works typed.
+
 ## Local dev
 
 Open `index.html` in any browser, or serve the directory with any static file server. No build step is required.
@@ -40,7 +65,7 @@ Static site plus one optional serverless function. Vercel auto-detects it; the i
 - Plain HTML/CSS/JS, no runtime dependencies, no build step
 - JetBrains Mono and Newsreader, self-hosted in `vendor/fonts` (OFL)
 - External `styles.css` and `app.js` so Vercel can enforce a CSP without `unsafe-inline`
-- Tactical dossier aesthetic, light/dark theme toggle, amber accent
+- Tactical dossier aesthetic, light/dark theme toggle, amber accent; voice-first hero built from the same palette, type and components
 - Installable PWA with an offline service worker
 
 ## Security hardening

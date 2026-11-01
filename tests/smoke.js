@@ -131,6 +131,35 @@ assert(app.includes('SpeechRecognition'), 'app.js must feature-detect SpeechReco
 assert(app.includes('function micToggle') && app.includes('function startDictation'), 'app.js must implement micToggle + startDictation');
 assert(html.includes('data-mic-target="summary"'), 'index.html must wire a mic button on the summary textarea');
 assert(css.includes('.mic-btn') && css.includes('.mic-btn.recording'), 'styles.css must style mic buttons with a recording state');
+
+// Voice-first layout: the command bar is the hero, flanked by a waveform, with
+// contextual suggestions and the voice triggers under it. Every trigger shows
+// a keyboard shortcut and its spoken phrase together.
+assert(html.includes('id="hero"') && html.indexOf('id="hero"') < html.indexOf('id="shell"'), 'index.html must put the hero command zone above the editor/preview shell');
+assert(html.includes('id="cmd-bar"') && html.indexOf('id="cmd-bar"') < html.indexOf('class="pane left"'), 'the command bar must live in the hero, above both panes');
+assert(html.includes('id="cmd-wave-left"') && html.includes('id="cmd-wave-right"'), 'index.html must render a waveform on each side of the command bar');
+assert(html.includes('id="cmd-suggest"'), 'index.html must include the contextual suggestion row');
+assert(html.includes('data-action="heroDictateSummary"') && html.includes('data-action="heroVoiceIntro"') && html.includes('data-action="heroImport"'), 'index.html must expose the voice triggers in the hero');
+assert(html.includes('data-action="cmdFocusListen"'), 'the rail must have a mic (SPEAK) affordance');
+assert((html.match(/data-shortcut="/g) || []).length >= 8, 'shortcut labels must appear on the rail, hero triggers and cards');
+assert((html.match(/class="say"/g) || []).length >= 8, 'spoken phrases must appear beside the shortcuts');
+assert(/data-shortcut="[^"]+"[^>]*><\/kbd><span class="say">/.test(html), 'each trigger must pair a <kbd> shortcut with a spoken phrase');
+assert(html.indexOf('data-section="summary"') < html.indexOf('id="intake-card"'), 'resume text fields must come before the intake cards in the editor pane');
+assert(app.includes('function parseAppCommand') && app.includes('APP_COMMANDS'), 'commands.js must parse app (navigation) commands');
+assert(app.includes('function cmdRunAppCommand') && app.includes('function cmdOnKeydown') && app.includes('function cmdSuggestionList'), 'command-bar.js must run app commands, keyboard shortcuts and suggestions');
+assert(app.includes('function paintWaves') && app.includes('meter-live'), 'voice.js must drive the hero waveform from the level meter');
+assert(css.includes('.voice-wave') && css.includes('.hero-trigger') && css.includes('.hero-suggest') && css.includes('.kbd') && css.includes('.say'), 'styles.css must style the hero, waveform, triggers, kbd and say hints');
+assert(css.includes('body.hero-compact'), 'styles.css must include the compact hero state');
+assert(!/miami tech ?works/i.test(html + app + css), 'the app must not reference Miami Tech Works');
+{
+  const RcCommands = require(path.join(root, 'js/commands.js'));
+  assert(RcCommands.parseAppCommand('show the preview').action === 'pane_preview', 'parseAppCommand must route navigation phrases');
+  assert(RcCommands.parseAppCommand('use the compact template').arg === 'demo_2', 'parseAppCommand must map template names');
+  assert(RcCommands.parseAppCommand('add Excel to my skills') === null, 'parseAppCommand must leave resume edits to parseCommand');
+  for (const c of RcCommands.APP_COMMANDS) {
+    assert(RcCommands.parseAppCommand(c.say[0]) && RcCommands.parseAppCommand(c.say[0]).action === c.action, `help phrase “${c.say[0]}” must parse to ${c.action}`);
+  }
+}
 const permPolicy = vercel.headers[0].headers.find((h) => h.key === 'Permissions-Policy');
 assert(permPolicy && permPolicy.value.includes('microphone=(self)'), 'Permissions-Policy must allow microphone=(self) for voice dictation');
 

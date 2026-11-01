@@ -69,22 +69,32 @@
   </div>
 </div>
 
-<!-- Left icon rail (desktop only — pane-tabs handle mobile navigation). -->
+<!-- Left icon rail (desktop only — pane-tabs handle mobile navigation).
+     Every destination has three equal ways in: click, keyboard shortcut
+     (shown under the label, filled by platform), or the spoken phrase in the
+     tooltip, which the command bar understands. -->
 <aside class="app-rail" id="app-rail" aria-label="Quick navigation">
-  <button class="app-rail-btn" type="button" data-action="railJumpTop" aria-label="Scroll to top">
+  <button class="app-rail-btn" type="button" data-action="railJumpTop" aria-label="Scroll to top" title="Say “go to the top”">
     <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
     <span class="rail-label">HOME</span>
   </button>
-  <button class="app-rail-btn" type="button" data-action="railOpenIntake" aria-label="Open intake / import">
+  <button class="app-rail-btn rail-speak" type="button" data-action="cmdFocusListen" aria-label="Speak a command" title="Speak a command — or say “listen”">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+    <span class="rail-label">SPEAK</span>
+    <kbd class="kbd rail-key" data-shortcut="mod+shift+k"></kbd>
+  </button>
+  <button class="app-rail-btn" type="button" data-action="railOpenIntake" aria-label="Open intake / import" title="Say “import my resume”">
     <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>
     <span class="rail-label">IMPORT</span>
+    <kbd class="kbd rail-key" data-shortcut="mod+i"></kbd>
   </button>
-  <button class="app-rail-btn" type="button" data-action="railOpenVoice" aria-label="Open voice intro">
-    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
-    <span class="rail-label">VOICE</span>
+  <button class="app-rail-btn" type="button" data-action="railOpenVoice" aria-label="Open voice intro" title="Say “talk it out”">
+    <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+    <span class="rail-label">INTRO</span>
+    <kbd class="kbd rail-key" data-shortcut="mod+shift+u"></kbd>
   </button>
   <span class="app-rail-spacer" aria-hidden="true"></span>
-  <button class="app-rail-btn theme-toggle" type="button" data-action="toggleTheme" aria-label="Toggle light/dark theme" aria-pressed="false">
+  <button class="app-rail-btn theme-toggle" type="button" data-action="toggleTheme" aria-label="Toggle light/dark theme" aria-pressed="false" title="Say “dark mode” or “light mode”">
     <svg class="rail-svg rail-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8z"/></svg>
     <svg class="rail-svg rail-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
     <span class="rail-label rail-label-light">DARK</span>
@@ -99,112 +109,63 @@
   <button class="pane-tab final-tab" data-pane-target="final" role="tab" aria-selected="false">★ FINAL</button>
 </div>
 
+<!-- HERO: the command bar is the way in. Speak or type a change; a waveform on
+     either side shows the mic is live; suggestions and the voice triggers sit
+     right under it. Every trigger shows its keyboard shortcut and its spoken
+     phrase side by side — neither is the "advanced" way. -->
+<div class="hero-sentinel" id="hero-sentinel" aria-hidden="true"></div>
+<section class="hero" id="hero" aria-label="Talk or type a change to your resume">
+  <div class="hero-inner">
+    <h1 class="hero-title">Tell your resume what to change.</h1>
+    <p class="hero-sub">Speak it or type it. Every change previews first, reads back, and waits for your “yes”.</p>
+    <div class="cmd-bar" id="cmd-bar">
+      <div class="cmd-stage">
+        <div class="voice-wave left" id="cmd-wave-left" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></div>
+        <div class="cmd-row">
+          <button class="cmd-mic" id="cmd-mic" type="button" data-action="cmdListen" aria-pressed="false" aria-label="Speak a change" title="Speak a change">
+            <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+          </button>
+          <input id="cmd-input" type="text" autocomplete="off" aria-label="Tell the resume what to change" aria-describedby="cmd-status" placeholder="Say or type a change — “add Excel to my skills”">
+          <button class="toolbar-chip primary" type="button" data-action="cmdSubmit">GO</button>
+          <button class="toolbar-chip" type="button" id="cmd-undo" data-action="cmdUndo" disabled>↶ UNDO</button>
+          <button class="toolbar-chip cmd-help-btn" type="button" data-action="cmdHelp" aria-label="What can I say?" title="What can I say? (press ?)">?</button>
+        </div>
+        <div class="voice-wave right" id="cmd-wave-right" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></div>
+      </div>
+      <div class="cmd-status" id="cmd-status" aria-live="polite"></div>
+      <div class="cmd-context" id="cmd-context" hidden>Working in <b id="cmd-context-label"></b> <button class="cmd-context-x" type="button" data-action="cmdClearContext" aria-label="Clear working section">×</button></div>
+      <div class="cmd-preview hidden" id="cmd-preview" aria-live="polite"></div>
+      <details class="cmd-history" id="cmd-history" hidden><summary>Recent changes</summary><ol id="cmd-history-list"></ol></details>
+    </div>
+    <div class="hero-suggest" id="cmd-suggest" aria-label="Suggested commands"></div>
+    <div class="hero-triggers" id="hero-triggers" aria-label="Voice shortcuts">
+      <button class="hero-trigger" type="button" data-action="heroDictateSummary" data-needs-speech="1">
+        <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+        <span class="ht-label">DICTATE SUMMARY</span>
+        <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+shift+s"></kbd><span class="say">“dictate my summary”</span></span>
+      </button>
+      <button class="hero-trigger" type="button" data-action="heroVoiceIntro">
+        <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        <span class="ht-label">TALK IT OUT</span>
+        <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+shift+u"></kbd><span class="say">“talk it out”</span></span>
+      </button>
+      <button class="hero-trigger" type="button" data-action="heroImport">
+        <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>
+        <span class="ht-label">IMPORT A RESUME</span>
+        <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+i"></kbd><span class="say">“import my resume”</span></span>
+      </button>
+      <button class="hero-trigger" type="button" data-action="heroMatch">
+        <svg class="rail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/><path d="M8.5 11l1.8 1.8L14 9"/></svg>
+        <span class="ht-label">MATCH A JOB</span>
+        <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+shift+m"></kbd><span class="say">“match a job description”</span></span>
+      </button>
+    </div>
+  </div>
+</section>
+
 <div class="shell" id="shell">
   <!-- LEFT: FORM -->
   <div class="pane left">
-
-    <!-- Template selector -->
-    <div class="tpl-select">
-      <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT</label>
-      <div class="tpl-gallery" id="tpl-gallery" role="radiogroup" aria-label="Template thumbnails"></div>
-      <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
-        <option value="demo_5">Classic</option>
-        <option value="demo_2">Compact</option>
-        <option value="demo_4">Student</option>
-        <option value="demo_6">Sidebar</option>
-      </select>
-      <div class="tpl-desc" id="tpl-desc"></div>
-    </div>
-
-    <div class="section-group" id="get-started-group"><span>Get Started</span><i></i>
-      <span class="gs-minis" aria-label="Reopen intake tools">
-        <button class="gs-mini" data-action="gsShowImport">⤓ IMPORT</button>
-        <button class="gs-mini" data-action="gsShowVoice">🎤 VOICE</button>
-      </span>
-      <button class="gs-mini gs-restart" data-action="showOnboarding" title="Back to the start screen">↺ START SCREEN</button>
-    </div>
-
-    <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
-    <div class="intake-card collapsed" id="intake-card">
-      <div class="intake-header" data-action="toggleIntake">
-        <div class="intake-title"><span class="amber">▶</span> INTAKE / IMPORT EXISTING RESUME</div>
-        <span class="intake-caret">▼</span>
-      </div>
-      <div class="intake-body">
-        <div class="intake-help">Drop a <code>.pdf</code>, <code>.docx</code> or <code>.txt</code> resume, or paste the text below. We'll parse the section headers (Education, Skills, etc.) and let you confirm what to import before anything is overwritten.</div>
-        <label class="dropzone" id="dropzone" for="import-file">
-          <div class="dz-title">⤓ DROP RESUME HERE</div>
-          <div class="dz-sub">.pdf, .docx or .txt · click to browse</div>
-        </label>
-        <input type="file" id="import-file" accept=".pdf,.txt,.docx,application/pdf,text/plain" class="hidden">
-        <div class="camera-row">
-          <button class="add-btn camera-btn" type="button" data-action="triggerCamera">📷 SCAN WITH PHONE CAMERA</button>
-          <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
-        </div>
-        <div class="camera-note hidden" id="camera-note"></div>
-        <div class="camera-preview hidden" id="camera-preview">
-          <div class="cp-status" id="cp-status">Processing image…</div>
-          <img id="cp-image" alt="Captured resume page" class="cp-image">
-          <div class="cp-help" id="cp-help"></div>
-        </div>
-        <div class="paste-block">
-          <label>OR PASTE TEXT</label>
-          <textarea id="import-paste" placeholder="Paste resume text from Word, Google Docs, or a PDF reader…"></textarea>
-          <button class="add-btn" data-action="parseImportText">▶ PARSE PASTED TEXT</button>
-          <label class="ai-toggle" id="ai-parse-row" title="Sends the resume text to this site's AI endpoint for a more accurate read. Nothing is stored.">
-            <input type="checkbox" id="ai-parse-toggle" checked>
-            <span>✦ Read it with AI <em>(more accurate on messy files · text is sent to our server, never stored)</em></span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add your voice (optional) — transcribes ~30s of speech to flavor the resume's tone. Audio is never saved. -->
-    <div class="intake-card collapsed" id="voice-card">
-      <div class="intake-header" data-action="toggleVoice">
-        <div class="intake-title"><span class="amber">▶</span> ADD YOUR VOICE (OPTIONAL)</div>
-        <span class="intake-caret">▼</span>
-      </div>
-      <div class="intake-body">
-        <div class="intake-help">Talk about yourself — your background, strengths, tools you use, and the kind of role you want. We transcribe it right in your browser so the generated resume sounds like <em>you</em> (it shapes the summary's tone) and any real skills you mention can surface in the skills section. Pause when you're done and recording stops automatically. <strong>Your audio is never saved or uploaded</strong> — only the editable text below, and only for this session.<br><span class="intake-help-tip">While dictating you can also say <strong>"new bullet"</strong>, <strong>"scratch that"</strong>, <strong>"period"</strong>, <strong>"comma"</strong>, or <strong>"stop listening"</strong>.</span></div>
-        <div class="voice-controls">
-          <button class="add-btn voice-rec-btn" type="button" data-action="voiceToggle" id="voice-rec-btn" aria-pressed="false">🎤 START RECORDING</button>
-          <span class="voice-meter voice-meter-card" id="voice-meter-card" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></span>
-          <span class="voice-status" id="voice-status" aria-live="polite" aria-atomic="true"></span>
-          <button class="icon-btn voice-skip" type="button" data-action="skipVoice">SKIP · I'LL TYPE</button>
-        </div>
-        <textarea id="voice-transcript" class="voice-transcript" placeholder="Your spoken intro appears here — or just type a few sentences about yourself. Edit freely; this shapes tone only, not the facts."></textarea>
-        <div class="voice-actions">
-          <button class="icon-btn" type="button" data-action="clearVoice">CLEAR</button>
-          <button class="add-btn voice-analyze-btn" type="button" id="voice-analyze-btn" data-action="voiceAnalyze">✓ ANALYZE &amp; SUGGEST</button>
-        </div>
-
-        <div class="voice-review hidden" id="voice-review">
-          <div class="vr-block">
-            <div class="vr-label">SUGGESTED SUMMARY <span>· in your voice · editable</span></div>
-            <div class="voice-tone-row" role="tablist" aria-label="Summary tone">
-              <span class="voice-tone-label">TONE</span>
-              <button class="voice-tone-btn selected" type="button" role="tab" aria-selected="true" data-action="voiceSetTone" data-tone="standard">STANDARD</button>
-              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="formal">FORMAL</button>
-              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="direct">DIRECT</button>
-              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="warm">WARM</button>
-              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="concise">CONCISE</button>
-            </div>
-            <div class="vr-current hidden" id="voice-current-summary"></div>
-            <textarea id="voice-summary-draft" class="voice-summary-draft" placeholder="A drafted summary will appear here."></textarea>
-            <div class="vr-row">
-              <button class="icon-btn" type="button" data-action="voiceRegenSummary">↻ REWORD</button>
-              <button class="add-btn vr-apply" type="button" data-action="voiceApplySummary">USE THIS SUMMARY</button>
-            </div>
-          </div>
-          <div class="vr-block">
-            <div class="vr-label">DETECTED SKILLS <span>· tap to keep or drop</span></div>
-            <div class="voice-skill-chips" id="voice-skill-chips"></div>
-            <button class="add-btn vr-apply" type="button" data-action="voiceApplySkills">ADD SELECTED SKILLS</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="section-group"><span>Resume</span><i></i></div>
 
@@ -229,6 +190,7 @@
           <button class="mic-btn" type="button" data-action="micToggle" data-mic-target="summary" aria-label="Dictate summary" title="Dictate (voice)">🎤</button>
         </div>
         <div class="mic-hint" id="mic-hint-summary" aria-live="polite">LISTENING — TAP MIC TO STOP</div>
+        <div class="field-twin"><kbd class="kbd" data-shortcut="mod+shift+s"></kbd><span class="say">“dictate my summary”</span></div>
       </div>
     </div>
 
@@ -329,20 +291,112 @@
       </div>
     </div>
 
+
+    <div class="section-group" id="get-started-group"><span>Bring in what you have</span><i></i>
+      <span class="gs-minis" aria-label="Reopen intake tools">
+        <button class="gs-mini" data-action="gsShowImport">⤓ IMPORT</button>
+        <button class="gs-mini" data-action="gsShowVoice">🎤 VOICE</button>
+      </span>
+      <button class="gs-mini gs-restart" data-action="showOnboarding" title="Back to the start screen">↺ START SCREEN</button>
+    </div>
+
+    <!-- Intake / import existing resume (added feature; doesn't affect numbered sections below) -->
+    <div class="intake-card collapsed" id="intake-card">
+      <div class="intake-header" data-action="toggleIntake">
+        <div class="intake-title"><span class="amber">▶</span> INTAKE / IMPORT EXISTING RESUME <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+i"></kbd><span class="say">“import my resume”</span></span></div>
+        <span class="intake-caret">▼</span>
+      </div>
+      <div class="intake-body">
+        <div class="intake-help">Drop a <code>.pdf</code>, <code>.docx</code> or <code>.txt</code> resume, or paste the text below. We'll parse the section headers (Education, Skills, etc.) and let you confirm what to import before anything is overwritten.</div>
+        <label class="dropzone" id="dropzone" for="import-file">
+          <div class="dz-title">⤓ DROP RESUME HERE</div>
+          <div class="dz-sub">.pdf, .docx or .txt · click to browse</div>
+        </label>
+        <input type="file" id="import-file" accept=".pdf,.txt,.docx,application/pdf,text/plain" class="hidden">
+        <div class="camera-row">
+          <button class="add-btn camera-btn" type="button" data-action="triggerCamera">📷 SCAN WITH PHONE CAMERA</button>
+          <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+        </div>
+        <div class="camera-note hidden" id="camera-note"></div>
+        <div class="camera-preview hidden" id="camera-preview">
+          <div class="cp-status" id="cp-status">Processing image…</div>
+          <img id="cp-image" alt="Captured resume page" class="cp-image">
+          <div class="cp-help" id="cp-help"></div>
+        </div>
+        <div class="paste-block">
+          <label>OR PASTE TEXT</label>
+          <textarea id="import-paste" placeholder="Paste resume text from Word, Google Docs, or a PDF reader…"></textarea>
+          <button class="add-btn" data-action="parseImportText">▶ PARSE PASTED TEXT</button>
+          <label class="ai-toggle" id="ai-parse-row" title="Sends the resume text to this site's AI endpoint for a more accurate read. Nothing is stored.">
+            <input type="checkbox" id="ai-parse-toggle" checked>
+            <span>✦ Read it with AI <em>(more accurate on messy files · text is sent to our server, never stored)</em></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add your voice (optional) — transcribes ~30s of speech to flavor the resume's tone. Audio is never saved. -->
+    <div class="intake-card collapsed" id="voice-card">
+      <div class="intake-header" data-action="toggleVoice">
+        <div class="intake-title"><span class="amber">▶</span> ADD YOUR VOICE (OPTIONAL) <span class="ht-hints"><kbd class="kbd" data-shortcut="mod+shift+u"></kbd><span class="say">“talk it out”</span></span></div>
+        <span class="intake-caret">▼</span>
+      </div>
+      <div class="intake-body">
+        <div class="intake-help">Talk about yourself — your background, strengths, tools you use, and the kind of role you want. We transcribe it right in your browser so the generated resume sounds like <em>you</em> (it shapes the summary's tone) and any real skills you mention can surface in the skills section. Pause when you're done and recording stops automatically. <strong>Your audio is never saved or uploaded</strong> — only the editable text below, and only for this session.<br><span class="intake-help-tip">While dictating you can also say <strong>"new bullet"</strong>, <strong>"scratch that"</strong>, <strong>"period"</strong>, <strong>"comma"</strong>, or <strong>"stop listening"</strong>.</span></div>
+        <div class="voice-controls">
+          <button class="add-btn voice-rec-btn" type="button" data-action="voiceToggle" id="voice-rec-btn" aria-pressed="false">🎤 START RECORDING</button>
+          <span class="voice-meter voice-meter-card" id="voice-meter-card" aria-hidden="true"><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i><i class="vm-bar" data-level="0"></i></span>
+          <span class="voice-status" id="voice-status" aria-live="polite" aria-atomic="true"></span>
+          <button class="icon-btn voice-skip" type="button" data-action="skipVoice">SKIP · I'LL TYPE</button>
+        </div>
+        <textarea id="voice-transcript" class="voice-transcript" placeholder="Your spoken intro appears here — or just type a few sentences about yourself. Edit freely; this shapes tone only, not the facts."></textarea>
+        <div class="voice-actions">
+          <button class="icon-btn" type="button" data-action="clearVoice">CLEAR</button>
+          <button class="add-btn voice-analyze-btn" type="button" id="voice-analyze-btn" data-action="voiceAnalyze">✓ ANALYZE &amp; SUGGEST</button>
+        </div>
+
+        <div class="voice-review hidden" id="voice-review">
+          <div class="vr-block">
+            <div class="vr-label">SUGGESTED SUMMARY <span>· in your voice · editable</span></div>
+            <div class="voice-tone-row" role="tablist" aria-label="Summary tone">
+              <span class="voice-tone-label">TONE</span>
+              <button class="voice-tone-btn selected" type="button" role="tab" aria-selected="true" data-action="voiceSetTone" data-tone="standard">STANDARD</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="formal">FORMAL</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="direct">DIRECT</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="warm">WARM</button>
+              <button class="voice-tone-btn" type="button" role="tab" aria-selected="false" data-action="voiceSetTone" data-tone="concise">CONCISE</button>
+            </div>
+            <div class="vr-current hidden" id="voice-current-summary"></div>
+            <textarea id="voice-summary-draft" class="voice-summary-draft" placeholder="A drafted summary will appear here."></textarea>
+            <div class="vr-row">
+              <button class="icon-btn" type="button" data-action="voiceRegenSummary">↻ REWORD</button>
+              <button class="add-btn vr-apply" type="button" data-action="voiceApplySummary">USE THIS SUMMARY</button>
+            </div>
+          </div>
+          <div class="vr-block">
+            <div class="vr-label">DETECTED SKILLS <span>· tap to keep or drop</span></div>
+            <div class="voice-skill-chips" id="voice-skill-chips"></div>
+            <button class="add-btn vr-apply" type="button" data-action="voiceApplySkills">ADD SELECTED SKILLS</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- RIGHT: PREVIEW -->
   <div class="pane right">
-    <div class="cmd-bar" id="cmd-bar">
-      <div class="cmd-row">
-        <button class="cmd-mic" id="cmd-mic" type="button" data-action="cmdListen" aria-pressed="false" aria-label="Speak a change" title="Speak a change">🎤</button>
-        <input id="cmd-input" type="text" autocomplete="off" aria-label="Tell the resume what to change" placeholder="Say or type a change — “add Excel to my skills”">
-        <button class="toolbar-chip primary" type="button" data-action="cmdSubmit">GO</button>
-        <button class="toolbar-chip" type="button" id="cmd-undo" data-action="cmdUndo" disabled>↶ UNDO</button>
-      </div>
-      <div class="cmd-context" id="cmd-context" hidden>Working in <b id="cmd-context-label"></b> <button class="cmd-context-x" type="button" data-action="cmdClearContext" aria-label="Clear working section">×</button></div>
-      <div class="cmd-preview hidden" id="cmd-preview" aria-live="polite"></div>
-      <details class="cmd-history" id="cmd-history" hidden><summary>Recent changes</summary><ol id="cmd-history-list"></ol></details>
+    <!-- Template selector: layout lives with the preview it changes -->
+    <div class="tpl-select">
+      <label class="tpl-select-label" for="tpl-dropdown">TEMPLATE / LAYOUT <span class="say">“use the compact template”</span></label>
+      <div class="tpl-gallery" id="tpl-gallery" role="radiogroup" aria-label="Template thumbnails"></div>
+      <select class="tpl-dropdown" id="tpl-dropdown" aria-label="Resume template" aria-describedby="tpl-desc">
+        <option value="demo_5">Classic</option>
+        <option value="demo_2">Compact</option>
+        <option value="demo_4">Student</option>
+        <option value="demo_6">Sidebar</option>
+      </select>
+      <div class="tpl-desc" id="tpl-desc"></div>
     </div>
     <div class="preview-header">
       <div class="label">LIVE PREVIEW <span class="amber">●</span></div>

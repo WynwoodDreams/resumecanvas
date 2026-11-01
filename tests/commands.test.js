@@ -167,4 +167,28 @@ if (failures) {
   console.error(`\n${failures} command routing check(s) failed`);
   process.exit(1);
 }
+
+// ── App commands: navigation phrases run at once and never collide with edits
+const APP_CASES = [
+  ["show the preview", "pane_preview"], ["Please show preview", "pane_preview"], ["go to the editor", "pane_edit"],
+  ["show the final review", "pane_final"], ["use the compact template", "template"], ["switch to the sidebar layout", "template"],
+  ["download pdf", "download_pdf"], ["download the Word document", "download_docx"], ["copy as plain text", "copy_text"],
+  ["print", "print"], ["share my resume", "share"], ["open my library", "library"], ["match a job description", "match"],
+  ["turn on ATS safe", "ats_on"], ["turn off ats mode", "ats_off"], ["fit it on one page", "fit_one_page"],
+  ["dark mode", "theme_dark"], ["switch to light theme", "theme_light"], ["dictate my summary", "dictate_summary"],
+  ["talk it out", "voice_intro"], ["import my resume", "import"], ["open import", "import"], ["help", "help"],
+  ["what can I say", "help"], ["listen", "listen"], ["go to the top", "top"], ["start screen", "start_screen"],
+];
+for (const [phrase, action] of APP_CASES) {
+  const r = C.parseAppCommand(phrase);
+  assert(r && r.action === action, `app command “${phrase}” → ${r ? r.action : "null"}, expected ${action}`);
+}
+assert.strictEqual(C.parseAppCommand("use the compact template").arg, "demo_2", "template names map to template ids");
+assert.strictEqual(C.parseAppCommand("pick the classic template").arg, "demo_5", "template names map to template ids");
+// Every resume-edit phrase above must NOT be swallowed by the app parser.
+for (const [phrase] of CASES) {
+  assert.strictEqual(C.parseAppCommand(phrase), null, `edit phrase “${phrase}” must not parse as an app command`);
+}
+console.log(`App commands: ${APP_CASES.length} phrases passed, ${CASES.length} edit phrases kept out`);
+
 console.log(`Command routing: ${CASES.length} phrases passed`);

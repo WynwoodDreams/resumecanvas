@@ -827,6 +827,15 @@ const ACTIONS = {
   cmdUndo: () => cmdUndo(),
   cmdChoose: (btn) => cmdChoose(+btn.dataset.choice),
   cmdClearContext: () => cmdClearContext(),
+  cmdHelp: () => cmdShowHelp(),
+  cmdFocusListen: () => cmdFocusListen(),
+  cmdSuggest: (btn) => cmdUseSuggestion(btn),
+  // Hero voice triggers: the spoken twins live in RcCommands.APP_COMMANDS and
+  // run through cmdRunAppCommand(), so a click, a key and a phrase all land here.
+  heroDictateSummary: () => cmdRunAppCommand({ action: "dictate_summary" }),
+  heroVoiceIntro: () => cmdRunAppCommand({ action: "voice_intro" }),
+  heroImport: () => cmdRunAppCommand({ action: "import" }),
+  heroMatch: () => cmdRunAppCommand({ action: "match" }),
   closeAiModal: () => closeAiModal(),
   closeAiModalBackdrop: (el, ev) => { if (ev.target === el) closeAiModal(); },
   applyAiPolish: () => applyAiPolish(),
