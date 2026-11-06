@@ -33,6 +33,15 @@ Read this before the rest. It overrides the roadmap below where they disagree.
   Vercel (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), can write or read it. To see the list:
   Supabase, Table Editor, `cob_assistant_visitors` (export to CSV from there). See COB's
   README, "The beta gate". This is the first exception to "no database of students" below.
+- **BuildersBench has its own talking agent, Scout (2026-11-06).** `/assistant.html` on
+  BuildersBench is the projects page's agent: a student says the role they want and what they
+  can already do, or pastes a posting, and Scout recommends up to five projects from the
+  catalog, says why each fits and names the gaps, speaking its replies and listening again by
+  itself. It is built on the same engine shape as COB's assistant (`lib/assistant/`,
+  `api/assistant.js`, same gateway and variables) and only knows the catalog; asked for
+  anything else it points to COB for listings and to ResumeCanvas for the résumé. Its beta
+  gate keeps the same three things as COB's, in `bb_assistant_visitors` in the same Supabase
+  project. See BuildersBench's README, "Scout, the projects agent".
 - **Voice is a priority: people should be able to talk to every site.** The owner is building
   the talking part of ResumeCanvas first, and says it is not good enough yet. See
   "Talking to the sites" below.
@@ -58,7 +67,8 @@ The opportunity assistant, which lives in COB (`assistant.html`, `api/assistant.
 - **No accounts, and as little stored about students as possible.** Progress
   (BuildersBench) and resumes (ResumeCanvas) stay in the student's browser. The one
   exception, by the owner's decision on 2026-11-03, is COB's assistant sign-in: a name, an
-  email and the first question, kept in Supabase (see "Current direction"). Nothing else about
+  email and the first question, kept in Supabase (see "Current direction"); BuildersBench's
+  Scout keeps the same three things the same way (2026-11-06). Nothing else about
   a student is stored on a server, and any site that describes its privacy must say the
   assistant keeps those three things. Storing anything more, or charging for ResumeCanvas,
   is the owner's call, not a coding decision.
@@ -81,7 +91,7 @@ The goal: on every site, a person can speak instead of type, and hear the site a
 |---|---|---|
 | ResumeCanvas | Voice dictation into bullets and the summary, a voice-intro card that turns a spoken introduction into the summary's tone, and a voice/typed command bar that previews each change, reads it back aloud and waits for "yes" (`js/voice.js`, `js/command-bar.js`, `js/commands.js`). **In progress: the owner says it is not there yet.** | Nothing; `vercel.json` already allows `microphone=(self)` |
 | COB | **Speech to text in the assistant** (2026-10-31): a mic button beside Send fills the message box; the visitor checks it and presses Send. Microphone allowed on `/assistant` only, via `security_headers` in `build_data.py` | Spoken replies not built |
-| BuildersBench | **Speech to text** (2026-10-31) in the project search (keeps only the meaningful words) and in Career Match (`public/voice.js`). Microphone allowed site-wide in `vercel.json` | Spoken replies not built |
+| BuildersBench | **Scout, a talking agent on the projects page** (2026-11-06, `/assistant.html`): speech in, spoken replies, hands-free turn-taking (the mic reopens after each reply), one phrase at a time, English or Spanish recognition. The earlier **speech to text** (2026-10-31) in the project search and in Career Match (`public/voice.js`) stays. Microphone allowed site-wide in `vercel.json` | Nothing; spoken replies are built |
 
 Notes for whoever builds this:
 
@@ -115,6 +125,8 @@ What each site accepts from the others. Add a row here whenever you add or chang
 | BuildersBench | `/#path=<id>` | Opens one career path (`ai`, `cloud`, `cs`, `cyber`, `data`, `helpdesk`, `swe`, `tech-it`) | Works; COB links Cloud & DevOps here |
 | BuildersBench | `/#project=<id>` | Opens one project | Works |
 | BuildersBench | `/match.html?q=<posting text>` (or `#q=`) | Prefills Career Match with a job's title, summary and requirements and runs the match | Works (fixed 2026-10-31); COB's "Projects for this role" uses it |
+| BuildersBench | `/assistant.html` | Scout, the projects agent (beta): say or type a role, get the projects to build | Works (2026-11-06) |
+| BuildersBench | `/#q=<text>` | Fills the project search with the text | Works (2026-11-06); Scout's "Search the site instead" uses it |
 | ResumeCanvas | `/?voice=1` | Starts voice dictation | Works |
 | ResumeCanvas | `/#jd=<posting text>` | Opens match mode with the job description filled in | Planned, on hold |
 | ResumeCanvas | `/#add-project=<title + bullets>` | Adds a BuildersBench project to the resume's Projects section | Planned, on hold |
@@ -126,7 +138,7 @@ What each site accepts from the others. Add a row here whenever you add or chang
 | From → To | COB | BuildersBench | ResumeCanvas |
 |---|---|---|---|
 | **COB** | — | Banner on every page; "Projects for this role" on tech-area cards (board and assistant) | None |
-| **BuildersBench** | Hero button, partner card, footer | — | None |
+| **BuildersBench** | Hero button, partner card, footer; Scout's off-topic reply ("listings on COB") | — | Scout's off-topic reply only ("résumé on ResumeCanvas"), 2026-11-06 |
 | **ResumeCanvas** | None | None | — |
 
 ## Roadmap
@@ -142,6 +154,7 @@ until the owner says otherwise (see "Current direction").
 | Speak a message to COB's assistant | COB | Done (2026-10-31) |
 | Hear the assistant's reply read aloud (optional, stoppable) | COB | Not started |
 | Speak a project search or a job into Career Match on BuildersBench | 4Projects | Done (2026-10-31) |
+| A talking agent on BuildersBench's projects page: voice in, spoken replies, hands-free turn-taking (Scout) | 4Projects | Done (2026-11-06) |
 | Voice on COB's board itself (search and filters) | COB | Not started |
 
 ### Fix to an existing link
@@ -159,7 +172,9 @@ until the owner says otherwise (see "Current direction").
 | The assistant has the BuildersBench catalog (id, path, title, skills) and names a project per gap | COB | On hold |
 | "Tailor my resume" on each recommended card, opening ResumeCanvas with `#jd=` | COB | On hold; depends on the pricing decision |
 | "Add to my resume" on each BuildersBench project, opening ResumeCanvas with `#add-project=` | 4Projects, resumecanvas | On hold; depends on the pricing decision |
-| An assistant entry point on BuildersBench and ResumeCanvas that hands the student back to COB's assistant | all three | On hold |
+| An assistant entry point on BuildersBench that hands the student to COB's assistant | 4Projects | Done (2026-11-06): Scout, BuildersBench's own agent, offers COB for listings and ResumeCanvas for the résumé when asked for anything outside the catalog |
+| An assistant entry point on ResumeCanvas that hands the student back to COB's assistant | resumecanvas | On hold |
+| Scout names a project per gap from COB's assistant, and COB's assistant links each gap to a Scout search | COB, 4Projects | On hold |
 
 ## Open questions for the owner
 
@@ -170,8 +185,9 @@ until the owner says otherwise (see "Current direction").
 - What is free and what is paid in ResumeCanvas, and when?
 - What does "talking to the sites" need to do before it is good enough: accuracy, speed,
   spoken replies, languages (Spanish and Haitian Creole are common in South Florida)?
-- Should the assistant eventually run inside BuildersBench and ResumeCanvas, or always hand
-  the student back to COB?
+- BuildersBench now has its own agent (Scout) and COB has the opportunity assistant. Should
+  ResumeCanvas get one too, or always hand the student back to COB? Should the two agents
+  share one voice and one name?
 - One domain for all three, or three separate sites joined by links?
 - Who is the primary audience beyond MDC students: all South Florida students, career
   changers, employers posting featured listings?
