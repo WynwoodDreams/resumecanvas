@@ -2,9 +2,11 @@
 
 Free resume builder for job seekers — live preview, four templates, and full offline support.
 
-Static HTML/CSS/JS app with a live preview and four layouts: Classic, Compact, Student, and Sidebar. Each template carries its own demo resume; selecting a template previews its sample, and once you import or type a student's info, switching templates re-lays-out that same data. Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
+Static HTML/CSS/JS app with a live preview and four layouts: Classic, Compact, Student, and Sidebar. Each template carries its own demo resume; selecting a template previews its sample, and once you import or type a student's info, switching templates re-lays-out that same data. Templates keep skills, contact details and the line under a job title in different shapes (labeled categories or two-column rows; four contact fields or two free-form lines; location or company · city), so a switch carries the shape you were looking at into the one the next template reads (`carryContentAcrossTemplates` in `app.js`). Dynamic add/remove and reordering for skills, education, certifications, projects, and work experience. Per-resume typeface choice (Times, Arial, Calibri) and a manual font size override down to a 10pt floor.
 
-Extras: import an existing resume (.txt/.docx, paste, or phone-camera scan), browser-only voice dictation to shape the summary tone, a local "match against a job description" heat-map, a multi-resume library (drafts + saved) that survives reloads in this browser, and export via real PDF, .doc, print, native share, or a QR contact card.
+Extras: import an existing resume (.txt/.docx, paste, or phone-camera scan), browser-only voice dictation to shape the summary tone, a local "match against a job description" heat-map, a multi-resume library (drafts + saved) that survives reloads in this browser, and export via real PDF, .docx, plain text, print, native share, or a QR contact card.
+
+A resume is brought back on the next launch as soon as it differs from the sample or a blank resume in any way; an untouched sample starts fresh with the start screen. Autosave is written 250 ms after the last change and again when the tab is hidden or closed. If the browser refuses the write (storage full or blocked), the indicator in the top bar says NOT SAVED instead of SAVED.
 
 ## Voice-first layout
 
@@ -43,6 +45,12 @@ Run the dependency-free smoke checks before deploying:
 npm test
 ```
 
+The browser tests drive the real UI (desktop and a phone viewport):
+
+```bash
+npm run test:e2e
+```
+
 ## Deploy
 
 Static site plus one optional serverless function. Vercel auto-detects it; the included `vercel.json` sets the headers and CSP.
@@ -50,6 +58,8 @@ Static site plus one optional serverless function. Vercel auto-detects it; the i
 ### Optional AI assist
 
 `api/ai.js` is a Vercel function that uses the Claude API for two things: reading a messy resume into structured fields ("Read it with AI" in the import card) and tightening bullet wording ("Polish bullets with AI" above the preview). It is off until you set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Without the key the endpoint reports `enabled: false` and the UI hides every AI control, so the app keeps working fully offline. Text is sent only when the user picks an AI action and is never stored. The function uses `claude-opus-5-5` with structured outputs so the response always matches the app's import schema.
+
+The endpoint has no login, so it carries two guards: it refuses POSTs whose `Origin` is another site, and it rate-limits in memory (20 requests an hour per visitor, 300 a day per function instance; override with `AI_MAX_PER_IP_PER_HOUR` and `AI_MAX_PER_DAY`). The counters reset when an instance restarts, so also set a spend limit on the API key itself.
 
 ## Export options
 

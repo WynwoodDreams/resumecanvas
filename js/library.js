@@ -26,9 +26,16 @@ function showSaveIndicator(mode) {
   if (!el || !txt) return;
   clearTimeout(_saveIndicatorTimer);
   el.classList.add("show");
+  el.classList.remove("failed");
   if (mode === "saving") {
     el.classList.add("saving");
     txt.textContent = "SAVING…";
+  } else if (mode === "failed") {
+    // Stays up (no fade timer): the resume is NOT on disk, so say so until a
+    // later save succeeds.
+    el.classList.remove("saving");
+    el.classList.add("failed");
+    txt.textContent = "NOT SAVED — BACK UP FROM THE LIBRARY";
   } else {
     el.classList.remove("saving");
     txt.textContent = "SAVED";
@@ -69,11 +76,15 @@ function defaultResumeName() {
   return "Untitled Resume";
 }
 
+// Returns false when the browser refused the write (storage full, blocked or
+// private mode). In-memory state stays usable; callers that report "saved"
+// must check the result.
 function writeLibrary() {
   try {
     localStorage.setItem(LIBRARY_KEY, JSON.stringify(_library));
+    return true;
   } catch (_err) {
-    // Quota or disabled — fail quiet, in-memory state remains usable.
+    return false;
   }
 }
 
@@ -85,15 +96,23 @@ function persistStateNow() {
     active.state.voice_profile = ""; // spoken intro stays in-session only — never saved
     active.updatedAt = Date.now();
   }
-  writeLibrary();
-  showSaveIndicator("saved");
+  showSaveIndicator(writeLibrary() ? "saved" : "failed");
   updateLibraryPill();
 }
 
 function schedulePersist() {
   showSaveIndicator("saving");
   clearTimeout(_persistTimer);
-  _persistTimer = setTimeout(persistStateNow, 250);
+  _persistTimer = setTimeout(() => { _persistTimer = null; persistStateNow(); }, 250);
+}
+
+// Write a pending (debounced) autosave right now. Called when the page is
+// being hidden or closed.
+function flushPersist() {
+  if (!_persistTimer) return;
+  clearTimeout(_persistTimer);
+  _persistTimer = null;
+  persistStateNow();
 }
 
 // Replace every top-level key in `state` with the values from a fresh snapshot.
@@ -193,10 +212,17 @@ function seedLibrary() {
 // True when the last session's library was brought back on this launch.
 let _restoredDraft = false;
 
-// Does a persisted resume carry real user content (not an untouched sample)?
+// Does a persisted resume carry real user content? Anything that is not
+// byte-for-byte a sample or a blank resume counts. (This used to look only at
+// the name, so a resume started from scratch without a name yet, or a sample
+// edited with "Jane Doe" still on it, was thrown away on the next launch.)
 function resumeHasUserData(r) {
-  const n = r && r.state && typeof r.state.name === "string" ? r.state.name.trim() : "";
-  return n !== "" && n.toLowerCase() !== "jane doe";
+  const s = r && r.state;
+  if (!s || typeof s !== "object") return false;
+  const sig = (st) => demoSignature(Object.assign(JSON.parse(_DEFAULT_STATE_JSON), st));
+  const mine = sig(s);
+  if (mine === sig(blankResumeState())) return false;
+  return !Object.keys(DEMO_SEEDS).some((tpl) => mine === sig(DEMO_SEEDS[tpl]));
 }
 
 function restoreState() {

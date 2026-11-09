@@ -20,8 +20,8 @@
 </head>
 <body>
 
-<!-- First-run onboarding: pick a starting path. Shown on every launch —
-     state intentionally resets to the demo sample each session. -->
+<!-- First-run onboarding: pick a starting path. Shown on launch unless the
+     last session left a resume with real work in it (see restoreState()). -->
 <!-- `hidden` is the no-CSS fallback: initOnboarding() reveals the overlay only
      after confirming the stylesheet applied, so a stale/missing styles.css
      degrades to "no onboarding" instead of an unstyled wall of buttons. -->
@@ -509,7 +509,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
   </div>
 </div>
 
-<!-- Import confirmation modal -->
+<!-- AI polish review modal -->
 <div class="modal-bg" id="ai-modal-bg" data-action="closeAiModalBackdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title" tabindex="-1">
     <div class="modal-h">
@@ -527,6 +527,7 @@ Use the toolbar for quick <span class="amber">.doc</span> and print-to-PDF expor
   </div>
 </div>
 
+<!-- Import confirmation modal -->
 <div class="modal-bg" id="import-modal-bg" data-action="closeImportModalBackdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" tabindex="-1">
     <div class="modal-h">

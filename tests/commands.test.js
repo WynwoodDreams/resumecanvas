@@ -191,4 +191,26 @@ for (const [phrase] of CASES) {
 }
 console.log(`App commands: ${APP_CASES.length} phrases passed, ${CASES.length} edit phrases kept out`);
 
+// Contact commands must change the free-form contact lines too: templates
+// with those lines never print the separate fields.
+{
+  const run = (st, phrase) => {
+    const r = C.parseCommand(phrase, st, null);
+    assert.strictEqual(r.status, "ok", `“${phrase}” should parse`);
+    return C.applyCommand(st, r.cmd).state;
+  };
+  const blank = { name: "A", email: "", phone: "", location: "", linkedin: "", contact_line1: "", contact_line2: "" };
+  let st = run(blank, "change my email to ada@example.com");
+  assert.strictEqual(st.contact_line2, "ada@example.com", "a first email lands on contact line 2");
+  st = run(st, "change my phone number to 305-555-0100");
+  assert.strictEqual(st.contact_line1, "305-555-0100", "a first phone lands on contact line 1");
+  // A different email already on the line (typed there by hand) is replaced, not doubled.
+  const typed = { name: "A", email: "", phone: "", location: "", linkedin: "", contact_line1: "Miami, FL | (305) 555-1234", contact_line2: "old@example.com | linkedin.com/in/a" };
+  st = run(typed, "change my email to new@example.com");
+  assert.strictEqual(st.contact_line2, "new@example.com | linkedin.com/in/a", "an email on the line is swapped in place");
+  st = run(typed, "change my phone number to 786-555-0199");
+  assert.strictEqual(st.contact_line1, "Miami, FL | 786-555-0199", "a phone on the line is swapped in place");
+  console.log("Contact lines: 4 commands kept the free-form lines in step");
+}
+
 console.log(`Command routing: ${CASES.length} phrases passed`);
