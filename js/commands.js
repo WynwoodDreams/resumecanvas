@@ -558,9 +558,27 @@
       case "set_contact": {
         const old = String(st[cmd.field] || "").trim();
         st[cmd.field] = cmd.value;
-        // Templates with free-form contact lines show these values inline.
-        if (old && ["location", "phone", "email", "linkedin"].includes(cmd.field)) {
-          ["contact_line1", "contact_line2"].forEach((k) => { if (st[k] && st[k].includes(old)) st[k] = st[k].split(old).join(cmd.value); });
+        // Templates with free-form contact lines show these values inline, so
+        // the lines must change too: swap the old value where it appears,
+        // else swap whatever value of the same kind is there, else add it.
+        // (With nothing to swap, the command used to change a field those
+        // templates never print, so nothing visible happened.)
+        if (["location", "phone", "email", "linkedin"].includes(cmd.field)) {
+          const LINES = ["contact_line1", "contact_line2"];
+          const KIND = { email: /[\w.+-]+@[\w-]+\.[\w.-]+/, phone: /[+(]?\d[\d\s().-]{5,}\d/, linkedin: /[^\s|]*linkedin[^\s|]*/i }[cmd.field];
+          let done = false;
+          if (old) LINES.forEach((k) => { if (st[k] && st[k].includes(old)) { st[k] = st[k].split(old).join(cmd.value); done = true; } });
+          if (!done && KIND) {
+            for (const k of LINES) {
+              if (st[k] && KIND.test(st[k])) { st[k] = st[k].replace(KIND, () => cmd.value); done = true; break; }
+            }
+          }
+          if (!done) {
+            const k = cmd.field === "location" || cmd.field === "phone" ? "contact_line1" : "contact_line2";
+            st[k] = cmd.field === "location"
+              ? [cmd.value, String(st[k] || "").trim()].filter(Boolean).join(" | ")
+              : [String(st[k] || "").trim(), cmd.value].filter(Boolean).join(" | ");
+          }
         }
         return;
       }

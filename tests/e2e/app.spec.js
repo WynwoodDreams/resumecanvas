@@ -545,3 +545,142 @@ test.describe("voice-first layout", () => {
     await expect(page.locator("body")).not.toHaveClass(/cmd-listening/);
   });
 });
+
+// Regressions found in the 2026-11 review.
+test.describe("review fixes", () => {
+  const SAMPLE = [
+    "Maria Lopez", "maria@example.com | 305-555-0100", "",
+    "EDUCATION", "Miami Dade College — Associate in Arts, 2026", "",
+    "SKILLS", "Python, SQL, Excel", "",
+    "EXPERIENCE", "Cashier, Sunset Groceries   2021 – 2022", "- Served 200 customers a day",
+  ].join("\n");
+
+  test("controls inside a modal work: checkboxes untick and previews open", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /IMPORT WHAT YOU HAVE/ }).click();
+    await page.locator("#import-paste").fill(SAMPLE);
+    await page.getByRole("button", { name: /PARSE PASTED TEXT/ }).click();
+    await expect(page.locator("#import-modal-bg")).toBeVisible();
+    const box = page.locator('#import-preview input[data-import-key="name"]');
+    await expect(box).toBeChecked();
+    await box.click();
+    await expect(box).not.toBeChecked();
+    const details = page.locator("#import-preview details").first();
+    await details.locator("summary").click();
+    await expect(details).toHaveAttribute("open", "");
+    // The unticked name is left out of the import.
+    await page.getByRole("button", { name: "APPLY IMPORT" }).click();
+    await expect(page.locator("#preview")).not.toContainText("Maria Lopez");
+    await expect(page.locator("#preview")).toContainText("Served 200 customers a day");
+  });
+
+  test("RESTORE BACKUP opens the file chooser", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.locator("#library-pill").click();
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: /RESTORE BACKUP/ }).click();
+    await chooser;
+  });
+
+  test("a resume started from scratch survives a reload before it has a name", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    await page.locator('.panel[data-section="summary"] header h2').click();
+    await page.locator("#summary").fill("Ten minutes of careful writing.");
+    await page.waitForTimeout(500); // debounced persist
+    await page.reload();
+    await expect(page.locator("#onboard-bg")).toBeHidden();
+    await expect(page.locator("#summary")).toHaveValue("Ten minutes of careful writing.");
+  });
+
+  test("an untouched sample starts fresh; an edited one (name unchanged) is restored", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.waitForTimeout(500);
+    await page.reload();
+    await expect(page.locator("#onboard-bg")).toBeVisible();
+    // Editing the sample (name left as it is) is real work too.
+    await dismissOnboarding(page);
+    await page.locator('.panel[data-section="summary"] header h2').click();
+    await page.locator("#summary").fill("My own summary on the sample.");
+    await page.waitForTimeout(500);
+    await page.reload();
+    await expect(page.locator("#onboard-bg")).toBeHidden();
+    await expect(page.locator("#preview")).toContainText("My own summary on the sample.");
+  });
+
+  test("skills, contact details and the company line follow the resume across templates", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /START FROM SCRATCH/ }).click();
+    // Typed in the Student template: separate contact fields, skill categories, a job location.
+    await page.locator('[data-bind="name"]').fill("Maria Lopez");
+    await page.locator('[data-bind="location"]').fill("Miami, FL");
+    await page.locator('[data-bind="phone"]').fill("305-555-0100");
+    await page.locator('[data-bind="email"]').fill("maria@example.com");
+    await page.locator('.panel[data-section="skills"] header h2').click();
+    await page.locator('[data-skill-cat="0"][data-field="content"]').fill("Python, SQL, Adobe (Photoshop, Illustrator)");
+    await page.locator('.panel[data-section="experience"] header h2').click();
+    await page.getByRole("button", { name: "+ ADD POSITION" }).click();
+    await page.locator('[data-exp="0"][data-field="title"]').fill("Cashier");
+    await page.locator('[data-exp="0"][data-field="location"]').fill("Sunset Groceries, Miami");
+
+    const preview = page.locator("#preview");
+    for (const tpl of ["demo_2", "demo_5", "demo_6"]) {
+      await page.evaluate((t) => pickTemplate(t), tpl);
+      for (const text of ["maria@example.com", "305-555-0100", "Miami, FL", "Python", "SQL", "Adobe (Photoshop, Illustrator)", "Sunset Groceries, Miami"]) {
+        await expect(preview, `${tpl} shows ${text}`).toContainText(text);
+      }
+    }
+    // Edit the two-column skills in Compact, then go back: the category label
+    // survives and the new skill arrives.
+    await page.evaluate(() => pickTemplate("demo_2"));
+    await page.locator('[data-skill-row="1"][data-field="right"]').fill("Tableau");
+    await page.evaluate(() => pickTemplate("demo_4"));
+    await expect(preview).toContainText("Technical: Python, SQL, Adobe (Photoshop, Illustrator), Tableau");
+    // Contact lines edited in Classic flow back into the separate fields.
+    await page.evaluate(() => pickTemplate("demo_5"));
+    await page.locator('[data-bind="contact_line2"]').fill("maria.lopez@example.com | linkedin.com/in/maria");
+    await page.evaluate(() => pickTemplate("demo_4"));
+    await expect(page.locator('[data-bind="email"]')).toHaveValue("maria.lopez@example.com");
+    await expect(page.locator('[data-bind="linkedin"]')).toHaveValue("linkedin.com/in/maria");
+    await expect(page.locator('[data-bind="phone"]')).toHaveValue("305-555-0100");
+  });
+
+  test("the QR contact card uses the contact lines the template shows", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => pickTemplate("demo_5"));
+    await page.locator('[data-bind="name"]').fill("Maria Lopez");
+    await page.locator('[data-bind="contact_line1"]').fill("Hialeah, FL | (786) 555-0142 | maria@example.com");
+    const vcard = await page.evaluate(() => buildVCard());
+    expect(vcard).toContain("EMAIL;TYPE=INTERNET:maria@example.com");
+    expect(vcard).toContain("TEL;TYPE=CELL:(786) 555-0142");
+    expect(vcard).not.toContain("mymdc.net");
+  });
+
+  test("the Classic PDF puts the company line first, like the preview", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    await page.evaluate(() => pickTemplate("demo_5"));
+    const order = await page.evaluate(() => {
+      const bytes = buildResumePdfBytes();
+      const text = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
+      return [text.indexOf("The Blue House"), text.indexOf("(Intern)")];
+    });
+    expect(order[0]).toBeGreaterThan(0);
+    expect(order[1]).toBeGreaterThan(order[0]);
+  });
+
+  test("match mode counts short tech terms and education", async ({ page }) => {
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const r = await page.evaluate(() => {
+      state.skills_categories = [{ label: "Technical", content: "JavaScript, UX research" }];
+      state.education[0].degree = "Bachelor of Science, Nursing";
+      const m = analyzeMatch("Looking for JS and UX experience. Bachelor degree in nursing required.");
+      return m.missing.map((x) => x.term);
+    });
+    for (const term of ["javascript", "userexperience", "bachelor", "nurs"]) expect(r).not.toContain(term);
+  });
+});

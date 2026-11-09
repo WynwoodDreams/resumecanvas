@@ -992,6 +992,11 @@ let _meterGen = 0; // bumped by stopLevelMeter so an in-flight start() knows it 
 async function startLevelMeter() {
   if (_meterStream || _meterStarting) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  // Android gives the microphone to one consumer at a time: a second stream
+  // opened here for the cosmetic meter can leave speech recognition with no
+  // audio. Skip the live meter there; the bars fall back to their CSS idle
+  // animation (see .voice-wave in styles.css).
+  if (/Android/i.test(navigator.userAgent || "")) return;
   _meterStarting = true;
   try { await startLevelMeterInner(); } finally { _meterStarting = false; }
 }

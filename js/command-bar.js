@@ -397,7 +397,11 @@ function cmdListen() {
     _cmdRec = new Ctor();
     _cmdRec.continuous = false;
     _cmdRec.interimResults = true;
-    _cmdRec.lang = navigator.language || "en-US";
+    // The command grammar is English. With the browser set to another
+    // language the engine would transcribe in that language and nothing
+    // would parse, so commands always listen in English. (Field dictation
+    // keeps the browser's language: see ensureRecognition in voice.js.)
+    _cmdRec.lang = /^en\b/i.test(navigator.language || "") ? navigator.language : "en-US";
     _cmdRec.onresult = (ev) => {
       const input = document.getElementById("cmd-input");
       let interim = "", final = "";
@@ -412,6 +416,9 @@ function cmdListen() {
     _cmdRec.onstart = () => { if (_cmdListening && typeof startLevelMeter === "function") startLevelMeter(); };
     _cmdRec.onerror = (ev) => {
       if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("MIC BLOCKED — CHECK PERMISSIONS");
+      else if (ev.error === "no-speech") toast("DIDN'T HEAR ANYTHING — TAP THE MIC AND TRY AGAIN");
+      else if (ev.error === "audio-capture") toast("NO MICROPHONE FOUND");
+      else if (ev.error === "network") toast("VOICE NEEDS A CONNECTION — TYPE THE CHANGE INSTEAD");
       cmdSetMic(false);
     };
     _cmdRec.onend = () => cmdSetMic(false);

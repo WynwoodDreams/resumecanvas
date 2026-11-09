@@ -220,7 +220,7 @@ function pdfBuildSidebar(doc, cfg, bodyPt, sectionPt, contentW, xLeft, xRight) {
   pdfColHeader(doc, cfg.labels.contact, sectionPt, sideX, sideW);
   doc.setFont("Times-Roman", 9);
   // Emoji icons can't be encoded by the Times/WinAnsi font set, so labels are plain text.
-  [state.phone, state.email, state.location, state.linkedin].filter(Boolean).forEach(line => {
+  [state.phone, state.email, state.location, state.linkedin, ...(state.links || [])].filter(Boolean).forEach(line => {
     doc.wrap(line, sideX, doc._cur.y, sideW);
   });
 
@@ -440,7 +440,7 @@ function pdfRenderEducation(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight
 function pdfRenderSkills(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRight) {
   const cfg = tcfg(tpl);
   if (cfg.skillsMode === "categories") {
-    const cats = (state.skills_categories || []).filter(c => c.label || c.content);
+    const cats = (state.skills_categories || []).filter(c => (c.content || "").trim());
     if (cats.length === 0) return;
     pdfSectionHeader(doc, cfg.labels.skills, sectionPt, tpl);
     doc.setFont("Times-Roman", bodyPt);
@@ -597,6 +597,24 @@ function pdfRenderExperience(doc, bodyPt, sectionPt, tpl, contentW, xLeft, xRigh
 
 function pdfEntryBlock(doc, bodyPt, contentW, xLeft, xRight, entry, tpl, mode) {
   const lineH = bodyPt * 1.2;
+  if (mode === "company_first") {
+    // Classic: "Company | Dates" in bold, the job title in italics under it —
+    // the same order the preview shows. (This used to print title-first.)
+    const head = [entry.company_city || entry.location, entry.date].filter(Boolean).join(" | ");
+    if (head) {
+      doc.setFont("Times-Bold", bodyPt);
+      doc.wrap(head, xLeft, doc._cur.y, contentW);
+    }
+    if (entry.title) {
+      doc.setFont("Times-Italic", bodyPt);
+      doc.ensure(lineH);
+      doc.text(entry.title, xLeft, doc._cur.y);
+      doc.advance(lineH);
+    }
+    doc.setFont("Times-Roman", bodyPt);
+    (entry.bullets || []).filter(Boolean).forEach((b) => doc.bullet(b, xLeft, contentW));
+    return;
+  }
   doc.setFont("Times-Bold", bodyPt);
   doc.ensure(lineH);
   doc.text(entry.title || "", xLeft, doc._cur.y);
@@ -644,10 +662,19 @@ function buildVCard() {
   // Strip any leading "mailto:" or "tel:" the user might have pasted in.
   const clean = (s) => String(s || "").trim().replace(/^(mailto:|tel:)/i, "");
   const name = clean(state.name);
-  const email = clean(state.email) || pickContactPart(state.contact_line2, /[\w.+-]+@[\w.-]+/);
-  const phone = clean(state.phone) || pickContactPart(state.contact_line1, /[+\d][\d().\s-]{7,}/);
-  const location = clean(state.location) || pickContactPart(state.contact_line1, /^[^|()]+/);
-  const linkedin = clean(state.linkedin) || pickContactPart(state.contact_line2, /linkedin\.com\/\S+/i);
+  // Read the contact details from the shape this template shows. A template
+  // with free-form contact lines never edits the four separate fields, so
+  // those can still hold another template's (or the sample's) values.
+  const useLines = tcfg().header === "lines";
+  const both = [state.contact_line1, state.contact_line2].filter(Boolean).join(" | ");
+  const parsed = useLines ? parseContactLines(state.contact_line1, state.contact_line2) : null;
+  const field = (key, re) => useLines
+    ? clean(parsed[key]) || pickContactPart(both, re)
+    : clean(state[key]) || pickContactPart(both, re);
+  const email = field("email", /[\w.+-]+@[\w.-]+/);
+  const phone = field("phone", /[+(\d][\d().\s-]{7,}/);
+  const location = useLines ? clean(parsed.location) : clean(state.location) || pickContactPart(state.contact_line1, /^[^|()]+/);
+  const linkedin = field("linkedin", /linkedin\.com\/\S+/i);
   const url = linkedin && !/^https?:/i.test(linkedin) ? `https://${linkedin}` : linkedin;
   // Naive N field — last name = last token, first = the rest.
   const parts = name.split(/\s+/).filter(Boolean);

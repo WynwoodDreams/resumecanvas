@@ -387,11 +387,15 @@ function setCaseId() {
   $("#caseId").textContent = `${initials}-${tpl}-${new Date().getFullYear().toString().slice(2)}`;
 }
 
+let _toastTimer = null;
 function toast(msg) {
   const t = $("#toast");
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1500);
+  // One timer for the toast: a second message must not be hidden early by
+  // the first message's timeout.
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -886,7 +890,12 @@ document.addEventListener("click", (ev) => {
   if (!actionEl) return;
   const handler = ACTIONS[actionEl.dataset.action];
   if (!handler) return;
-  ev.preventDefault();
+  // Some actions sit on a container (every modal backdrop, the intake header).
+  // A click on a native control inside one — a checkbox, a <details> summary,
+  // a label, a file input opened from code — must keep its default behaviour;
+  // cancelling it left those controls dead inside every modal.
+  const native = ev.target.closest("input, select, textarea, label, summary, a[href]");
+  if (!(native && native !== actionEl && actionEl.contains(native))) ev.preventDefault();
   handler(actionEl, ev);
 });
 
@@ -973,6 +982,140 @@ function updateReorderButtonStates() {
   }).join("");
 })();
 
+// ─────────────────────────────────────────────────────────
+// CARRYING CONTENT BETWEEN TEMPLATES
+// Templates store three things in different shapes: skills (labeled
+// categories vs. two-column rows), contact details (four fields vs. two
+// free-form lines) and the line under a job title (location vs. company ·
+// city). The form only edits the shape the current template shows, so on a
+// switch the shape the user was looking at is carried into the one the next
+// template reads. Without this, skills or contact details typed in one
+// template were missing (or still the sample's) in another.
+// ─────────────────────────────────────────────────────────
+
+// Split "a, b (c, d), e" on commas that are not inside parentheses.
+function splitSkillList(text) {
+  const out = [];
+  let depth = 0, cur = "";
+  for (const ch of String(text || "")) {
+    if (ch === "(") depth += 1;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+  }
+  out.push(cur);
+  return out.map(s => s.trim()).filter(Boolean);
+}
+
+function skillShape(tpl) {
+  const mode = tcfg(tpl).skillsMode;
+  return mode === "categories" || mode === "pipe" ? mode : "rows";
+}
+
+function skillItemsIn(shape) {
+  if (shape === "categories") return (state.skills_categories || []).flatMap(c => splitSkillList(c.content));
+  if (shape === "pipe") return String(state.skills_inline || "").split(/\s*[│|]\s*/).map(s => s.trim()).filter(Boolean);
+  return (state.skills_two_column || []).flatMap(r => [r.left, r.right]).map(s => String(s || "").trim()).filter(Boolean);
+}
+
+function sameItemSet(a, b) {
+  const key = (s) => String(s).trim().toLowerCase();
+  const A = new Set(a.map(key)), B = new Set(b.map(key));
+  return A.size === B.size && [...A].every(k => B.has(k));
+}
+
+function carrySkills(fromTpl, toTpl) {
+  const from = skillShape(fromTpl), to = skillShape(toTpl);
+  if (from === to) return;
+  const key = (s) => String(s).trim().toLowerCase();
+  const seen = new Set();
+  const src = skillItemsIn(from).filter(s => !seen.has(key(s)) && seen.add(key(s)));
+  if (sameItemSet(src, skillItemsIn(to))) return;
+  if (to === "rows") {
+    state.skills_two_column = [];
+    for (let i = 0; i < src.length; i += 2) state.skills_two_column.push({ left: src[i], right: src[i + 1] || "" });
+    if (!state.skills_two_column.length) state.skills_two_column.push({ left: "", right: "" });
+  } else if (to === "pipe") {
+    state.skills_inline = src.join(" │ ");
+  } else {
+    // Keep the user's category labels: drop what is gone, add what is new.
+    const cats = (state.skills_categories || []).map(c => ({ label: c.label, items: splitSkillList(c.content).filter(s => seen.has(key(s))) }));
+    const have = new Set(cats.flatMap(c => c.items.map(key)));
+    const add = src.filter(s => !have.has(key(s)));
+    let kept = cats.filter(c => c.items.length);
+    if (add.length) {
+      if (!kept.length) kept = [{ label: (cats[0] && cats[0].label) || "Skills", items: [] }];
+      kept[0].items.push(...add);
+    }
+    if (!kept.length) kept = [{ label: (cats[0] && cats[0].label) || "Technical", items: [] }];
+    state.skills_categories = kept.map(c => ({ label: c.label, content: c.items.join(", ") }));
+  }
+}
+
+const CONTACT_EMAIL_RE = /^[\w.+-]+@[\w-]+\.[\w.-]+$/;
+const CONTACT_PHONE_RE = /^[+(]?\d[\d\s().+-]{5,}\d$/;
+const CONTACT_URL_RE = /^(?:https?:\/\/|www\.)\S+$|^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/\S*)?$/i;
+
+function splitContactLine(line) {
+  return String(line || "").split(/\s*[|•·│]\s*/).map(s => s.trim()).filter(Boolean);
+}
+
+// Read the two free-form contact lines back into the four structured fields.
+function parseContactLines(line1, line2) {
+  const out = { location: "", phone: "", email: "", linkedin: "", links: [] };
+  const rest = [];
+  for (const part of splitContactLine(line1).concat(splitContactLine(line2))) {
+    if (!out.email && CONTACT_EMAIL_RE.test(part)) out.email = part;
+    else if (!out.linkedin && /linkedin/i.test(part)) out.linkedin = part;
+    else if (!out.phone && CONTACT_PHONE_RE.test(part)) out.phone = part;
+    else if (CONTACT_URL_RE.test(part)) out.links.push(part);
+    else rest.push(part);
+  }
+  out.location = rest.join(" | ");
+  return out;
+}
+
+function structuredContactParts() {
+  return [state.location, state.phone, state.email, state.linkedin, ...(state.links || [])].map(s => String(s || "").trim()).filter(Boolean);
+}
+
+function carryContact(fromTpl, toTpl) {
+  const from = tcfg(fromTpl).header, to = tcfg(toTpl).header;
+  if (from === to) return;
+  const lineParts = splitContactLine(state.contact_line1).concat(splitContactLine(state.contact_line2));
+  const fieldParts = structuredContactParts().flatMap(splitContactLine);
+  if (sameItemSet(lineParts, fieldParts)) return;
+  if (to === "lines") {
+    state.contact_line1 = [state.location, state.phone].map(s => String(s || "").trim()).filter(Boolean).join(" | ");
+    state.contact_line2 = [state.email, state.linkedin, ...(state.links || [])].map(s => String(s || "").trim()).filter(Boolean).join(" | ");
+  } else {
+    const p = parseContactLines(state.contact_line1, state.contact_line2);
+    state.location = p.location;
+    state.phone = p.phone;
+    state.email = p.email;
+    state.linkedin = p.linkedin;
+    state.links = p.links;
+  }
+}
+
+// The Student template shows a job's `location`; the others show
+// `company_city`. Fill whichever the next template reads when it is empty.
+function carryExperienceLine(toTpl) {
+  const want = tcfg(toTpl).expMode === "italic" ? "location" : "company_city";
+  const other = want === "location" ? "company_city" : "location";
+  (state.experience || []).forEach(e => {
+    if (!String(e[want] || "").trim() && String(e[other] || "").trim()) e[want] = e[other];
+  });
+}
+
+const CARRY_KEYS = ["skills_categories", "skills_two_column", "skills_inline", "contact_line1", "contact_line2", "location", "phone", "email", "linkedin", "links", "experience"];
+
+function carryContentAcrossTemplates(fromTpl, toTpl) {
+  if (!TEMPLATES[fromTpl] || !TEMPLATES[toTpl] || fromTpl === toTpl) return;
+  carrySkills(fromTpl, toTpl);
+  carryContact(fromTpl, toTpl);
+  carryExperienceLine(toTpl);
+}
+
 $("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
   const tpl = ev.target.value;
   if (!TEMPLATES[tpl] || tpl === state.template) return;
@@ -989,6 +1132,7 @@ $("#tpl-dropdown") && $("#tpl-dropdown").addEventListener("change", (ev) => {
       voice_profile: state.voice_profile,
     }));
   } else {
+    carryContentAcrossTemplates(state.template, tpl);
     state.template = tpl;
   }
   state.font_pt = null; // reset font choice on template switch — each template has its own default
@@ -1018,7 +1162,8 @@ function previewHtmlForTemplate(tpl) {
     if (usesSidebarLayout(tpl)) return renderSidebarPreviewHtml();
     let html = `<div class="resume-name">${esc(state.name) || "—"}</div>`;
     if (tcfg(tpl).header === "structured") {
-      const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin)].filter(Boolean);
+      const extraLinks = (state.links || []).filter(Boolean).map(linkify).join(" | ");
+      const contactParts = [esc(state.location), esc(state.phone), linkify(state.email), linkify(state.linkedin), extraLinks].filter(Boolean);
       html += `<div class="resume-contact">${contactParts.join(" | ")}</div>`;
     } else {
       const line2 = (state.contact_line2 || "").trim();
@@ -1049,6 +1194,13 @@ function renderTemplateGallery() {
       const seed = DEMO_SEEDS[tpl];
       for (const k of DEMO_CONTENT_KEYS) state[k] = JSON.parse(JSON.stringify(seed[k]));
       try { html = previewHtmlForTemplate(tpl); } finally { for (const k of DEMO_CONTENT_KEYS) state[k] = live[k]; }
+    } else if (tpl !== state.template) {
+      // Show what switching would show: carry the content into this
+      // template's shape for the thumbnail, then put the live state back.
+      const live = {};
+      for (const k of CARRY_KEYS) live[k] = JSON.parse(JSON.stringify(state[k] === undefined ? null : state[k]));
+      carryContentAcrossTemplates(state.template, tpl);
+      try { html = previewHtmlForTemplate(tpl); } finally { for (const k of CARRY_KEYS) state[k] = live[k]; }
     } else {
       html = previewHtmlForTemplate(tpl);
     }
@@ -1265,7 +1417,7 @@ function renderExperiencePreviewHtml(tpl) {
   state.experience.forEach(en => {
     if (c.expMode === "company_first") {
       // demo6: "COMPANY | DATE" line, then job title, then bullets.
-      const head = [en.company_city, en.date].filter(Boolean).join(" | ");
+      const head = [en.company_city || en.location, en.date].filter(Boolean).join(" | ");
       html += `<div class="hl-company">${linkify(head)}</div>`;
       if (en.title) html += `<div class="hl-title">${esc(en.title)}</div>`;
     } else {
@@ -1273,7 +1425,9 @@ function renderExperiencePreviewHtml(tpl) {
       if (c.expMode === "italic") {
         if (en.location) html += `<div class="entry-loc">${linkify(en.location)}</div>`;
       } else {
-        if (en.company_city) html += `<div class="exp-company">${linkify(en.company_city)}</div>`;
+        // Same fallback as the PDF and Word exports, so the preview matches them.
+        const sub = en.company_city || en.location;
+        if (sub) html += `<div class="exp-company">${linkify(sub)}</div>`;
       }
     }
     if (en.bullets && en.bullets.length) {
@@ -1330,6 +1484,7 @@ function renderSidebarPreviewHtml() {
   if (state.email) contactBits.push(`✉ ${linkify(state.email)}`);
   if (state.location) contactBits.push(`📍 ${esc(state.location)}`);
   if (state.linkedin) contactBits.push(`🔗 ${linkify(state.linkedin)}`);
+  (state.links || []).filter(Boolean).forEach(l => contactBits.push(`🔗 ${linkify(l)}`));
   side += contactBits.map(b => `<div class="contact-line">${b}</div>`).join("");
   // Honour the user's ▲/▼ reorder for the two side-column sections (the
   // reorder buttons are enabled for this template, so ignoring the order
@@ -2450,7 +2605,7 @@ const MATCH_SYNONYMS = {
   "negotiated": "negotiate", "negotiating": "negotiate", "negotiation": "negotiate",
   "collaborated": "collaborate", "collaborating": "collaborate", "collaboration": "collaborate", "collaborative": "collaborate",
   "operated": "operate", "operating": "operate", "operation": "operate", "operations": "operate", "operational": "operate",
-  "marketed": "marketing", "marketed": "marketing",
+  "marketed": "marketing",
   "sales": "sale", "selling": "sale", "sold": "sale",
   "served": "serve", "serving": "serve", "service": "serve", "services": "serve",
   "supports": "support", "supporting": "support", "supported": "support",
@@ -2515,6 +2670,10 @@ const MATCH_PHRASES = [
   ["bilingual", "bilingual"],
 ];
 
+// Short tokens worth keeping. "pm" and "ms" are left out on purpose: in a
+// posting they are usually a time of day or a degree.
+const MATCH_SHORT_TERMS = new Set(["js", "ts", "py", "db", "ml", "ai", "ux", "ui", "qa", "hr", "ci", "cd", "c#", "f#"]);
+
 const MATCH_PHRASE_DISPLAY = Object.fromEntries(MATCH_PHRASES.map(([p, n]) => [n, p]));
 
 function matchPreprocess(text) {
@@ -2550,11 +2709,15 @@ function extractMatchTerms(text) {
   const raws = pre.split(/[\s,;:.\/()\[\]{}<>!?"'`~=*•|·–—\-]+/);
   for (const raw of raws) {
     const cleaned = raw.replace(/^[^a-z0-9+#]+|[^a-z0-9+#.]+$/g, "");
-    if (!cleaned || cleaned.length < 3) continue;
+    if (!cleaned) continue;
+    // Two-letter terms are noise except the shorthand that matters on a
+    // posting ("JS", "AI", "UX", "HR", "QA", "C#"); those used to be dropped
+    // here before the synonym table could expand them.
+    if (cleaned.length < 3 && !MATCH_SHORT_TERMS.has(cleaned)) continue;
     if (/^\d+$/.test(cleaned)) continue;
     if (MATCH_STOPWORDS.has(cleaned)) continue;
     const n = normalizeTerm(cleaned);
-    if (!n || n.length < 3 || MATCH_STOPWORDS.has(n)) continue;
+    if (!n || (n.length < 3 && !MATCH_SHORT_TERMS.has(n)) || MATCH_STOPWORDS.has(n)) continue;
     set.add(n);
     freq.set(n, (freq.get(n) || 0) + 1);
     if (!surface.has(n)) {
@@ -2578,11 +2741,17 @@ function resumeSectionTexts() {
     ? state.projects.map(p => `${p.title} ${(p.bullets || []).join(" ")}`).join(" ")
     : "";
   const summaryText = state.summary || "";
+  // Everything else that is printed on the resume counts toward the overall
+  // score too: a degree, coursework, a certification or a custom section
+  // ("Languages") used to be reported as a missing keyword.
+  const eduText = (state.education || []).map(e => `${e.school} ${e.degree} ${e.coursework || ""}`).join(" ");
+  const certText = tcfg().certs ? (state.certifications || []).join(" ") : "";
+  const customText = (state.custom_sections || []).map(s => `${s.title || ""} ${(s.bullets || []).join(" ")}`).join(" ");
   return {
     skills: skillsText,
     experience: `${expText} ${projText}`.trim(),
     summary: summaryText,
-    all: `${summaryText} ${skillsText} ${expText} ${projText}`,
+    all: `${summaryText} ${skillsText} ${expText} ${projText} ${eduText} ${certText} ${customText}`,
   };
 }
 
@@ -2942,6 +3111,7 @@ const MODAL_CLOSERS = {
   "import-modal-bg": closeImportModal,
   "library-modal-bg": closeLibrary,
   "share-modal-bg": closeShareModal,
+  "ai-modal-bg": () => { if (typeof closeAiModal === "function") closeAiModal(); },
 };
 
 let _modalLastFocus = null;
@@ -3021,6 +3191,11 @@ initOnboarding();
 if (typeof aiProbe === "function") aiProbe();
 if (typeof initCommandBar === "function") initCommandBar();
 initCameraCapabilityNote();
+
+// Autosave is debounced; write any pending edit before the tab goes away so
+// the last keystrokes are not lost on a quick close or app switch.
+window.addEventListener("pagehide", flushPersist);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushPersist(); });
 
 // The intro/start screen shows on every launch — always open at the very top
 // instead of a browser-restored mid-page scroll position.

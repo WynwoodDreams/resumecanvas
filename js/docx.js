@@ -155,16 +155,23 @@ function buildDocxBodyXml() {
     },
     skills: () => {
       const mode = cfg.skillsMode;
-      heading(cfg.labels.skills);
+      // The heading goes out only once there is something to put under it
+      // (an empty skills section used to leave a bare heading in the file).
       if (mode === "two_column" || mode === "list") {
         const items = [];
         (state.skills_two_column || []).forEach(r => { if (r.left) items.push(r.left); if (r.right) items.push(r.right); });
         if (!items.length) return;
+        heading(cfg.labels.skills);
         items.forEach(bullet);
-      } else if (mode === "inline") {
+      } else if (mode === "pipe") {
+        if (!(state.skills_inline || "").trim()) return;
+        heading(cfg.labels.skills);
         out.push(dPara(T(state.skills_inline || ""), { after: 40 }));
       } else {
-        (state.skills_categories || []).filter(c => c.label || c.content).forEach(c => {
+        const cats = (state.skills_categories || []).filter(c => (c.content || "").trim());
+        if (!cats.length) return;
+        heading(cfg.labels.skills);
+        cats.forEach(c => {
           out.push(dPara(T(c.label ? c.label + ": " : "", { bold: true }) + T(c.content || ""), { after: 40 }));
         });
       }
@@ -276,11 +283,14 @@ function buildPlainText() {
       });
     },
     skills: () => {
-      H(cfg.labels.skills);
+      const rows = [];
       if (cfg.skillsMode === "two_column" || cfg.skillsMode === "list") {
-        (state.skills_two_column || []).forEach(r => { if (r.left) L.push("- " + r.left); if (r.right) L.push("- " + r.right); });
-      } else if (cfg.skillsMode === "inline") L.push(state.skills_inline || "");
-      else (state.skills_categories || []).forEach(c => { if (c.label || c.content) L.push((c.label ? c.label + ": " : "") + (c.content || "")); });
+        (state.skills_two_column || []).forEach(r => { if (r.left) rows.push("- " + r.left); if (r.right) rows.push("- " + r.right); });
+      } else if (cfg.skillsMode === "pipe") { if ((state.skills_inline || "").trim()) rows.push(state.skills_inline); }
+      else (state.skills_categories || []).forEach(c => { if ((c.content || "").trim()) rows.push((c.label ? c.label + ": " : "") + c.content); });
+      if (!rows.length) return;
+      H(cfg.labels.skills);
+      rows.forEach(r => L.push(r));
     },
     certs: () => { if (!cfg.certs) return; const items = (state.certifications || []).filter(Boolean); if (!items.length) return; H(cfg.labels.certs); items.forEach(c => L.push("- " + c)); },
     projects: () => {

@@ -70,6 +70,46 @@ For each bullet, return an improved version that:
 - stays within one or two lines (max ~25 words).
 If a bullet is already strong, return it unchanged. Return every bullet id you were given, once.`;
 
+// ── Abuse guards ───────────────────────────────────────────────────────────
+// The endpoint spends the deployment's API key and has no login, so it needs
+// a ceiling. Counters live in memory, per function instance: good enough to
+// stop a loop or a casual scraper, not a determined one. A hard budget
+// belongs on the API key itself (see README, "Optional AI assist").
+const PER_IP_PER_HOUR = Number(process.env.AI_MAX_PER_IP_PER_HOUR) || 20;
+const PER_INSTANCE_PER_DAY = Number(process.env.AI_MAX_PER_DAY) || 300;
+const HOUR = 60 * 60 * 1000;
+const _hits = new Map(); // ip -> [timestamps within the last hour]
+let _day = { start: Date.now(), count: 0 };
+
+function clientIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return fwd || (req.socket && req.socket.remoteAddress) || "unknown";
+}
+
+// true when this request is within the limits (and counts it).
+function allowRequest(req, now = Date.now()) {
+  if (now - _day.start > 24 * HOUR) _day = { start: now, count: 0 };
+  if (_day.count >= PER_INSTANCE_PER_DAY) return false;
+  const ip = clientIp(req);
+  const recent = (_hits.get(ip) || []).filter((t) => now - t < HOUR);
+  if (recent.length >= PER_IP_PER_HOUR) { _hits.set(ip, recent); return false; }
+  recent.push(now);
+  _hits.set(ip, recent);
+  _day.count += 1;
+  if (_hits.size > 5000) for (const [k, v] of _hits) if (!v.some((t) => now - t < HOUR)) _hits.delete(k);
+  return true;
+}
+
+// Browsers send Origin on every POST. Another website calling this endpoint
+// from its visitors' browsers is refused; a request with no Origin (not a
+// browser) is left to the rate limit.
+function crossSite(req) {
+  const origin = req.headers.origin;
+  if (!origin) return false;
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase();
+  try { return new URL(origin).host.toLowerCase() !== host; } catch (_e) { return true; }
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -135,6 +175,8 @@ module.exports = async (req, res) => {
   if (req.method === "GET") return json(res, 200, { enabled });
   if (req.method !== "POST") { res.setHeader("Allow", "GET, POST"); return json(res, 405, { error: "method not allowed" }); }
   if (!enabled) return json(res, 503, { error: "AI features are not configured on this deployment" });
+  if (crossSite(req)) return json(res, 403, { error: "This endpoint only serves its own site" });
+  if (!allowRequest(req)) return json(res, 429, { error: "AI limit reached, try again later" });
 
   let body;
   try { body = await readBody(req); } catch (err) {
@@ -156,3 +198,5 @@ module.exports = async (req, res) => {
     return json(res, 500, { error: "AI request failed" });
   }
 };
+// Exposed for tests only.
+module.exports._test = { allowRequest, crossSite, PER_IP_PER_HOUR };

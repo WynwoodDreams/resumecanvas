@@ -1,6 +1,6 @@
 // ResumeCanvas service worker
 // Bump CACHE_VERSION whenever shell files change so old clients refresh.
-const CACHE_VERSION = "rc-v27-2026-11-01-voice-first";
+const CACHE_VERSION = "rc-v28-2026-11-09-fixes";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 
@@ -42,9 +42,22 @@ const SHELL_URLS = [
   "./apple-touch-icon.svg",
 ];
 
+// Needed only for PDF import, and about 1.4 MB together. Cached after the
+// shell and never allowed to fail the install: without them a PDF could not
+// be imported offline unless one had already been imported online.
+const LAZY_URLS = [
+  "./vendor/pdfjs/pdf.min.js",
+  "./vendor/pdfjs/pdf.worker.min.js",
+];
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting())
+    caches.open(SHELL_CACHE).then((cache) =>
+      cache.addAll(SHELL_URLS).then(() => {
+        // Not awaited: the shell is usable as soon as it is cached.
+        Promise.all(LAZY_URLS.map((u) => cache.add(u).catch(() => {})));
+      })
+    ).then(() => self.skipWaiting())
   );
 });
 

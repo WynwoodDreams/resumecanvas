@@ -834,6 +834,8 @@
   .meta-saved.saving { color: var(--amber-soft); }
   .meta-saved .save-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--sage); box-shadow: 0 0 8px rgba(110,140,74,0.55); display: inline-block; }
   .meta-saved.saving .save-dot { background: var(--amber); box-shadow: 0 0 8px rgba(140,120,81,0.55); }
+  .meta-saved.failed { color: var(--red-ink); }
+  .meta-saved.failed .save-dot { background: var(--red); box-shadow: none; }
   .danger-btn { border-color: rgba(242,80,66,0.55) !important; color: var(--red-ink) !important; }
   .danger-btn:hover { border-color: var(--red) !important; background: rgba(242,80,66,0.10) !important; }
 
