@@ -661,20 +661,51 @@ function cmdRenderStatus() {
 }
 
 // ── Hero: compact once the page scrolls (desktop) ─────────────────────────
+// The full hero scrolls with the page. Once the page has scrolled by the
+// difference between the full and the compact height, the hero swaps to the
+// compact bar and pins under the top bar. At exactly that point the compact
+// bar covers the strip the full hero still showed, and the lost height is
+// given back as margin-bottom, so the content below does not move.
+//
+// It must not move: this used to shrink a sticky hero at a fixed scroll
+// offset, which shortened the page, which pulled the scroll position back
+// under the threshold, which expanded the hero again — a visible flicker for
+// as long as the wheel kept turning.
 function cmdInitHeroCompact() {
-  if (!document.getElementById("hero")) return;
+  const hero = document.getElementById("hero");
+  if (!hero) return;
   let compact = false;
+  let fullH = 0, compactH = 0;
+  const narrow = () => window.matchMedia("(max-width: 1100px)").matches;
+  const apply = (on) => {
+    compact = on;
+    document.body.classList.toggle("hero-compact", on);
+    hero.style.marginBottom = on ? `${Math.max(0, fullH - compactH)}px` : "";
+  };
+  // Read both heights in one synchronous pass (no paint in between).
+  const measure = () => {
+    if (narrow()) { if (compact) apply(false); return; }
+    document.body.classList.remove("hero-compact");
+    hero.style.marginBottom = "";
+    fullH = hero.offsetHeight;
+    document.body.classList.add("hero-compact");
+    compactH = hero.offsetHeight;
+    document.body.classList.remove("hero-compact");
+    compact = false;
+    update();
+  };
   const update = () => {
-    if (window.matchMedia("(max-width: 1100px)").matches) { if (compact) { compact = false; document.body.classList.remove("hero-compact"); } return; }
+    if (narrow()) { if (compact) apply(false); return; }
+    // The full hero grows and shrinks (preview card, wrapped suggestions).
+    if (!compact) fullH = hero.offsetHeight;
     const y = window.scrollY || document.documentElement.scrollTop || 0;
-    // Hysteresis: shrinking the hero shortens the page, so expanding again
-    // only at the very top keeps the two states from flip-flopping.
-    const next = compact ? y > 8 : y > 72;
-    if (next !== compact) { compact = next; document.body.classList.toggle("hero-compact", compact); }
+    const next = fullH > compactH && y > fullH - compactH;
+    if (next !== compact) apply(next);
   };
   window.addEventListener("scroll", update, { passive: true });
-  window.addEventListener("resize", update);
-  update();
+  window.addEventListener("resize", measure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  measure();
 }
 
 // ── Wiring ────────────────────────────────────────────────────────────────

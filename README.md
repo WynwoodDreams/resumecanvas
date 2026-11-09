@@ -10,7 +10,7 @@ A resume is brought back on the next launch as soon as it differs from the sampl
 
 ## Voice-first layout
 
-The page is built around one command bar. It sits centered above the editor and the preview, with a live waveform on each side that moves while a microphone is open. Under it: suggestion chips with real commands for the section being edited (a blank marked `…` drops the phrase into the bar with the blank selected), then the voice triggers (dictate summary, talk it out, import a resume, match a job). On desktop the hero sticks to the top and shrinks to the bar plus suggestions once the page scrolls; on phones it is a compact strip above the swipe panes.
+The page is built around one command bar. It sits centered above the editor and the preview, with a live waveform on each side that moves while a microphone is open. Under it: suggestion chips with real commands for the section being edited (a blank marked `…` drops the phrase into the bar with the blank selected), then the voice triggers (dictate summary, talk it out, import a resume, match a job). On desktop the full hero scrolls away with the page and the bar plus suggestions then pin under the top bar (the height the hero gives up is kept as a margin, so the page never shifts under the scroll position); on phones it is a compact strip above the swipe panes.
 
 Keyboard shortcuts and spoken phrases are shown together everywhere one appears: on the rail, on the triggers, on the summary field and on the intake cards. Neither is the advanced path. `mod` is ⌘ on Apple platforms and Ctrl elsewhere.
 

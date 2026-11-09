@@ -1101,12 +1101,12 @@ body.ai-enabled .ai-toggle { display: flex; }
 /* ─────────────────────────────────────────────────────────
    VOICE-FIRST HERO
    The command bar sits centered above both panes, flanked by a live
-   waveform; suggestions and the voice triggers sit under it. Sticky on
-   desktop so the bar is always at hand; once the page scrolls it compacts
-   (body.hero-compact) to the bar + suggestions only.
+   waveform; suggestions and the voice triggers sit under it. On desktop
+   the full hero scrolls away and the bar + suggestions then pin under the
+   top bar (body.hero-compact), so the bar is always at hand.
    ───────────────────────────────────────────────────────── */
 .hero-sentinel { height: 0; }
-.hero { position: sticky; top: 49px; z-index: 36; background: rgba(249,244,239,0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 26px 24px 16px; transition: padding 0.2s ease; }
+.hero { position: relative; z-index: 36; background: rgba(249,244,239,0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 26px 24px 16px; }
 body.theme-dark .hero { background: rgba(28,38,40,0.94); }
 @media (min-width: 1101px) { .hero { margin-left: 84px; } }
 .hero-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -1191,7 +1191,12 @@ body.no-speech [data-needs-speech], body.no-speech .rail-speak, body.no-speech .
 .cmd-help .cmd-help-ex::after { content: "”"; color: var(--text-mute); }
 
 /* Compact: after the page scrolls, keep the bar and suggestions, drop the rest. */
-body.hero-compact .hero { padding: 10px 24px; }
+/* The full hero scrolls away with the page; only the compact bar pins. The
+   height the hero loses is given back as margin-bottom by cmdInitHeroCompact()
+   so nothing below it moves when the state changes. (A sticky hero that
+   changed height moved the page under the scroll position, which flipped the
+   state back: the flicker.) */
+body.hero-compact .hero { position: sticky; top: 49px; padding: 10px 24px; }
 body.hero-compact .hero-title, body.hero-compact .hero-sub, body.hero-compact .hero-triggers { display: none; }
 body.hero-compact .hero-inner { gap: 8px; }
 body.hero-compact .cmd-bar { padding: 8px 10px; }

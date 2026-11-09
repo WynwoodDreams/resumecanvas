@@ -684,3 +684,34 @@ test.describe("review fixes", () => {
     for (const term of ["javascript", "userexperience", "bachelor", "nurs"]) expect(r).not.toContain(term);
   });
 });
+
+test.describe("hero", () => {
+  test("scrolling does not flip the hero back and forth or move the page", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "the hero only compacts on wide screens");
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto("/");
+    await dismissOnboarding(page);
+    const height = () => page.evaluate(() => document.documentElement.scrollHeight);
+    const before = await height();
+    // Every offset the old code bounced on: it compacted at 72px, which
+    // shortened the page and threw the scroll position back to the top.
+    for (const y of [80, 120, 200]) {
+      await page.evaluate((v) => window.scrollTo(0, v), y);
+      await page.waitForTimeout(150);
+      expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(y);
+    }
+    await page.evaluate(() => {
+      window.__flips = 0;
+      new MutationObserver(() => { window.__flips += 1; }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    });
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await page.waitForTimeout(300);
+    await expect(page.locator("body")).toHaveClass(/hero-compact/);
+    expect(await page.evaluate(() => window.__flips)).toBe(1);
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(600);
+    expect(await height()).toBe(before);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator("body")).not.toHaveClass(/hero-compact/);
+    expect(await height()).toBe(before);
+  });
+});
